@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block content %}
+<form action="/run" method="post" id="mainform">
+
+  <div class="panel">
+    <h2>🎲 Παιχνίδι</h2>
+    <div class="grid">
+      <div>
+        <label>Παιχνίδι</label>
+        <select name="game_kind">
+          <option value="public_goods" selected>Public Goods Game (ενεργό)</option>
+          {% for g in game_roadmap %}<option disabled>{{ g }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Rounds</label>
+        <input type="number" name="rounds" value="1500" min="10" max="200000" required
+               oninput="updateEpsilonHints()">
+      </div>
+      <div>
+        <label>MPCR <span class="hint">(marginal per-capita return = r/n· άδειο = default)</span></label>
+        <input type="text" name="mpcr" placeholder="π.χ. 0.5">
+        <span class="epsilon-hint">Καθορίζει πόσο &laquo;αξίζει&raquo; να συνεργαστείς. Πρέπει
+          1/n &lt; MPCR &lt; 1 (κοινωνικό δίλημμα) — άδειο = διαλέγεται αυτόματα ασφαλής τιμή.</span>
+      </div>
+      <div>
+        <label>Seed</label>
+        <input type="number" name="seed" value="0">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>🧩 Roster — πρόσθεσε agents ένα-ένα (το σύνολο υπολογίζεται αυτόματα)</h2>
+    <p class="meta">Σύνολο agents: <span id="agent-total">0</span></p>
+    <div id="rows"></div>
+    <div class="quickadd">
+      {% for kind in kinds %}
+      <button type="button" class="secondary" onclick="addRow('{{ kind }}')">
+        {{ kind_meta[kind].emoji }} + {{ kind_meta[kind].label }}</button>
+      {% endfor %}
+      <button type="button" class="secondary" onclick="addRow('')">+ κενή γραμμή</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>📊 Metrics — τι θέλεις να δεις</h2>
+    <div class="grid">
+      {% for key, label in metric_meta %}
+      <div class="checkrow">
+        <input type="checkbox" name="show_metrics" value="{{ key }}" id="m_{{ key }}" checked>
+        <label for="m_{{ key }}" style="margin:0">{{ label }}</label>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="checkrow">
+      <input type="checkbox" name="compute_nash" id="compute_nash">
+      <label for="compute_nash" style="margin:0">Nash equilibrium (pygambit — μόνο n&le;10)</label>
+    </div>
+    <div class="checkrow">
+      <input type="checkbox" name="compute_phi" id="compute_phi">
+      <label for="compute_phi" style="margin:0">Φ / causal autonomy (μόνο αν υπάρχει markov_brain — αργό, ~15s)</label>
+    </div>
+    <fieldset>
+      <legend>roadmap (όχι ακόμα υλοποιημένα)</legend>
+      {% for m in metric_roadmap %}
+      <div class="checkrow disabled">
+        <input type="checkbox" disabled>
+        <label style="margin:0">{{ m }} <span class="badge todo">TODO</span></label>
+      </div>
+      {% endfor %}
+    </fieldset>
+  </div>
+
+  <div class="panel">
+    <h2>💾 Αποθήκευση</h2>
+    <div class="checkrow">
+      <input type="checkbox" name="record_repo" id="record_repo" checked>
+      <label for="record_repo" style="margin:0">Καταγραφή στο repository-lite (ledger + Smart Filter)</label>
+    </div>
+    <div>
+      <label>Γραμμές αφήγησης στο text-log <span class="hint">(throttle — δεν επηρεάζει το πείραμα,
+        μόνο πόσο αναλυτικό είναι το κείμενο που βλέπεις)</span></label>
+      <input type="number" name="log_lines" value="50" min="5" max="500">
+    </div>
+  </div>
+
+  <button type="submit">▶ Τρέξε το πείραμα</button>
+</form>
+
+<template id="row-template">
+  <div class="rosterrow">
+    <div class="kindpick">
+      <label style="margin-top:0">Είδος</label>
+      <select name="row_kind[]" onchange="updateRowVisibility(this)">
+        <option value="">— κενό —</option>
+        {% for kind in kinds %}<option value="{{ kind }}">{{ kind_meta[kind].emoji }} {{ kind_meta[kind].label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="countpick">
+      <label style="margin-top:0">Πλήθος</label>
+      <input type="number" name="row_count[]" value="1" min="0" max="30" oninput="updateTotals()">
+    </div>
+
+    <div class="kindfield" data-for="classic" style="display:none">
+      <label style="margin-top:0">Strategy</label>
+      <select name="row_classic_strategy[]">
+        {% for s in classic_strategies %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+
+    <div class="kindfield" data-for="fep" style="display:none">
+      <label style="margin-top:0">Reciprocity <span class="hint">(0=εγωιστικός)</span></label>
+      <input type="text" name="row_reciprocity[]" value="0.0">
+    </div>
+
+    <div class="kindfield" data-for="markov_brain" style="display:none">
+      <label style="margin-top:0">Hidden nodes</label>
+      <input type="number" name="row_markov_hidden[]" value="2" min="1" max="6">
+      <label style="margin-top:6px">Evolved genome CID <span class="hint">(προαιρετικό — από το tab
+        Evolutionary)</span></label>
+      <input type="text" name="row_genome_cid[]" placeholder="π.χ. 7bf62b89...">
+    </div>
+
+    <div class="kindfield epsilon-block" data-for="qlearning" style="display:none">
+      <label style="margin-top:0">ε decay / ε min</label>
+      <div style="display:flex; gap:6px">
+        <input type="text" name="row_epsilon_decay[]" value="0.9995" oninput="updateEpsilonHints()">
+        <input type="text" name="row_epsilon_min[]" value="0.02" oninput="updateEpsilonHints()">
+      </div>
+      <span class="epsilon-hint epshint"></span>
+    </div>
+    <div class="kindfield epsilon-block" data-for="dqn" style="display:none">
+      <label style="margin-top:0">ε decay / ε min</label>
+      <div style="display:flex; gap:6px">
+        <input type="text" name="row_epsilon_decay[]" value="0.9995" oninput="updateEpsilonHints()">
+        <input type="text" name="row_epsilon_min[]" value="0.02" oninput="updateEpsilonHints()">
+      </div>
+      <span class="epsilon-hint epshint"></span>
+    </div>
+
+    <button type="button" class="secondary removerow" onclick="removeRow(this)">✕</button>
+  </div>
+</template>
+
+<script>
+function updateRowVisibility(sel) {
+  const row = sel.closest('.rosterrow');
+  const kind = sel.value;
+  row.querySelectorAll('[data-for]').forEach(el => {
+    el.style.display = (el.dataset.for === kind) ? '' : 'none';
+  });
+  updateTotals();
+  updateEpsilonHints();
+}
+function updateTotals() {
+  let total = 0;
+  document.querySelectorAll('.rosterrow').forEach(row => {
+    const kind = row.querySelector('select[name="row_kind[]"]').value;
+    const count = parseInt(row.querySelector('input[name="row_count[]"]').value || '0', 10);
+    if (kind) total += count;
+  });
+  document.getElementById('agent-total').textContent = total;
+}
+function updateEpsilonHints() {
+  const roundsField = document.querySelector('input[name=rounds]');
+  const rounds = parseFloat(roundsField ? roundsField.value : '0') || 0;
+  document.querySelectorAll('.epsilon-block').forEach(block => {
+    const decayInput = block.querySelector('input[name="row_epsilon_decay[]"]');
+    const minInput = block.querySelector('input[name="row_epsilon_min[]"]');
+    const hint = block.querySelector('.epshint');
+    if (!decayInput || !hint) return;
+    const decay = parseFloat(decayInput.value || '0.9995');
+    const emin = parseFloat(minInput.value || '0.02');
+    if (decay > 0 && decay < 1 && emin > 0) {
+      const r = Math.log(emin) / Math.log(decay);
+      const ok = rounds >= r;
+      hint.innerHTML = `χρειάζονται ~${Math.ceil(r)} rounds για ε&rarr;ε_min` +
+        (ok ? ' ✓' : ` ⚠ (έχεις ${rounds})`);
+    }
+  });
+}
+function removeRow(btn) {
+  btn.closest('.rosterrow').remove();
+  updateTotals(); updateEpsilonHints();
+}
+function addRow(prefillKind) {
+  const tmpl = document.getElementById('row-template');
+  const clone = tmpl.content.cloneNode(true);
+  const sel = clone.querySelector('select[name="row_kind[]"]');
+  if (prefillKind) sel.value = prefillKind;
+  document.getElementById('rows').appendChild(clone);
+  const lastRow = document.getElementById('rows').lastElementChild;
+  updateRowVisibility(lastRow.querySelector('select[name="row_kind[]"]'));
+}
+window.addEventListener('DOMContentLoaded', () => {
+  addRow('qlearning'); addRow('dqn'); addRow('fep'); addRow('classic');
+  updateTotals(); updateEpsilonHints();
+});
+</script>
+{% endblock %}

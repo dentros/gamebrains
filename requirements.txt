@@ -1,0 +1,24 @@
+# Phase 1 (core + Public Goods + classic + Q-learning): numpy only.
+numpy>=1.24
+
+# Phase 2 (DQN brain).
+torch
+
+# Phase 3 (FEP / active-inference brain): implemented directly in numpy, no extra package.
+
+# Interop layer (PettingZoo/Gymnasium adapters -> RLlib/MLPro/Stable-Baselines3 for free)
+# + Nash equilibrium detection.
+gymnasium
+pettingzoo
+pygambit
+
+# Later phases (install when we reach them):
+# pyphi is NOT installed from PyPI as-is — see gamebrains/vendor/pyphi/FORK_NOTES.md.
+# The vendored fork lives in gamebrains/vendor/pyphi/; add gamebrains/vendor to sys.path.
+# networkx     # Phase 4 — graph-theoretic metrics (ships as a pyphi/pygambit transitive dep already)
+
+# Repository-lite (Ed25519-signed ledger + content store).
+cryptography
+
+# Web demo UI (gamebrains/webui/).
+flask

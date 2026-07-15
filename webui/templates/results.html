@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="backlink" href="/">&larr; νέο πείραμα</a>
+
+<div class="panel">
+  <h2>📋 Σύνοψη</h2>
+  <p class="meta">
+    <b>{{ game.name }}</b> &middot; n={{ game.n_agents }} &middot; rounds={{ rounds }} &middot;
+    seed={{ seed }} &middot; MPCR={{ game.mpcr }} &middot; cost={{ game.cost }} &middot;
+    event-log: <code>{{ log_path }}</code>
+  </p>
+  <table>
+    <tr>{% for key, label in metric_meta %}{% if key in show_metrics %}<th>{{ label }}</th>{% endif %}{% endfor %}</tr>
+    <tr>{% for key, label in metric_meta %}{% if key in show_metrics %}<td>{{ "%.4f"|format(metrics[key]) }}</td>{% endif %}{% endfor %}</tr>
+  </table>
+  {% if epsilon_hints %}
+  <p class="meta">
+    {% for h in epsilon_hints %}
+      ε ({{ h.kind }}): decay={{ h.decay }} min={{ h.emin }} &rarr; χρειάζονται
+      ~{{ (h.rounds_needed)|round(0, 'ceil')|int }} rounds
+      {% if h.reached %}<span class="badge ok">έφτασε το ε_min</span>{% else %}<span class="badge warn">δεν πρόλαβε</span>{% endif %}
+      &middot;
+    {% endfor %}
+  </p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>📈 Cooperation rate ανά γύρο</h2>
+  {{ chart_svg | safe }}
+</div>
+
+<div class="panel">
+  <h2>🧠 Brain creatures</h2>
+  {% for c in creatures %}
+  <div class="creature" style="border-left: 4px solid {{ c.color }}">
+    <h3><span class="mascot">{{ c.emoji }}</span> {{ c.name }} <span class="kindtag">{{ c.kind }}</span> <span class="kindtag">{{ c.mode }}</span></h3>
+    {{ c.body | safe }}
+  </div>
+  {% endfor %}
+</div>
+
+{% if genome_cids %}
+<div class="panel">
+  <h2>🧬 Evolved genomes από αυτό το match</h2>
+  <p class="meta">Πρόσθεσε αυτό το CID σε μια γραμμή markov_brain (νέο match) για να ξαναχρησιμοποιήσεις αυτό το γονίδιο, αντί για τυχαία αρχικοποίηση.</p>
+  <table>
+    <tr><th>Agent</th><th>genome CID</th></tr>
+    {% for g in genome_cids %}<tr><td>{{ g.name }}</td><td><code>{{ g.cid }}</code></td></tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>🏆 Leaderboard</h2>
+  <table>
+    <tr><th>#</th><th>Agent</th><th>Kind</th><th>Cumulative payoff</th></tr>
+    {% for row in leaderboard %}
+    <tr><td>{{ loop.index }}</td><td>{{ row.name }}</td><td>{{ row.kind }}</td>
+        <td>{{ "%+.2f"|format(row.payoff) }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{% if nash_html %}
+<div class="panel">
+  <h2>⚖️ Nash equilibrium (pygambit)</h2>
+  <pre class="console">{{ nash_html }}</pre>
+  {{ nash_explain | safe }}
+</div>
+{% endif %}
+
+{% if phi_info %}
+<div class="panel">
+  <h2>🌀 Φ (integrated information) &amp; causal autonomy</h2>
+  <p class="meta">agent: {{ phi_info.agent }}</p>
+  <table>
+    <tr><th>Φ</th><th>causal autonomy (bits)</th></tr>
+    <tr><td>{{ "%.4f"|format(phi_info.phi) }}</td><td>{{ "%.4f"|format(phi_info.autonomy) }}</td></tr>
+  </table>
+</div>
+{% endif %}
+
+{% if repo_info %}
+<div class="panel">
+  <h2>🔗 Repository (blockchain-lite ledger)</h2>
+  <table>
+    <tr><th>config_hash</th><td><code>{{ repo_info.config_hash }}</code></td></tr>
+    <tr><th>content_cid</th><td><code>{{ repo_info.content_cid }}</code></td></tr>
+    <tr><th>contributor</th><td><code>{{ repo_info.contributor }}</code></td></tr>
+    <tr><th>υπογραφή</th><td>
+      {% if repo_info.signature_valid %}<span class="badge ok">&#10003; valid Ed25519</span>
+      {% else %}<span class="badge warn">invalid</span>{% endif %}
+    </td></tr>
+    <tr><th>lineage</th><td>{{ repo_info.lineage }}</td></tr>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>🔍 Smart Filter</h2>
+  {% if filter_info.exact %}
+    <p><span class="badge ok">exact match βρέθηκε</span> — ίδιο config_hash/seed/rounds ήδη υπήρχε
+    (<code>{{ filter_info.exact.content_cid[:12] }}...</code>) — θεωρητικά θα μπορούσαμε να
+    παραλείψουμε το rerun.</p>
+  {% else %}
+    <p><span class="badge warn">όχι exact match</span> — νέος συνδυασμός config/seed/rounds.</p>
+  {% endif %}
+  {% if filter_info.similar %}
+  <table>
+    <tr><th>content_cid</th><th>config_hash</th><th>rounds</th><th>seed</th>
+        <th>cooperation_rate</th><th>απόσταση</th></tr>
+    {% for s in filter_info.similar %}
+    <tr>
+      <td><code>{{ s.content_cid }}...</code></td><td><code>{{ s.config_hash }}...</code></td>
+      <td>{{ s.rounds }}</td><td>{{ s.seed }}</td>
+      <td>{{ "%.3f"|format(s.cooperation_rate) if s.cooperation_rate is not none else "-" }}</td>
+      <td>{{ "%.1f"|format(s.distance) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="meta">Δεν υπάρχουν ακόμα προηγούμενα πειράματα στο repository για σύγκριση.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>📜 Text log (αφήγηση γύρο-προς-γύρο)</h2>
+  <pre class="console">{{ console_log }}</pre>
+</div>
+
+{% endblock %}

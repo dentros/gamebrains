@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="backlink" href="/evolve">&larr; νέα εξέλιξη</a>
+
+<div class="panel">
+  <h2>📋 Σύνοψη εξέλιξης</h2>
+  <p class="meta">
+    population={{ cfg.population_size }} &middot; generations={{ cfg.generations }} &middot;
+    match_rounds={{ cfg.match_rounds }} &middot; n_hidden={{ cfg.n_hidden }} &middot;
+    n_agents={{ n_agents }} &middot; seed={{ cfg.seed }}
+  </p>
+  <table>
+    <tr><th>Best fitness</th><th>Avg fitness</th></tr>
+    <tr><td>{{ "%.3f"|format(best_fitness) }}</td><td>{{ "%.3f"|format(avg_fitness) }}</td></tr>
+  </table>
+  <p class="meta">Το fitness = μέση απόδοση (payoff) από self-play matches. Σε ένα Public Goods
+    Game με κοινωνικό δίλημμα, η θεωρία/τα άλλα paradigms (RL, Nash) προβλέπουν σύγκλιση προς
+    ~0 (universal defection) — βλ. tab Match &rarr; Nash equilibrium για σύγκριση.</p>
+</div>
+
+<div class="panel">
+  <h2>📈 Fitness ανά γενιά</h2>
+  {{ fitness_svg | safe }}
+</div>
+
+{% if phi_info %}
+<div class="panel">
+  <h2>🌀 Φ &amp; causal autonomy (καλύτερο evolved genome)</h2>
+  <table>
+    <tr><th>Φ</th><th>causal autonomy (bits)</th><th>max δυνατό (bits)</th></tr>
+    <tr><td>{{ "%.4f"|format(phi_info.phi) }}</td><td>{{ "%.4f"|format(phi_info.autonomy) }}</td>
+        <td>{{ phi_info.max_autonomy }}</td></tr>
+  </table>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>🧬 Genome hand-off</h2>
+  <p class="meta">CID του καλύτερου evolved genome (χρησιμοποίησέ το σε μια γραμμή markov_brain στο
+    tab &laquo;Match&raquo; — Mode 2):</p>
+  <p><code>{{ genome_cid }}</code></p>
+</div>
+
+{% if bakeoff %}
+<div class="panel">
+  <h2>⚔️ Bake-off — evaluation match (όλα frozen/fresh, κανείς δεν μαθαίνει κατά τη σύγκριση)</h2>
+  <p class="meta">roster: {{ bakeoff.kinds | join(', ') }} &middot;
+    pretrain_rounds={{ bakeoff.pretrain_rounds }} &middot; eval_rounds={{ bakeoff.eval_rounds }}
+    &middot; cooperation_rate={{ "%.3f"|format(bakeoff.cooperation_rate) }}</p>
+  <table>
+    <tr><th>#</th><th>Agent</th><th>Kind</th><th>Payoff (evaluation match)</th></tr>
+    {% for row in bakeoff.leaderboard %}
+    <tr><td>{{ loop.index }}</td><td>{{ row.name }}</td><td>{{ row.kind }}</td>
+        <td>{{ "%+.2f"|format(row.payoff) }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>📜 Text log (γενιά-προς-γενιά)</h2>
+  <pre class="console">{{ evo_log }}</pre>
+</div>
+{% endblock %}

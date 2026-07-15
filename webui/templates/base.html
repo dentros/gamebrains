@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<title>GameBrains — demo</title>
+<style>
+  :root {
+    --bg: #14121f; --panel: #1e1a30; --panel2: #241f3a; --border: #3a3255; --text: #eee6ff;
+    --muted: #a89bd0; --accent: #2ecc71; --accent2: #ff6b81; --link: #7fd6ff; --gold: #ffd166;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: radial-gradient(circle at 20% 0%, #241f3a 0%, #14121f 60%);
+    color: var(--text); font-family: -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.45;
+  }
+  header.top {
+    padding: 16px 28px; border-bottom: 2px solid var(--border);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  header.top h1 { font-size: 22px; margin: 0; }
+  header.top span.tag { color: var(--muted); font-size: 12.5px; }
+  nav.tabs { margin-left: auto; display: flex; gap: 10px; }
+  nav.tabs a {
+    color: var(--text); text-decoration: none; padding: 6px 14px; border-radius: 999px;
+    background: var(--panel2); border: 1px solid var(--border); font-size: 13px;
+  }
+  nav.tabs a:hover { border-color: var(--accent); }
+  main { max-width: 1120px; margin: 0 auto; padding: 22px 28px 70px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 2px 14px #0004;
+  }
+  .panel h2 {
+    margin: 0 0 12px; font-size: 14px; color: var(--gold); letter-spacing: .04em;
+    text-transform: uppercase; display: flex; align-items: center; gap: 8px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  label { display: block; font-size: 12.5px; color: var(--muted); margin: 10px 0 4px; }
+  label .hint { font-style: italic; color: #7a6ea8; }
+  input[type=number], input[type=text], select {
+    width: 100%; padding: 7px 9px; border-radius: 7px; border: 1px solid var(--border);
+    background: #100e1c; color: var(--text); font-size: 14px;
+  }
+  select:disabled, option:disabled { color: #665f80; }
+  fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-top: 14px; }
+  legend { color: var(--muted); font-size: 11.5px; text-transform: uppercase; padding: 0 6px; }
+  .checkrow { display: flex; align-items: center; gap: 8px; margin: 9px 0; }
+  .checkrow input { width: auto; }
+  .checkrow.disabled { opacity: .45; }
+  button, .btn {
+    background: linear-gradient(135deg, var(--accent), #22a55c); color: #06210f; border: none;
+    border-radius: 10px; padding: 11px 20px; font-size: 15px; font-weight: 700; cursor: pointer;
+    margin-top: 6px; box-shadow: 0 2px 8px #2ecc7155;
+  }
+  button:hover, .btn:hover { filter: brightness(1.08); }
+  button.secondary, .btn.secondary {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    box-shadow: none; font-weight: 500; font-size: 13px; padding: 7px 14px;
+  }
+  button.danger { background: linear-gradient(135deg, var(--accent2), #c0392b); color: #2a0000; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 4px 8px; text-align: center; border: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; }
+  .qtable td.pick { color: var(--accent); font-weight: 700; text-align: left; border: none; }
+  .creature {
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;
+    background: var(--panel2);
+  }
+  .creature h3 { margin: 0 0 8px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .creature .mascot { font-size: 22px; }
+  .creature .kindtag {
+    display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px;
+    background: #100e1c; color: var(--link); text-transform: uppercase; border: 1px solid var(--border);
+  }
+  .meta { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+  .rule { font-size: 14px; }
+  .beliefs .barrow { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
+  .beliefs .lab { width: 90px; color: var(--muted); text-align: right; }
+  .beliefs .bar { flex: 1; background: #100e1c; border-radius: 4px; height: 12px; overflow: hidden; }
+  .beliefs .fill { display: block; height: 100%; background: var(--link); }
+  .beliefs .val { width: 36px; color: var(--muted); }
+  .mbrain .bit {
+    display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center;
+    margin: 0 3px 3px 0; border-radius: 6px; font-size: 12px; font-weight: 700;
+  }
+  .mbrain .bit.sensor { border: 2px solid var(--link); }
+  .mbrain .bit.hidden { border: 2px solid var(--muted); }
+  .mbrain .bit.motor { border: 2px solid var(--accent); }
+  .mbrain .bit.on { background: #1f5c37; }
+  .mbrain .bit.off { background: #100e1c; }
+  .legend { font-style: italic; }
+  .dqnnet { margin: 8px 0; }
+  .netlayer { display: flex; align-items: center; gap: 4px; margin: 4px 0; flex-wrap: wrap; }
+  .netlabel { width: 150px; color: var(--muted); font-size: 11.5px; flex-shrink: 0; }
+  .neuron {
+    display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid #0006;
+  }
+  .moretag { color: var(--muted); font-size: 11px; margin-left: 4px; }
+  details.explain {
+    margin-top: 10px; background: #100e1c; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; font-size: 13px;
+  }
+  details.explain summary { cursor: pointer; color: var(--gold); font-size: 12.5px; }
+  details.explain p { margin: 8px 0 0; }
+  pre.console {
+    background: #0a0812; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+    max-height: 420px; overflow: auto; font-size: 12.5px; white-space: pre-wrap;
+  }
+  .coopchart { width: 100%; height: 140px; background: #0a0812; border-radius: 10px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; }
+  .badge.ok { background: #1f5c37; color: #baffcf; }
+  .badge.warn { background: #5c3a1f; color: #ffd9ba; }
+  .badge.todo { background: #2a2440; color: #9a8fc0; border: 1px dashed var(--border); }
+  code { background: #100e1c; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  a { color: var(--link); }
+  .backlink { display: inline-block; margin-bottom: 16px; }
+  .rosterrow {
+    display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; padding: 10px;
+    border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; background: #100e1c66;
+  }
+  .rosterrow .kindpick { min-width: 170px; }
+  .rosterrow .countpick { width: 80px; }
+  .rosterrow .kindfield { min-width: 140px; }
+  .rosterrow .removerow { align-self: center; }
+  .epsilon-hint { font-size: 11px; color: var(--muted); display: block; margin-top: 2px; }
+  #agent-total { color: var(--accent); font-weight: 700; }
+  .quickadd { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>🧠 GameBrains</h1>
+  <span class="tag">demo interface — πρώτο βήμα προς το gamified &laquo;houses&raquo; UI (Horsey-style)</span>
+  <nav class="tabs">
+    <a href="/">🎮 Match</a>
+    <a href="/evolve">🧬 Evolutionary</a>
+  </nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

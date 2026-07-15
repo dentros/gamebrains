@@ -1,0 +1,24 @@
+# Virtual environment (dedicated venv, not committed -- see requirements.txt)
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Per-run artifacts (event-logs, evolutionary run logs, ad hoc plots) -- not source, regenerable
+results/*.jsonl
+results/*.png
+
+# Local repository-lite state: content-addressed objects, signed ledger, and -- critically --
+# the auto-generated Ed25519 PRIVATE KEY. This is a real private key even though the signing
+# scheme is explicitly "lite"/local; it must never be committed.
+repo_store/
+
+# LaTeX/paper-figure build byproducts, if ever run from inside this tree
+*.aux
+*.log
+*.out
+
+# OS cruft
+.DS_Store
+Thumbs.db

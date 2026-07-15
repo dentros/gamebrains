@@ -37,7 +37,9 @@ from ..games.public_goods import PublicGoodsGame
 from ..metrics import equilibrium, social
 from ..repository.cas import ContentStore
 from ..repository.ledger import Ledger
-from ..repository.record import _config_game_desc, _feature_vector, _roster_description, record_experiment
+from ..repository.record import (
+    DEFAULT_CODE_VERSION, _config_game_desc, _feature_vector, _roster_description, record_experiment,
+)
 from ..repository.smart_filter import lookup as smart_filter_lookup
 
 app = Flask(__name__)
@@ -530,8 +532,8 @@ def run():
         roster_desc = _roster_description(roster)
         feature_vector = _feature_vector(game, roster, rounds)
         ledger = Ledger(_REPO_ROOT)
-        raw_hits = smart_filter_lookup(ledger, game_desc, roster_desc, "dev-webui", rounds, seed,
-                                       feature_vector, k=5)
+        raw_hits = smart_filter_lookup(ledger, game_desc, roster_desc, DEFAULT_CODE_VERSION, rounds,
+                                       seed, feature_vector, k=5)
         filter_info = {
             "exact": raw_hits["exact"],
             "similar": [
@@ -542,7 +544,7 @@ def run():
             ],
         }
         record = record_experiment(_REPO_ROOT, game, roster, log_path, rounds=rounds, seed=seed,
-                                   metrics=metrics, code_version="dev-webui")
+                                   metrics=metrics, code_version=DEFAULT_CODE_VERSION)
         lineage_bits = [k for k, v in record["lineage"].items() if v]
         repo_info = {
             "config_hash": record["config_hash"], "content_cid": record["content_cid"],

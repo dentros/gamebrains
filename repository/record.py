@@ -9,6 +9,7 @@ run_honey_jar.py, ...) can call the same one function.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -22,9 +23,23 @@ from .ledger import Ledger
 # Fixed kind order for the feature_vector's per-kind counts (see docs/repository-schema.md §3).
 _KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic"]
 
-# Placeholder until the repo is git-initialized and made public (a planned, separate step);
-# switch this to the real commit hash once that happens.
-DEFAULT_CODE_VERSION = "dev-nogit"
+
+def _git_code_version() -> str:
+    """`git:<short-hash>` of whatever commit is actually checked out, computed fresh each call
+    (not hardcoded) so it never goes stale as the repo (now public: github.com/dentros/gamebrains)
+    keeps moving. Falls back to "dev-nogit" for a non-git checkout (e.g. a plain zip/pip install
+    with no .git directory) rather than failing the whole recording step over it."""
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=Path(__file__).resolve().parent,
+            capture_output=True, text=True, timeout=5, check=True,
+        )
+        return f"git:{out.stdout.strip()}"
+    except Exception:
+        return "dev-nogit"
+
+
+DEFAULT_CODE_VERSION = _git_code_version()
 
 
 def _roster_description(roster: list[Agent]) -> list[dict[str, Any]]:

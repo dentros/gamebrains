@@ -44,6 +44,12 @@ from ..repository.smart_filter import lookup as smart_filter_lookup
 
 app = Flask(__name__)
 
+
+@app.context_processor
+def _inject_active_tab():
+    return {"active_tab": "evolve" if request.path.startswith("/evolve") else "match"}
+
+
 _GAMEBRAINS_ROOT = Path(__file__).resolve().parents[1]
 _RESULTS_DIR = _GAMEBRAINS_ROOT / "results"
 _REPO_ROOT = _GAMEBRAINS_ROOT / "repo_store"
@@ -51,15 +57,16 @@ _REPO_ROOT = _GAMEBRAINS_ROOT / "repo_store"
 _CLASSIC_STRATEGIES = ["AllC", "AllD", "Random", "MajorityTFT"]
 _NASH_MAX_AGENTS = 10  # enumpure_solve builds a 2^n table -- keep this bounded in a web request
 
-# One badge per cognitive architecture -- shared between the roster builder and the results
-# page so a "kind" always looks the same wherever it appears. Purely cosmetic (§CLAUDE.md's
-# "gamified & cute on top" goal); the technical kind name is always shown alongside it.
+# One "player piece" (glyph + colour) per cognitive architecture -- shared between the roster
+# builder and the results page so a "kind" always looks the same wherever it appears. The colour
+# matches the --piece-<kind> CSS custom property in base.html; the glyph matches an <symbol id=
+# "glyph-<kind>"> defined there. The technical kind name is always shown alongside it.
 KIND_META = {
-    "qlearning":    {"emoji": "\U0001f423", "label": "Q-learning",       "color": "#f1c40f"},
-    "dqn":          {"emoji": "\U0001f916", "label": "Deep Q-Network",   "color": "#3498db"},
-    "fep":          {"emoji": "\U0001f52e", "label": "FEP / Active Inference", "color": "#9b59b6"},
-    "markov_brain": {"emoji": "\U0001f9ec", "label": "Markov-brain (evolutionary)", "color": "#2ecc71"},
-    "classic":      {"emoji": "\U0001f4cf", "label": "Classic (fixed)",  "color": "#e67e22"},
+    "qlearning":    {"glyph": "glyph-qlearning", "label": "Q-learning",       "color": "#3d6b8a"},
+    "dqn":          {"glyph": "glyph-dqn",       "label": "Deep Q-Network",   "color": "#7a4a8a"},
+    "fep":          {"glyph": "glyph-fep",       "label": "FEP / Active Inference", "color": "#6b8a3d"},
+    "markov_brain": {"glyph": "glyph-markov_brain", "label": "Markov-brain (evolutionary)", "color": "#b5541f"},
+    "classic":      {"glyph": "glyph-classic",   "label": "Classic (fixed)",  "color": "#5c5346"},
 }
 _KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic"]
 
@@ -72,12 +79,12 @@ _METRIC_META = [
 # Roadmap placeholders: real code doesn't exist yet (see CLAUDE.md §5) -- shown disabled so the
 # tool itself documents where the platform is going, not just what it does today.
 _METRIC_ROADMAP = [
-    "Transfer Entropy (TODO -- IDTxl/JIDT)",
-    "Mutual Information (TODO -- IDTxl/dit)",
-    "Predictive Information (TODO)",
-    "Graph-theoretic μετρικές (TODO -- networkx)",
+    "Transfer entropy (planned, IDTxl/JIDT)",
+    "Mutual information (planned, IDTxl/dit)",
+    "Predictive information (planned)",
+    "Graph-theoretic metrics (planned, networkx)",
 ]
-_GAME_ROADMAP = ["Honey-Jar Game (πρώην MBoE) -- έρχεται σύντομα"]
+_GAME_ROADMAP = ["Honey-Jar Game, formerly MBoE (coming soon)"]
 
 
 # --- a frozen wrapper for the bake-off (Section /evolve) -----------------------------------------
@@ -254,34 +261,32 @@ def _dqn_network_html(agent: Any) -> str:
     )
     n_params = sum(p.numel() for p in agent.policy.parameters())
     return (f"<div class='dqnnet'>{rows}</div>"
-           f"<p class='meta'>{n_params:,} παράμετροι &middot; κάθε κύκλος = κόμβος εξόδου, "
-           f"χρώμα = μέση |βάρος| εισερχόμενων συνδέσεων (πιο σκούρο = πιο ισχυρό) &mdash; "
-           f"η αρχιτεκτονική του δικτύου, όχι τα παραγόμενα Q-values (βλ. πίνακα από κάτω)</p>")
+           f"<p class='meta'>{n_params:,} parameters. Each circle is an output node; colour is "
+           f"the mean absolute weight of its incoming connections (darker = stronger). "
+           f"This is the network's architecture, not the Q-values it produces (see table below).</p>")
 
 
 _FEP_EXPLAIN = (
-    "<details class='explain'><summary>&#8505; Τι σημαίνει (θεωρία + πράξη)</summary>"
-    "<p><b>Θεωρητικά:</b> ο FEP agent κρατάει μια κατηγορική πίστη (belief) πάνω στο &laquo;πόσοι "
-    "από τους άλλους συνεργάζονται&raquo και την ενημερώνει με ακριβές Bayesian filtering κάθε "
-    "γύρο. Επιλέγει ενέργεια ελαχιστοποιώντας το expected free energy (softmax πάνω στις "
-    "αναμενόμενες αξίες) &mdash; active inference, όχι reward-μεγιστοποίηση με μάθηση όπως το "
+    "<details class='explain'><summary>&#8505; How to read this</summary>"
+    "<p><b>Theory.</b> The FEP agent holds a categorical belief over how many other players are "
+    "cooperating, updated by exact Bayesian filtering each round. It picks an action by minimizing "
+    "expected free energy: a softmax over expected value, not reward-maximizing learning like "
     "Q-learning.</p>"
-    "<p><b>Πρακτικά:</b> οι μπάρες δείχνουν πόσο πιθανό θεωρεί κάθε δυνατό αριθμό συνεργατών· το "
-    "E[others] είναι η προσδοκία της. Το <code>reciprocity</code> ελέγχει πόσο &laquo;κοινωνικός"
-    "&raquo; είναι: 0 = εγωιστικός (μεγιστοποιεί μόνο τη δική του αμοιβή), μεγαλύτερο = προτιμά να "
-    "συνεργάζεται όταν πιστεύει ότι θα συνεργαστούν κι οι άλλοι &mdash; ένα πρώιμο μοντέλο "
-    "Theory-of-Mind: «τι πιστεύω ότι θα κάνουν οι άλλοι, και πώς αλλάζει αυτό τι κάνω εγώ».</p></details>"
+    "<p><b>Reading it.</b> Each bar is the probability the agent assigns to that many cooperators. "
+    "E[others] is the expectation of that distribution. <code>reciprocity</code> controls how "
+    "social the agent is: 0 is purely selfish (maximizes only its own payoff); higher values make "
+    "it prefer cooperating when it believes others will too, a simple Theory-of-Mind rule &mdash; "
+    "what I expect others to do shapes what I do.</p></details>"
 )
 
 _NASH_EXPLAIN = (
-    "<details class='explain'><summary>&#8505; Τι σημαίνει (θεωρία + πράξη)</summary>"
-    "<p><b>Θεωρητικά:</b> υπολογίζεται αναλυτικά (pygambit) πάνω στο <i>μονο-γύρου</i> παιχνίδι: "
-    "ποιο προφίλ ενεργειών είναι σταθερό όταν κανείς δεν έχει κίνητρο να αλλάξει μονομερώς τη "
-    "στρατηγική του, δεδομένων mpcr/cost/n. Δεν λαμβάνει υπόψη επαναλαμβανόμενο παιχνίδι, φήμη, ή "
-    "ό,τι έμαθαν οι πραγματικοί agents.</p>"
-    "<p><b>Πρακτικά:</b> δείχνει πού θα κατέληγε ένας εντελώς ορθολογικός, μονο-γύρου παίκτης. "
-    "Σύγκρινέ το με το πραγματικό cooperation rate του run σου &mdash; αν οι agents σου δεν έχουν "
-    "συγκλίνει ακόμα εκεί (π.χ. λόγω υψηλού ε), σημαίνει ότι χρειάζονται περισσότερα rounds.</p></details>"
+    "<details class='explain'><summary>&#8505; How to read this</summary>"
+    "<p><b>Theory.</b> Computed analytically (via pygambit) on the single-round stage game: which "
+    "action profile is stable when no player benefits from unilaterally deviating, given mpcr/cost/n. "
+    "It ignores repeated-game effects such as reputation and whatever the actual agents learned.</p>"
+    "<p><b>Reading it.</b> This is where a fully rational, one-shot player would end up. Compare it "
+    "with the cooperation rate this run actually reached: if your agents haven't converged there yet "
+    "(e.g. epsilon is still high), they likely need more rounds.</p></details>"
 )
 
 
@@ -295,10 +300,10 @@ def _markov_brain_html(brain: dict) -> str:
     )
     return (f"<div class='mbrain'>{boxes}</div>"
            f"<p class='meta'>sensor={ns} hidden={nh} motor={brain['n_motor']} "
-           f"<span class='legend'>(sensor / hidden / motor)</span> &mdash; στιγμιότυπο της "
-           f"τελικής κατάστασης, ΟΧΙ κάτι που &laquo;έμαθε&raquo; μέσα σε αυτό το match "
-           f"(training_mode=evolutionary: εξελίσσεται μεταξύ generations, όχι εντός ενός match "
-           f"&mdash; βλ. tab &laquo;Evolutionary&raquo;)</p>")
+           f"<span class='legend'>(sensor / hidden / motor)</span>. A snapshot of the final "
+           f"state, not something it learned during this match: training_mode is "
+           f"\"evolutionary\", meaning it evolves between generations, not within a match "
+           f"(see the Evolutionary tab).</p>")
 
 
 def _classic_html(brain: dict) -> str:
@@ -323,9 +328,9 @@ def render_creature(agent: Any) -> dict[str, Any]:
         body = _classic_html(brain)
     else:
         body = f"<pre>{brain}</pre>"
-    meta = KIND_META.get(kind, {"emoji": "❓", "label": kind, "color": "#888"})
+    meta = KIND_META.get(kind, {"glyph": "glyph-classic", "label": kind, "color": "#5c5346"})
     return {"name": agent.name, "kind": kind, "mode": getattr(agent, "training_mode", "?"),
-           "body": body, "emoji": meta["emoji"], "color": meta["color"]}
+           "body": body, "glyph": meta["glyph"], "color": meta["color"]}
 
 
 def _fep_html(brain: dict) -> str:
@@ -409,7 +414,7 @@ def form():
 def run():
     f = request.form
     if f.get("game_kind", "public_goods") != "public_goods":
-        return render_template("error.html", message="Αυτό το παιχνίδι δεν είναι ακόμα υλοποιημένο."), 400
+        return render_template("error.html", message="That game isn't implemented yet."), 400
 
     rounds = int(f.get("rounds", 1500))
     seed = int(f.get("seed", 0))
@@ -439,7 +444,7 @@ def run():
     n_agents = sum(_count(c) for k, c in zip(rows_kind, rows_count) if k)
     if n_agents < 2:
         return render_template("error.html", message=(
-            "Χρειάζονται τουλάχιστον 2 agents συνολικά -- πρόσθεσε γραμμές στο roster.")), 400
+            "You need at least 2 agents in total. Add rows to the roster.")), 400
 
     try:
         game = PublicGoodsGame(n_agents=n_agents, rounds=rounds, mpcr=mpcr)
@@ -460,8 +465,8 @@ def run():
                 agent = _load_genome_agent(gcid.strip(), i, game, seed)
                 if agent is None:
                     return render_template("error.html", message=(
-                        f"Δεν βρέθηκε ή δεν ταιριάζει το genome CID '{gcid.strip()}' "
-                        f"(ίσως εξελίχθηκε για διαφορετικό n_states/n_actions).")), 400
+                        f"Genome CID '{gcid.strip()}' was not found or doesn't match this game "
+                        f"(it may have evolved for a different n_states/n_actions).")), 400
                 roster.append(agent)
             else:
                 roster.append(_make_agent(kind, i, game, seed, strat, float(recip_s or 0.0),
@@ -514,7 +519,7 @@ def run():
             eqs = equilibrium.pure_nash_equilibria(game)
             nash_html = equilibrium.describe_equilibria(game, eqs)
         else:
-            nash_html = f"(παραλείφθηκε -- n_agents>{_NASH_MAX_AGENTS} κάνει 2^n το table)"
+            nash_html = f"(skipped: n_agents > {_NASH_MAX_AGENTS} makes the 2^n table too large)"
 
     phi_info = None
     markov_agents = [a for a in roster if getattr(a, "kind", None) == "markov_brain"]
@@ -550,7 +555,7 @@ def run():
             "config_hash": record["config_hash"], "content_cid": record["content_cid"],
             "contributor": record["contributor"][:16] + "...",
             "signature_valid": Ledger.verify_record(record),
-            "lineage": ", ".join(lineage_bits) if lineage_bits else "κανένα (πρώτο του είδους)",
+            "lineage": ", ".join(lineage_bits) if lineage_bits else "none (first of its kind)",
         }
 
     return render_template(
@@ -664,8 +669,8 @@ def evolve_run():
 
     if cfg.population_size % n_agents != 0:
         return render_template("error.html", message=(
-            f"population_size ({cfg.population_size}) πρέπει να διαιρείται ακριβώς με το "
-            f"n_agents ({n_agents}) -- ο πληθυσμός χωρίζεται σε ομάδες των n_agents ανά match.")), 400
+            f"population_size ({cfg.population_size}) must divide evenly by n_agents "
+            f"({n_agents}) -- the population is split into groups of n_agents per match.")), 400
 
     def game_factory():
         return PublicGoodsGame(n_agents=n_agents, rounds=cfg.match_rounds, mpcr=mpcr)

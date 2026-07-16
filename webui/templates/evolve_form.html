@@ -1,26 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="panel">
-  <h2>🧬 Evolutionary — Markov-brain γενετικός αλγόριθμος</h2>
+  <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg> Evolutionary &mdash; Markov-brain genetic algorithm</h2>
   <p class="meta">
-    Αυτό <b>δεν</b> τρέχει &laquo;ανά γύρο μέσα σε ένα match&raquo; — εξελίσσει έναν <b>πληθυσμό</b>
-    γονιδίων πάνω σε πολλά self-play matches, γενιά προς γενιά (διαφορετική κλίμακα χρόνου από το
-    tab &laquo;Match&raquo;). Στο τέλος μπορείς να ενεργοποιήσεις ένα <b>fair bake-off</b>: κάθε
-    αρχιτεκτονική συγκλίνει ξεχωριστά με τον φυσικό της τρόπο (εξέλιξη για το Markov-brain, self-play
-    pretraining για Q-learning/DQN, τίποτα για FEP/classic αφού δεν έχουν παραμέτρους να
-    προσαρμόσουν μεταξύ matches), μετά όλα παγώνουν και παίζουν ΕΝΑ evaluation match μαζί — έτσι
-    αποφεύγεται το confound της ταυτόχρονης συν-προσαρμογής.
+    This does <b>not</b> run per round inside a single match &mdash; it evolves a
+    <b>population</b> of genomes across many self-play matches, generation by generation (a
+    different timescale from the Match tab). When finished, you can enable a <b>fair bake-off</b>:
+    each architecture converges separately in its own natural way (evolution for the Markov-brain,
+    self-play pretraining for Q-learning/DQN, nothing for FEP/classic since they hold no
+    parameters between matches), then everything is frozen and plays one evaluation match
+    together &mdash; avoiding the confound of simultaneous co-adaptation.
   </p>
 </div>
 
 <form action="/evolve" method="post">
   <div class="panel">
-    <h2>⚙️ Παράμετροι γενετικού αλγορίθμου</h2>
+    <h2><span class="step">1</span>Genetic algorithm parameters</h2>
     <div class="grid">
-      <div><label>Πληθυσμός (population_size)</label><input type="number" name="population_size" value="20" min="2"></div>
-      <div><label>Γενιές (generations) <span class="hint">— σταθερός αριθμός· δεν υπάρχει ακόμα early-stopping σε plateau</span></label><input type="number" name="generations" value="30" min="1"></div>
-      <div><label>Rounds ανά match</label><input type="number" name="match_rounds" value="200" min="10"></div>
-      <div><label>Matches ανά γενιά</label><input type="number" name="matches_per_generation" value="3" min="1"></div>
+      <div><label>Population size</label><input type="number" name="population_size" value="20" min="2"></div>
+      <div><label>Generations <span class="hint">(fixed count &mdash; no plateau-based early stopping yet)</span></label><input type="number" name="generations" value="30" min="1"></div>
+      <div><label>Rounds per match</label><input type="number" name="match_rounds" value="200" min="10"></div>
+      <div><label>Matches per generation</label><input type="number" name="matches_per_generation" value="3" min="1"></div>
       <div><label>Hidden nodes</label><input type="number" name="n_hidden" value="2" min="1" max="6"></div>
       <div><label>Tournament size</label><input type="number" name="tournament_size" value="3" min="2"></div>
       <div><label>Mutation rate</label><input type="text" name="mutation_rate" value="0.15"></div>
@@ -31,42 +31,44 @@
   </div>
 
   <div class="panel">
-    <h2>🎲 Παιχνίδι (self-play)</h2>
+    <h2><span class="step">2</span>Game (self-play)</h2>
     <div class="grid">
-      <div><label>n_agents ανά match <span class="hint">(πρέπει να διαιρεί το population_size)</span></label><input type="number" name="n_agents_evo" value="4" min="2"></div>
-      <div><label>MPCR (άδειο = default)</label><input type="text" name="mpcr" placeholder="π.χ. 0.5"></div>
+      <div><label>Agents per match <span class="hint">(must divide population size)</span></label><input type="number" name="n_agents_evo" value="4" min="2"></div>
+      <div><label>MPCR (blank = default)</label><input type="text" name="mpcr" placeholder="e.g. 0.5"></div>
     </div>
   </div>
 
   <div class="panel">
-    <h2>⚔️ Σύγκριση (bake-off)</h2>
+    <h2><span class="step">3</span>Comparison (bake-off)</h2>
     <div class="checkrow">
       <input type="checkbox" name="bakeoff" id="bakeoff" checked>
-      <label for="bakeoff" style="margin:0">Mode 1: bake-off τελικών — σύγκρινε το evolved genome με frozen Q-learning/DQN + fresh FEP + classic baseline, σε ένα evaluation match</label>
+      <label for="bakeoff" style="margin:0">Mode 1: bake-off of finals &mdash; compare the evolved
+        genome against a frozen, pretrained Q-learner and DQN, a fresh FEP, and a classic
+        baseline, in one evaluation match</label>
     </div>
     <div>
-      <label>Pretraining rounds για Q-learning/DQN <span class="hint">(self-play, ξεχωριστά ο καθένας, πριν παγώσουν)</span></label>
+      <label>Pretraining rounds for Q-learning/DQN <span class="hint">(self-play, each on its own, before freezing)</span></label>
       <input type="number" name="pretrain_rounds" value="4000" min="100">
     </div>
     <div class="checkrow">
       <input type="checkbox" name="compute_phi" id="compute_phi">
-      <label for="compute_phi" style="margin:0">Υπολογισμός Φ / causal autonomy για το καλύτερο evolved genome (αργό)</label>
+      <label for="compute_phi" style="margin:0">Compute &Phi; / causal autonomy for the best evolved genome (slow)</label>
     </div>
     <fieldset>
-      <legend>άλλα modes σύγκρισης</legend>
-      <p class="meta"><b>Mode 2 (evolved genome σε κοινή online-learning παρτίδα):</b> τρέξε αυτό,
-        πάρε το <code>genome CID</code> από τα αποτελέσματα, και βάλτο στο πεδίο &laquo;Evolved
-        genome CID&raquo; μιας γραμμής markov_brain στο tab &laquo;Match&raquo; — θα παίξει μαζί με
-        Q/DQN/FEP που μαθαίνουν κανονικά.</p>
-      <p class="meta"><b>Mode 3 (μαθαίνει μόνο ένας τύπος, οι άλλοι σταθεροί):</b> ήδη εφικτό στο
-        tab &laquo;Match&raquo; χωρίς νέο κώδικα — βάλε roster μόνο με τον τύπο που θες να μάθει +
-        classic/evolved-genome agents ως σταθερό υπόβαθρο.</p>
-      <p class="meta"><span class="badge todo">Mode 4 σημειωμένο, όχι εδώ</span> — εναλλαγή
-        μάθησης/παγώματος ανά φάση μεταξύ παραδειγμάτων· υποψήφιο ερευνητικό ερώτημα για το
-        Theory-of-Mind paper (JAAMAS), όχι demo feature.</p>
+      <legend>Other comparison modes</legend>
+      <p class="meta"><b>Mode 2 (evolved genome in an ordinary online-learning match):</b> run
+        this, take the <code>genome CID</code> from the results, and paste it into a
+        markov_brain row's "Evolved genome CID" field on the Match tab &mdash; it will play
+        alongside Q/DQN/FEP agents that learn normally.</p>
+      <p class="meta"><b>Mode 3 (one kind learns, the rest stay fixed):</b> already possible on
+        the Match tab with no new code &mdash; build a roster with only the kind you want to
+        learn, plus classic/evolved-genome agents as a fixed background.</p>
+      <p class="meta"><span class="badge todo">Mode 4 noted, not here</span> &mdash; alternating
+        learning/frozen phases across paradigms; a candidate research question for the
+        Theory-of-Mind paper, not a demo feature.</p>
     </fieldset>
   </div>
 
-  <button type="submit">▶ Ξεκίνα την εξέλιξη</button>
+  <button type="submit">Start evolving</button>
 </form>
 {% endblock %}

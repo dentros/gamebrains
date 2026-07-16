@@ -3,7 +3,7 @@
 <a class="backlink" href="/evolve">&larr; new evolutionary run</a>
 
 <div class="panel">
-  <h2>Evolution summary</h2>
+  <h2><svg class="glyph"><use href="#glyph-evolve"/></svg>Evolution summary</h2>
   <p class="meta">
     population={{ cfg.population_size }} &middot; generations={{ cfg.generations }} &middot;
     match_rounds={{ cfg.match_rounds }} &middot; n_hidden={{ cfg.n_hidden }} &middot;
@@ -19,13 +19,13 @@
 </div>
 
 <div class="panel">
-  <h2>Fitness by generation</h2>
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Fitness by generation</h2>
   {{ fitness_svg | safe }}
 </div>
 
 {% if phi_info %}
 <div class="panel">
-  <h2>&Phi; &amp; causal autonomy (best evolved genome)</h2>
+  <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>&Phi; &amp; causal autonomy (best evolved genome)</h2>
   <table>
     <tr><th>&Phi;</th><th>Causal autonomy (bits)</th><th>Max possible (bits)</th></tr>
     <tr><td>{{ "%.4f"|format(phi_info.phi) }}</td><td>{{ "%.4f"|format(phi_info.autonomy) }}</td>
@@ -35,14 +35,14 @@
 {% endif %}
 
 <div class="panel">
-  <h2>Genome hand-off</h2>
+  <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>Genome hand-off</h2>
   <p class="meta">CID of the best evolved genome (use it in a markov_brain row on the Match tab, Mode 2):</p>
   <p><code>{{ genome_cid }}</code></p>
 </div>
 
 {% if bakeoff %}
 <div class="panel">
-  <h2>Bake-off: evaluation match (everyone frozen or fresh, no one learns during the comparison)</h2>
+  <h2><svg class="glyph"><use href="#glyph-versus"/></svg>Bake-off: evaluation match (everyone frozen or fresh, no one learns during the comparison)</h2>
   <p class="meta">roster: {{ bakeoff.kinds | join(', ') }} &middot;
     pretrain_rounds={{ bakeoff.pretrain_rounds }} &middot; eval_rounds={{ bakeoff.eval_rounds }}
     &middot; cooperation_rate={{ "%.3f"|format(bakeoff.cooperation_rate) }}</p>
@@ -57,7 +57,7 @@
 {% endif %}
 
 <div class="panel">
-  <h2>Log (generation by generation)</h2>
+  <h2><svg class="glyph"><use href="#glyph-log"/></svg>Log (generation by generation)</h2>
   <pre class="console">{{ evo_log }}</pre>
 </div>
 {% endblock %}

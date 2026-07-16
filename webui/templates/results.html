@@ -3,7 +3,7 @@
 <a class="backlink" href="/">&larr; new experiment</a>
 
 <div class="panel">
-  <h2>Summary</h2>
+  <h2><svg class="glyph"><use href="#glyph-game"/></svg>Summary</h2>
   <p class="meta">
     <b>{{ game.name }}</b> &middot; n={{ game.n_agents }} &middot; rounds={{ rounds }} &middot;
     seed={{ seed }} &middot; MPCR={{ game.mpcr }} &middot; cost={{ game.cost }} &middot;
@@ -26,12 +26,12 @@
 </div>
 
 <div class="panel">
-  <h2>Cooperation rate by round</h2>
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Cooperation rate by round</h2>
   {{ chart_svg | safe }}
 </div>
 
 <div class="panel">
-  <h2>Brain creatures</h2>
+  <h2><svg class="glyph"><use href="#glyph-roster"/></svg>Brain creatures</h2>
   {% for c in creatures %}
   <div class="creature" style="--piece-color: {{ c.color }}">
     <h3><svg class="glyph"><use href="#{{ c.glyph }}"/></svg> {{ c.name }} <span class="kindtag">{{ c.kind }}</span> <span class="kindtag">{{ c.mode }}</span></h3>
@@ -42,7 +42,7 @@
 
 {% if genome_cids %}
 <div class="panel">
-  <h2>Evolved genomes from this match</h2>
+  <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>Evolved genomes from this match</h2>
   <p class="meta">Paste this CID into a markov_brain row's Evolved Genome CID field on a future
     run to reuse this genome instead of a random one.</p>
   <table>
@@ -53,7 +53,7 @@
 {% endif %}
 
 <div class="panel">
-  <h2>Leaderboard</h2>
+  <h2><svg class="glyph"><use href="#glyph-versus"/></svg>Leaderboard</h2>
   <table>
     <tr><th>#</th><th>Agent</th><th>Kind</th><th>Cumulative payoff</th></tr>
     {% for row in leaderboard %}
@@ -65,7 +65,7 @@
 
 {% if nash_html %}
 <div class="panel">
-  <h2>Nash equilibrium (pygambit)</h2>
+  <h2><svg class="glyph"><use href="#glyph-scale"/></svg>Nash equilibrium (pygambit)</h2>
   <pre class="console">{{ nash_html }}</pre>
   {{ nash_explain | safe }}
 </div>
@@ -73,7 +73,7 @@
 
 {% if phi_info %}
 <div class="panel">
-  <h2>&Phi; (integrated information) &amp; causal autonomy</h2>
+  <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>&Phi; (integrated information) &amp; causal autonomy</h2>
   <p class="meta">agent: {{ phi_info.agent }}</p>
   <table>
     <tr><th>&Phi;</th><th>Causal autonomy (bits)</th></tr>
@@ -84,7 +84,7 @@
 
 {% if repo_info %}
 <div class="panel">
-  <h2>Repository (blockchain-lite ledger)</h2>
+  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Repository (blockchain-lite ledger)</h2>
   <table>
     <tr><th>config_hash</th><td><code>{{ repo_info.config_hash }}</code></td></tr>
     <tr><th>content_cid</th><td><code>{{ repo_info.content_cid }}</code></td></tr>
@@ -98,7 +98,7 @@
 </div>
 
 <div class="panel">
-  <h2>Smart Filter</h2>
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Smart Filter</h2>
   {% if filter_info.exact %}
     <p><span class="badge ok">exact match found</span>: the same config/seed/rounds already
     ran (<code>{{ filter_info.exact.content_cid[:12] }}...</code>). In principle this rerun could
@@ -126,7 +126,7 @@
 {% endif %}
 
 <div class="panel">
-  <h2>Log (round by round)</h2>
+  <h2><svg class="glyph"><use href="#glyph-log"/></svg>Log (round by round)</h2>
   <pre class="console">{{ console_log }}</pre>
 </div>
 

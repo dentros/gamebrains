@@ -15,7 +15,7 @@
 
 <form action="/evolve" method="post">
   <div class="panel">
-    <h2><span class="step">1</span>Genetic algorithm parameters</h2>
+    <h2><svg class="glyph"><use href="#glyph-evolve"/></svg><span class="step">1</span>Genetic algorithm parameters</h2>
     <div class="grid">
       <div><label>Population size</label><input type="number" name="population_size" value="20" min="2"></div>
       <div><label>Generations <span class="hint">(fixed count; no plateau-based early stopping yet)</span></label><input type="number" name="generations" value="30" min="1"></div>
@@ -31,7 +31,7 @@
   </div>
 
   <div class="panel">
-    <h2><span class="step">2</span>Game (self-play)</h2>
+    <h2><svg class="glyph"><use href="#glyph-game"/></svg><span class="step">2</span>Game (self-play)</h2>
     <div class="grid">
       <div><label>Agents per match <span class="hint">(must divide population size)</span></label><input type="number" name="n_agents_evo" value="4" min="2"></div>
       <div><label>MPCR (blank = default)</label><input type="text" name="mpcr" placeholder="e.g. 0.5"></div>
@@ -39,7 +39,7 @@
   </div>
 
   <div class="panel">
-    <h2><span class="step">3</span>Comparison (bake-off)</h2>
+    <h2><svg class="glyph"><use href="#glyph-versus"/></svg><span class="step">3</span>Comparison (bake-off)</h2>
     <div class="checkrow">
       <input type="checkbox" name="bakeoff" id="bakeoff" checked>
       <label for="bakeoff" style="margin:0">Mode 1: bake-off of finals. Compares the evolved

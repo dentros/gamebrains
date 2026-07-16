@@ -3,7 +3,7 @@
 <form action="/run" method="post" id="mainform">
 
   <div class="panel">
-    <h2><span class="step">1</span>Game</h2>
+    <h2><svg class="glyph"><use href="#glyph-game"/></svg><span class="step">1</span>Game</h2>
     <div class="grid">
       <div>
         <label>Game</label>
@@ -31,7 +31,7 @@
   </div>
 
   <div class="panel">
-    <h2><span class="step">2</span>Roster: add agents one at a time (the total is computed for you)</h2>
+    <h2><svg class="glyph"><use href="#glyph-roster"/></svg><span class="step">2</span>Roster: add agents one at a time (the total is computed for you)</h2>
     <p class="meta">Total agents: <span id="agent-total">0</span></p>
     <div id="rows"></div>
     <div class="quickadd">
@@ -44,7 +44,7 @@
   </div>
 
   <div class="panel">
-    <h2><span class="step">3</span>Metrics: what to show</h2>
+    <h2><svg class="glyph"><use href="#glyph-metrics"/></svg><span class="step">3</span>Metrics: what to show</h2>
     <div class="grid">
       {% for key, label in metric_meta %}
       <div class="checkrow">
@@ -73,7 +73,7 @@
   </div>
 
   <div class="panel">
-    <h2><span class="step">4</span>Recording</h2>
+    <h2><svg class="glyph"><use href="#glyph-ledger"/></svg><span class="step">4</span>Recording</h2>
     <div class="checkrow">
       <input type="checkbox" name="record_repo" id="record_repo" checked>
       <label for="record_repo" style="margin:0">Record to the repository-lite ledger (+ Smart Filter)</label>

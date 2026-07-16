@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="backlink" href="/">&larr; new experiment</a>
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Batch results: sweeping <code>{{ param }}</code></h2>
+  <p class="meta">Each row is a separate, fully recorded run: same base configuration, one field
+    varied. Use the Repository/Smart Filter tools on the Match tab to dig into any single run by
+    its config_hash or content_cid.</p>
+  {% if chart_svg %}{{ chart_svg | safe }}{% endif %}
+  <table>
+    <tr><th>{{ param }}</th><th>Cooperation rate</th><th>Efficiency</th><th>config_hash</th><th>content_cid</th></tr>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.value }}</td>
+      {% if r.error %}
+      <td colspan="4"><span class="badge warn">error</span> {{ r.error }}</td>
+      {% else %}
+      <td>{{ "%.4f"|format(r.cooperation_rate) }}</td>
+      <td>{{ "%.4f"|format(r.efficiency) }}</td>
+      <td><code>{{ r.config_hash or "-" }}</code></td>
+      <td><code>{{ r.content_cid or "-" }}</code></td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

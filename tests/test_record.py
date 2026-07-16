@@ -14,6 +14,7 @@ import tempfile
 from pathlib import Path
 
 from gamebrains.agents.classic import AllD
+from gamebrains.agents.qlearning import QLearningAgent
 from gamebrains.games.public_goods import PublicGoodsGame
 from gamebrains.repository.record import record_experiment
 
@@ -45,6 +46,32 @@ def test_config_hash_independent_of_rounds_and_extends_detected():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_config_hash_changes_with_agent_hyperparameters():
+    """Bug found 2026-07-16 via real usage: `_roster_description` used to record only
+    {kind, training_mode}, so two rosters differing ONLY in hyperparameters (e.g. Q-learning's
+    alpha) silently collided onto the same config_hash -- the ledger could not tell them apart at
+    all. Same design, same seed/rounds, different alpha must now produce different config_hash."""
+    tmp = _tmp_dir()
+    try:
+        log_path = tmp / "log.jsonl"
+        _write_minimal_log(log_path)
+        game = PublicGoodsGame(n_agents=2, rounds=50)
+
+        roster_a = [QLearningAgent(f"Q{i}", n_states=game.n_states, n_actions=game.n_actions,
+                                   alpha=0.1) for i in range(2)]
+        record_a = record_experiment(tmp, game, roster_a, log_path, rounds=50, seed=0, metrics={})
+
+        roster_b = [QLearningAgent(f"Q{i}", n_states=game.n_states, n_actions=game.n_actions,
+                                   alpha=0.5) for i in range(2)]
+        record_b = record_experiment(tmp, game, roster_b, log_path, rounds=50, seed=0, metrics={})
+
+        assert record_a["config_hash"] != record_b["config_hash"]
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     test_config_hash_independent_of_rounds_and_extends_detected()
     print("OK: config_hash independent of rounds, extends detected across real run_pgg.py-shaped calls")
+    test_config_hash_changes_with_agent_hyperparameters()
+    print("OK: config_hash changes when agent hyperparameters change")

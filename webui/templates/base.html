@@ -151,9 +151,22 @@
   .rosterrow .countpick { width: 80px; }
   .rosterrow .kindfield { min-width: 140px; }
   .rosterrow .removerow { align-self: center; }
+  .rosterrow details.advanced { flex-basis: 100%; margin-top: 4px; }
+  .rosterrow details.advanced .grid { margin-top: 8px; }
   .epsilon-hint { font-size: 11px; color: var(--ink-soft); display: block; margin-top: 2px; }
   #agent-total { color: var(--gold-deep); font-weight: 700; }
   .quickadd { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+  .quickstart-modal {
+    position: fixed; right: 20px; bottom: 20px; max-width: 280px; z-index: 50;
+    background: var(--panel); color: var(--ink); border-radius: 10px; padding: 16px 18px;
+    box-shadow: 0 8px 24px #00000060; border-top: 4px solid var(--gold);
+  }
+  .quickstart-modal p { margin: 4px 0 12px; font-size: 13px; }
+  .quickstart-modal .quickstart-close {
+    position: absolute; top: 6px; right: 10px; background: none; border: none; box-shadow: none;
+    font-size: 18px; line-height: 1; color: var(--ink-soft); padding: 0; margin: 0; cursor: pointer;
+  }
+  .quickstart-modal .btn { width: 100%; margin-top: 0; }
 </style>
 </head>
 <body>

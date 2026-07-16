@@ -60,6 +60,10 @@ class FEPAgent(Agent):
         self.cost = cost
         self.precision = precision
         self.reciprocity = reciprocity
+        # Stored purely for introspection (repository/record.py's config_hash needs the actual
+        # hyperparameter values); obs_noise/drift only feed self.A/self.B below otherwise.
+        self.obs_noise = obs_noise
+        self.drift = drift
         self.rng = np.random.default_rng(seed)
         self.start_state = start_state if start_state is not None else n_agents + 1
 

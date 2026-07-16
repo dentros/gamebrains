@@ -90,6 +90,10 @@ class DQNAgent(Agent):
         self.state_labels = state_labels or [f"s{i}" for i in range(n_states)]
         self.action_labels = action_labels or [f"a{j}" for j in range(n_actions)]
         self.hidden = hidden
+        # Stored purely for introspection (repository/record.py's config_hash needs the actual
+        # hyperparameter values, not just "kind" -- these aren't otherwise read after __init__).
+        self.lr = lr
+        self.buffer_size = buffer_size
         self.steps = 0
         self.last_loss: float = 0.0
 

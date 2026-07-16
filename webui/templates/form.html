@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
+<div id="quickstart" class="quickstart-modal">
+  <button type="button" class="quickstart-close" onclick="document.getElementById('quickstart').style.display='none'">&times;</button>
+  <p>New here? The form already has a working example loaded (Q-learning, DQN, FEP, and a
+    classic strategy).</p>
+  <button type="button" class="btn" onclick="document.getElementById('mainform').submit()">Quick start</button>
+</div>
+
 <form action="/run" method="post" id="mainform">
 
   <div class="panel">
@@ -85,6 +92,30 @@
     </div>
   </div>
 
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-versus"/></svg><span class="step">5</span>Batch mode <span class="hint">(optional)</span></h2>
+    <div class="checkrow">
+      <input type="checkbox" name="batch_mode" id="batch_mode">
+      <label for="batch_mode" style="margin:0">Run a batch: vary one field across several values,
+        record every run separately</label>
+    </div>
+    <div class="grid">
+      <div>
+        <label>Field to sweep</label>
+        <select name="batch_param">
+          <option value="rounds">Rounds</option>
+          <option value="seed">Seed</option>
+          <option value="mpcr">MPCR</option>
+          <option value="row0_count">First roster row's count</option>
+        </select>
+      </div>
+      <div>
+        <label>Values <span class="hint">(comma-separated, e.g. 500,1000,2000)</span></label>
+        <input type="text" name="batch_values" placeholder="e.g. 500,1000,2000">
+      </div>
+    </div>
+  </div>
+
   <button type="submit">Run the experiment</button>
 </form>
 
@@ -141,6 +172,22 @@
       </div>
       <span class="epsilon-hint epshint"></span>
     </div>
+
+    <details class="explain advanced">
+      <summary>Advanced parameters</summary>
+      {% for kind, params in advanced_params.items() %}
+      <div class="kindfield" data-for="{{ kind }}" style="display:none">
+        <div class="grid">
+          {% for pname, default, help in params %}
+          <div>
+            <label style="margin-top:0">{{ pname }} <span class="hint">({{ help }})</span></label>
+            <input type="text" name="row_adv_{{ kind }}_{{ pname }}[]" value="{{ default }}">
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </details>
 
     <button type="button" class="secondary removerow" onclick="removeRow(this)">Remove</button>
   </div>

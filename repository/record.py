@@ -42,8 +42,35 @@ def _git_code_version() -> str:
 DEFAULT_CODE_VERSION = _git_code_version()
 
 
+# Which attributes count as "the config" for each kind -- read back from the live agent object
+# (not the constructor call) so this works uniformly whether the agent was built by run_pgg.py,
+# the webui, or anything else. Missing attributes are simply omitted, not errors: an older agent
+# class without one of these fields still hashes fine, just without that dimension.
+_PARAM_ATTRS: dict[str, tuple[str, ...]] = {
+    "qlearning": ("alpha", "gamma", "epsilon_decay", "epsilon_min"),
+    "dqn": ("hidden", "lr", "gamma", "epsilon_decay", "epsilon_min", "buffer_size",
+            "batch_size", "train_every", "target_sync_every"),
+    "fep": ("reciprocity", "obs_noise", "drift", "precision"),
+    "markov_brain": ("n_hidden",),
+    "classic": ("strategy", "p"),
+}
+
+
+def _agent_params(a: Agent) -> dict[str, Any]:
+    attrs = _PARAM_ATTRS.get(getattr(a, "kind", None), ())
+    return {attr: getattr(a, attr) for attr in attrs if hasattr(a, attr)}
+
+
 def _roster_description(roster: list[Agent]) -> list[dict[str, Any]]:
-    return [{"kind": a.kind, "training_mode": getattr(a, "training_mode", "?")} for a in roster]
+    """Feeds `config_hash` (via normalize.build_config) -- so two runs whose rosters differ only
+    in hyperparameters (e.g. Q-learning alpha, DQN learning rate) must produce different
+    descriptions here, not just different "kind" labels, or they would silently collide onto the
+    same config_hash. Bug found 2026-07-16: this previously returned only {kind, training_mode},
+    so hyperparameter changes were invisible to the ledger entirely."""
+    return [
+        {"kind": a.kind, "training_mode": getattr(a, "training_mode", "?"), "params": _agent_params(a)}
+        for a in roster
+    ]
 
 
 def _config_game_desc(game: Game) -> dict[str, Any]:

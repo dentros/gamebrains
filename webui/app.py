@@ -125,13 +125,14 @@ class _Frozen(Agent):
 
 # --- roster construction ---------------------------------------------------------------------
 
-def _classic_agent(strategy: str, i: int, n: int, seed: int):
+def _classic_agent(strategy: str, i: int, n: int, seed: int, extra: dict[str, Any] | None = None):
+    extra = extra or {}
     if strategy == "AllC":
         return AllC(f"AllC {i}")
     if strategy == "AllD":
         return AllD(f"AllD {i}")
     if strategy == "Random":
-        return RandomAgent(f"Random {i}", seed=seed + 400 + i)
+        return RandomAgent(f"Random {i}", p_cooperate=extra.get("p_cooperate", 0.5), seed=seed + 400 + i)
     if strategy == "MajorityTFT":
         return MajorityTFT(f"TFT {i}", n_agents=n)
     raise ValueError(f"unknown classic strategy {strategy}")
@@ -139,26 +140,37 @@ def _classic_agent(strategy: str, i: int, n: int, seed: int):
 
 def _make_agent(kind: str, i: int, game: PublicGoodsGame, seed: int, classic_strategy: str,
                 reciprocity: float, markov_hidden: int, epsilon_decay: float = 0.9995,
-                epsilon_min: float = 0.02):
+                epsilon_min: float = 0.02, extra: dict[str, Any] | None = None):
+    """`extra` carries kind-specific hyperparameter overrides beyond the handful already exposed
+    as their own arguments (the roster builder's "Advanced" section) -- see `_ADVANCED_PARAMS`
+    for the full list per kind and each one's default. Any key not present in `extra` falls back
+    to the underlying Agent class's own constructor default, not a value duplicated here."""
+    extra = extra or {}
     labels, actions = game.state_labels(), game.action_names
     if kind == "qlearning":
         return QLearningAgent(
             name=f"Q-learner {i}", n_states=game.n_states, n_actions=game.n_actions,
-            alpha=0.1, gamma=0.95, epsilon=1.0, epsilon_min=epsilon_min, epsilon_decay=epsilon_decay,
+            alpha=extra.get("alpha", 0.1), gamma=extra.get("gamma", 0.95),
+            epsilon=1.0, epsilon_min=epsilon_min, epsilon_decay=epsilon_decay,
             seed=seed + 100 + i, state_labels=labels, action_labels=actions,
         )
     if kind == "dqn":
         from ..agents.dqn import DQNAgent
+        kwargs = {}
+        for key in ("hidden", "lr", "gamma", "buffer_size", "batch_size", "train_every", "target_sync_every"):
+            if key in extra:
+                kwargs[key] = extra[key]
         return DQNAgent(
             name=f"DeepQ {i}", n_states=game.n_states, n_actions=game.n_actions,
-            gamma=0.95, epsilon=1.0, epsilon_min=epsilon_min, epsilon_decay=epsilon_decay,
-            seed=seed + 200 + i, state_labels=labels, action_labels=actions,
+            epsilon=1.0, epsilon_min=epsilon_min, epsilon_decay=epsilon_decay,
+            seed=seed + 200 + i, state_labels=labels, action_labels=actions, **kwargs,
         )
     if kind == "fep":
         from ..agents.fep import FEPAgent
+        kwargs = {k: extra[k] for k in ("obs_noise", "drift", "precision") if k in extra}
         return FEPAgent(
             name=f"FEP {i}", n_agents=game.n_agents, mpcr=game.mpcr, cost=game.cost,
-            reciprocity=reciprocity, seed=seed + 300 + i, start_state=game.start_state,
+            reciprocity=reciprocity, seed=seed + 300 + i, start_state=game.start_state, **kwargs,
         )
     if kind == "markov_brain":
         from ..agents.markov_brain import MarkovBrainAgent
@@ -167,8 +179,26 @@ def _make_agent(kind: str, i: int, game: PublicGoodsGame, seed: int, classic_str
             n_hidden=markov_hidden, seed=seed + 500 + i, start_state=game.start_state,
         )
     if kind == "classic":
-        return _classic_agent(classic_strategy, i, game.n_agents, seed)
+        return _classic_agent(classic_strategy, i, game.n_agents, seed, extra)
     raise ValueError(f"unknown kind {kind}")
+
+
+# Advanced (collapsed-by-default) per-kind hyperparameters exposed in the roster builder, beyond
+# the always-visible ones (epsilon schedule, reciprocity, hidden nodes, classic strategy). Each
+# tuple is (form-field suffix, default, help text) -- the default is shown as the input's value
+# and matches the underlying Agent class's own constructor default exactly, so leaving a field
+# untouched reproduces today's behaviour bit-for-bit.
+_ADVANCED_PARAMS: dict[str, list[tuple[str, float, str]]] = {
+    "qlearning": [("alpha", 0.1, "learning rate"), ("gamma", 0.95, "discount factor")],
+    "dqn": [("hidden", 64, "hidden layer size"), ("lr", 0.001, "learning rate"),
+           ("gamma", 0.95, "discount factor"), ("buffer_size", 10000, "replay buffer size"),
+           ("batch_size", 64, "training batch size"), ("train_every", 1, "train every N steps"),
+           ("target_sync_every", 200, "sync target network every N steps")],
+    "fep": [("obs_noise", 0.75, "observation likelihood spread"),
+           ("drift", 0.1, "belief drift toward uniform per round"),
+           ("precision", 4.0, "softmax precision over expected value")],
+    "classic": [("p_cooperate", 0.5, "P(Cooperate) for the Random strategy only")],
+}
 
 
 def _compute_phi_sequential(agent: Any, n_t: int = 5):
@@ -407,14 +437,29 @@ def form():
         "form.html", kinds=_KIND_ORDER, kind_meta=KIND_META,
         classic_strategies=_CLASSIC_STRATEGIES, metric_meta=_METRIC_META,
         metric_roadmap=_METRIC_ROADMAP, game_roadmap=_GAME_ROADMAP,
+        advanced_params=_ADVANCED_PARAMS,
     )
 
 
 @app.route("/run", methods=["POST"])
 def run():
     f = request.form
+    if f.get("batch_mode") == "on":
+        return _run_batch(f)
+    result = _execute_single_run(f)
+    if isinstance(result, tuple):
+        message, status = result
+        return render_template("error.html", message=message), status
+    return render_template("results.html", **result)
+
+
+def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
+    """Runs one match end-to-end and returns the kwargs `results.html` needs, or an
+    `(error_message, http_status)` pair. Factored out of the `/run` route so batch mode
+    (`_run_batch`) can call it repeatedly with one form field swept, without duplicating the
+    pipeline."""
     if f.get("game_kind", "public_goods") != "public_goods":
-        return render_template("error.html", message="That game isn't implemented yet."), 400
+        return "That game isn't implemented yet.", 400
 
     rounds = int(f.get("rounds", 1500))
     seed = int(f.get("seed", 0))
@@ -434,6 +479,12 @@ def run():
     rows_ed = f.getlist("row_epsilon_decay[]")
     rows_em = f.getlist("row_epsilon_min[]")
     rows_gcid = f.getlist("row_genome_cid[]")
+    # One parallel list per (kind, advanced-param) pair -- see _ADVANCED_PARAMS. Row N's own kind
+    # picks out only the entries relevant to it; the rest are simply unused for that row.
+    adv_lists: dict[tuple[str, str], list[str]] = {
+        (kind, pname): f.getlist(f"row_adv_{kind}_{pname}[]")
+        for kind, params in _ADVANCED_PARAMS.items() for pname, _default, _help in params
+    }
 
     def _count(s):
         try:
@@ -443,34 +494,37 @@ def run():
 
     n_agents = sum(_count(c) for k, c in zip(rows_kind, rows_count) if k)
     if n_agents < 2:
-        return render_template("error.html", message=(
-            "You need at least 2 agents in total. Add rows to the roster.")), 400
+        return "You need at least 2 agents in total. Add rows to the roster.", 400
 
     try:
         game = PublicGoodsGame(n_agents=n_agents, rounds=rounds, mpcr=mpcr)
     except ValueError as exc:
-        return render_template("error.html", message=str(exc)), 400
+        return str(exc), 400
 
     roster: list[Any] = []
     i = 0
-    for kind, count_s, strat, recip_s, mh_s, ed_s, em_s, gcid in zip(
+    for row_idx, (kind, count_s, strat, recip_s, mh_s, ed_s, em_s, gcid) in enumerate(zip(
         rows_kind, rows_count, rows_classic, rows_recip, rows_mh, rows_ed, rows_em, rows_gcid
-    ):
+    )):
         if not kind or _count(count_s) <= 0:
             continue
         eps_decay = float(ed_s or 0.9995)
         eps_min = float(em_s or 0.02)
+        extra: dict[str, Any] = {}
+        for pname, default, _help in _ADVANCED_PARAMS.get(kind, []):
+            values = adv_lists.get((kind, pname), [])
+            raw = values[row_idx] if row_idx < len(values) else ""
+            extra[pname] = type(default)(raw) if str(raw).strip() else default
         for _ in range(_count(count_s)):
             if kind == "markov_brain" and gcid.strip():
                 agent = _load_genome_agent(gcid.strip(), i, game, seed)
                 if agent is None:
-                    return render_template("error.html", message=(
-                        f"Genome CID '{gcid.strip()}' was not found or doesn't match this game "
-                        f"(it may have evolved for a different n_states/n_actions).")), 400
+                    return (f"Genome CID '{gcid.strip()}' was not found or doesn't match this "
+                           f"game (it may have evolved for a different n_states/n_actions)."), 400
                 roster.append(agent)
             else:
                 roster.append(_make_agent(kind, i, game, seed, strat, float(recip_s or 0.0),
-                                          int(mh_s or 2), eps_decay, eps_min))
+                                          int(mh_s or 2), eps_decay, eps_min, extra=extra))
             i += 1
 
     _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -558,14 +612,51 @@ def run():
             "lineage": ", ".join(lineage_bits) if lineage_bits else "none (first of its kind)",
         }
 
-    return render_template(
-        "results.html", game=game, roster=roster, seed=seed, rounds=rounds, metrics=metrics,
-        show_metrics=show_metrics, metric_meta=_METRIC_META, creatures=creatures,
-        chart_svg=chart_svg, console_log=console_log, leaderboard=leaderboard,
-        nash_html=nash_html, nash_explain=_NASH_EXPLAIN, phi_info=phi_info, repo_info=repo_info,
-        filter_info=filter_info, log_path=log_path.name, epsilon_hints=epsilon_hints,
-        genome_cids=genome_cids,
-    )
+    return {
+        "game": game, "roster": roster, "seed": seed, "rounds": rounds, "metrics": metrics,
+        "show_metrics": show_metrics, "metric_meta": _METRIC_META, "creatures": creatures,
+        "chart_svg": chart_svg, "console_log": console_log, "leaderboard": leaderboard,
+        "nash_html": nash_html, "nash_explain": _NASH_EXPLAIN, "phi_info": phi_info,
+        "repo_info": repo_info, "filter_info": filter_info, "log_path": log_path.name,
+        "epsilon_hints": epsilon_hints, "genome_cids": genome_cids,
+    }
+
+
+def _run_batch(f):
+    """Batch/sweep mode: rerun `_execute_single_run` once per value of one swept field, each a
+    small variation on the same base configuration, each recorded to the ledger like any other
+    run. Kept deliberately simple: a fixed menu of sweepable fields (not arbitrary ones) so the
+    override logic below stays a couple of lines instead of a general form-mutation engine."""
+    param = f.get("batch_param", "rounds")
+    values = [v.strip() for v in f.get("batch_values", "").split(",") if v.strip()]
+    if not values:
+        return render_template("error.html", message=(
+            "Batch mode needs at least one value in the values list (comma-separated).")), 400
+
+    rows = []
+    for v in values:
+        f2 = f.copy()
+        if param == "row0_count":
+            counts = f.getlist("row_count[]")
+            if counts:
+                f2.setlist("row_count[]", [v] + counts[1:])
+        else:
+            f2[param] = v
+        result = _execute_single_run(f2)
+        if isinstance(result, tuple):
+            rows.append({"value": v, "error": result[0]})
+            continue
+        repo = result["repo_info"]
+        rows.append({
+            "value": v, "cooperation_rate": result["metrics"]["cooperation_rate"],
+            "efficiency": result["metrics"]["efficiency"],
+            "config_hash": repo["config_hash"][:12] if repo else None,
+            "content_cid": repo["content_cid"][:12] if repo else None,
+        })
+
+    coop_series = [r["cooperation_rate"] for r in rows if "error" not in r]
+    chart_svg = _polyline_svg(coop_series, color="#3d6b8a") if coop_series else ""
+    return render_template("batch_result.html", param=param, rows=rows, chart_svg=chart_svg)
 
 
 # --- genome hand-off (Smart-Filter-adjacent: reuse the CAS as a tiny genome store) ----------------

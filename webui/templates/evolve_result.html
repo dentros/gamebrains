@@ -15,7 +15,7 @@
   </table>
   <p class="meta">Fitness is mean payoff from self-play matches. In a Public Goods Game with a
     genuine social dilemma, theory and the other paradigms (RL, Nash) predict convergence toward
-    ~0 (universal defection) &mdash; compare with the Match tab's Nash equilibrium panel.</p>
+    ~0 (universal defection). Compare with the Match tab's Nash equilibrium panel.</p>
 </div>
 
 <div class="panel">
@@ -36,13 +36,13 @@
 
 <div class="panel">
   <h2>Genome hand-off</h2>
-  <p class="meta">CID of the best evolved genome (use it in a markov_brain row on the Match tab &mdash; Mode 2):</p>
+  <p class="meta">CID of the best evolved genome (use it in a markov_brain row on the Match tab, Mode 2):</p>
   <p><code>{{ genome_cid }}</code></p>
 </div>
 
 {% if bakeoff %}
 <div class="panel">
-  <h2>Bake-off &mdash; evaluation match (everyone frozen or fresh, no one learns during the comparison)</h2>
+  <h2>Bake-off: evaluation match (everyone frozen or fresh, no one learns during the comparison)</h2>
   <p class="meta">roster: {{ bakeoff.kinds | join(', ') }} &middot;
     pretrain_rounds={{ bakeoff.pretrain_rounds }} &middot; eval_rounds={{ bakeoff.eval_rounds }}
     &middot; cooperation_rate={{ "%.3f"|format(bakeoff.cooperation_rate) }}</p>

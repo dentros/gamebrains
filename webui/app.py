@@ -275,7 +275,7 @@ _FEP_EXPLAIN = (
     "<p><b>Reading it.</b> Each bar is the probability the agent assigns to that many cooperators. "
     "E[others] is the expectation of that distribution. <code>reciprocity</code> controls how "
     "social the agent is: 0 is purely selfish (maximizes only its own payoff); higher values make "
-    "it prefer cooperating when it believes others will too, a simple Theory-of-Mind rule &mdash; "
+    "it prefer cooperating when it believes others will too: a simple Theory-of-Mind rule, since "
     "what I expect others to do shapes what I do.</p></details>"
 )
 
@@ -308,7 +308,7 @@ def _markov_brain_html(brain: dict) -> str:
 
 def _classic_html(brain: dict) -> str:
     extra = f" (p={brain['p_cooperate']:g})" if "p_cooperate" in brain else ""
-    return f"<p class='rule'><b>{brain['strategy']}</b>{extra} &mdash; {brain['rule']}</p>"
+    return f"<p class='rule'><b>{brain['strategy']}</b>{extra}: {brain['rule']}</p>"
 
 
 def render_creature(agent: Any) -> dict[str, Any]:

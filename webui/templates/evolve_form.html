@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg> Evolutionary &mdash; Markov-brain genetic algorithm</h2>
+  <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg> Evolutionary: Markov-brain genetic algorithm</h2>
   <p class="meta">
-    This does <b>not</b> run per round inside a single match &mdash; it evolves a
+    This does <b>not</b> run per round inside a single match. It evolves a
     <b>population</b> of genomes across many self-play matches, generation by generation (a
     different timescale from the Match tab). When finished, you can enable a <b>fair bake-off</b>:
     each architecture converges separately in its own natural way (evolution for the Markov-brain,
     self-play pretraining for Q-learning/DQN, nothing for FEP/classic since they hold no
-    parameters between matches), then everything is frozen and plays one evaluation match
-    together &mdash; avoiding the confound of simultaneous co-adaptation.
+    parameters between matches). Then everything is frozen and plays one evaluation match
+    together, avoiding the confound of simultaneous co-adaptation.
   </p>
 </div>
 
@@ -18,7 +18,7 @@
     <h2><span class="step">1</span>Genetic algorithm parameters</h2>
     <div class="grid">
       <div><label>Population size</label><input type="number" name="population_size" value="20" min="2"></div>
-      <div><label>Generations <span class="hint">(fixed count &mdash; no plateau-based early stopping yet)</span></label><input type="number" name="generations" value="30" min="1"></div>
+      <div><label>Generations <span class="hint">(fixed count; no plateau-based early stopping yet)</span></label><input type="number" name="generations" value="30" min="1"></div>
       <div><label>Rounds per match</label><input type="number" name="match_rounds" value="200" min="10"></div>
       <div><label>Matches per generation</label><input type="number" name="matches_per_generation" value="3" min="1"></div>
       <div><label>Hidden nodes</label><input type="number" name="n_hidden" value="2" min="1" max="6"></div>
@@ -42,7 +42,7 @@
     <h2><span class="step">3</span>Comparison (bake-off)</h2>
     <div class="checkrow">
       <input type="checkbox" name="bakeoff" id="bakeoff" checked>
-      <label for="bakeoff" style="margin:0">Mode 1: bake-off of finals &mdash; compare the evolved
+      <label for="bakeoff" style="margin:0">Mode 1: bake-off of finals. Compares the evolved
         genome against a frozen, pretrained Q-learner and DQN, a fresh FEP, and a classic
         baseline, in one evaluation match</label>
     </div>
@@ -58,13 +58,13 @@
       <legend>Other comparison modes</legend>
       <p class="meta"><b>Mode 2 (evolved genome in an ordinary online-learning match):</b> run
         this, take the <code>genome CID</code> from the results, and paste it into a
-        markov_brain row's "Evolved genome CID" field on the Match tab &mdash; it will play
+        markov_brain row's "Evolved genome CID" field on the Match tab. It will play
         alongside Q/DQN/FEP agents that learn normally.</p>
       <p class="meta"><b>Mode 3 (one kind learns, the rest stay fixed):</b> already possible on
-        the Match tab with no new code &mdash; build a roster with only the kind you want to
+        the Match tab with no new code. Build a roster with only the kind you want to
         learn, plus classic/evolved-genome agents as a fixed background.</p>
-      <p class="meta"><span class="badge todo">Mode 4 noted, not here</span> &mdash; alternating
-        learning/frozen phases across paradigms; a candidate research question for the
+      <p class="meta"><span class="badge todo">Mode 4 noted, not here</span>: alternating
+        learning/frozen phases across paradigms. A candidate research question for the
         Theory-of-Mind paper, not a demo feature.</p>
     </fieldset>
   </div>

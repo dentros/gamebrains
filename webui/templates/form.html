@@ -21,7 +21,7 @@
         <label>MPCR <span class="hint">(marginal per-capita return = r/n. Blank = default)</span></label>
         <input type="text" name="mpcr" placeholder="e.g. 0.5">
         <span class="epsilon-hint">Sets how much cooperating is worth. Needs 1/n &lt; MPCR &lt; 1
-          (a genuine social dilemma) &mdash; blank picks a safe default automatically.</span>
+          (a genuine social dilemma). Blank picks a safe default automatically.</span>
       </div>
       <div>
         <label>Seed</label>
@@ -31,7 +31,7 @@
   </div>
 
   <div class="panel">
-    <h2><span class="step">2</span>Roster &mdash; add agents one at a time (the total is computed for you)</h2>
+    <h2><span class="step">2</span>Roster: add agents one at a time (the total is computed for you)</h2>
     <p class="meta">Total agents: <span id="agent-total">0</span></p>
     <div id="rows"></div>
     <div class="quickadd">
@@ -44,7 +44,7 @@
   </div>
 
   <div class="panel">
-    <h2><span class="step">3</span>Metrics &mdash; what to show</h2>
+    <h2><span class="step">3</span>Metrics: what to show</h2>
     <div class="grid">
       {% for key, label in metric_meta %}
       <div class="checkrow">
@@ -55,11 +55,11 @@
     </div>
     <div class="checkrow">
       <input type="checkbox" name="compute_nash" id="compute_nash">
-      <label for="compute_nash" style="margin:0">Nash equilibrium (pygambit &mdash; n&le;10 only)</label>
+      <label for="compute_nash" style="margin:0">Nash equilibrium (pygambit, n&le;10 only)</label>
     </div>
     <div class="checkrow">
       <input type="checkbox" name="compute_phi" id="compute_phi">
-      <label for="compute_phi" style="margin:0">&Phi; / causal autonomy (only if a markov_brain is present &mdash; slow, ~15s)</label>
+      <label for="compute_phi" style="margin:0">&Phi; / causal autonomy (only if a markov_brain is present; slow, ~15s)</label>
     </div>
     <fieldset>
       <legend>Roadmap</legend>
@@ -79,8 +79,8 @@
       <label for="record_repo" style="margin:0">Record to the repository-lite ledger (+ Smart Filter)</label>
     </div>
     <div>
-      <label>Narration density <span class="hint">(how many round-lines the log shows &mdash;
-        doesn't affect the experiment itself, only how detailed the transcript below is)</span></label>
+      <label>Narration density <span class="hint">(how many round-lines the log shows.
+        Doesn't affect the experiment itself, only how detailed the transcript below is)</span></label>
       <input type="number" name="log_lines" value="50" min="5" max="500">
     </div>
   </div>
@@ -95,7 +95,7 @@
       <div style="flex:1">
         <label style="margin-top:0">Kind</label>
         <select name="row_kind[]" onchange="updateRowVisibility(this)">
-          <option value="">&mdash; blank &mdash;</option>
+          <option value="">(blank)</option>
           {% for kind in kinds %}<option value="{{ kind }}">{{ kind_meta[kind].label }}</option>{% endfor %}
         </select>
       </div>
@@ -120,7 +120,7 @@
     <div class="kindfield" data-for="markov_brain" style="display:none">
       <label style="margin-top:0">Hidden nodes</label>
       <input type="number" name="row_markov_hidden[]" value="2" min="1" max="6">
-      <label style="margin-top:6px">Evolved genome CID <span class="hint">(optional &mdash; from
+      <label style="margin-top:6px">Evolved genome CID <span class="hint">(optional, from
         the Evolutionary tab)</span></label>
       <input type="text" name="row_genome_cid[]" placeholder="e.g. 7bf62b89...">
     </div>

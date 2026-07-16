@@ -100,11 +100,11 @@
 <div class="panel">
   <h2>Smart Filter</h2>
   {% if filter_info.exact %}
-    <p><span class="badge ok">exact match found</span> &mdash; the same config/seed/rounds already
-    ran (<code>{{ filter_info.exact.content_cid[:12] }}...</code>); in principle this rerun could
+    <p><span class="badge ok">exact match found</span>: the same config/seed/rounds already
+    ran (<code>{{ filter_info.exact.content_cid[:12] }}...</code>). In principle this rerun could
     have been skipped.</p>
   {% else %}
-    <p><span class="badge warn">no exact match</span> &mdash; a new config/seed/rounds combination.</p>
+    <p><span class="badge warn">no exact match</span>: a new config/seed/rounds combination.</p>
   {% endif %}
   {% if filter_info.similar %}
   <table>

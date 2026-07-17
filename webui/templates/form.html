@@ -2,9 +2,39 @@
 {% block content %}
 <div id="quickstart" class="quickstart-modal">
   <button type="button" class="quickstart-close" onclick="document.getElementById('quickstart').style.display='none'">&times;</button>
-  <p>New here? The form already has a working example loaded (Q-learning, DQN, FEP, and a
-    classic strategy).</p>
-  <button type="button" class="btn" onclick="document.getElementById('mainform').submit()">Quick start</button>
+
+  <div class="wizard-step" data-step="1">
+    <p class="wizard-title">New here? Quick start &mdash; step 1 of 3</p>
+    <p>How long should the match run?</p>
+    <label class="wizard-choice"><input type="radio" name="wiz_rounds" value="500"> Quick look (500 rounds)</label>
+    <label class="wizard-choice"><input type="radio" name="wiz_rounds" value="1500" checked> Standard (1500 rounds)</label>
+    <label class="wizard-choice"><input type="radio" name="wiz_rounds" value="3000"> Long run, see convergence (3000 rounds)</label>
+    <button type="button" class="btn" onclick="wizardStep(2)">Next</button>
+  </div>
+
+  <div class="wizard-step" data-step="2" style="display:none">
+    <p class="wizard-title">Quick start &mdash; step 2 of 3</p>
+    <p>Which agents should play?</p>
+    <label class="wizard-choice"><input type="radio" name="wiz_mix" value="one_of_each" checked>
+      One of each (Q-learning, DQN, FEP, Classic)</label>
+    <label class="wizard-choice"><input type="radio" name="wiz_mix" value="rl_showdown">
+      RL showdown (2x Q-learning, 2x DQN)</label>
+    <label class="wizard-choice"><input type="radio" name="wiz_mix" value="evo_vs_online">
+      Evolutionary vs online learners (Markov-brain, Q-learning, DQN)</label>
+    <div>
+      <button type="button" class="secondary" onclick="wizardStep(1)">Back</button>
+      <button type="button" class="btn" onclick="wizardStep(3)">Next</button>
+    </div>
+  </div>
+
+  <div class="wizard-step" data-step="3" style="display:none">
+    <p class="wizard-title">Quick start &mdash; step 3 of 3</p>
+    <p id="wizard-summary" class="meta"></p>
+    <div>
+      <button type="button" class="secondary" onclick="wizardStep(2)">Back</button>
+      <button type="button" class="btn" onclick="wizardRun(this)">Run it</button>
+    </div>
+  </div>
 </div>
 
 <form action="/run" method="post" id="mainform">
@@ -116,8 +146,15 @@
     </div>
   </div>
 
-  <button type="submit">Run the experiment</button>
+  <button type="submit" id="mainsubmit">Run the experiment</button>
 </form>
+<script>
+document.getElementById('mainform').addEventListener('submit', () => {
+  const btn = document.getElementById('mainsubmit');
+  btn.disabled = true;
+  btn.textContent = 'Running... (this can take a few seconds)';
+});
+</script>
 
 <template id="row-template">
   <div class="rosterrow">
@@ -251,5 +288,38 @@ window.addEventListener('DOMContentLoaded', () => {
   addRow('qlearning'); addRow('dqn'); addRow('fep'); addRow('classic');
   updateTotals(); updateEpsilonHints();
 });
+
+const WIZARD_MIXES = {
+  one_of_each: {label: 'One of each (Q-learning, DQN, FEP, Classic)',
+                kinds: ['qlearning', 'dqn', 'fep', 'classic']},
+  rl_showdown: {label: 'RL showdown (2x Q-learning, 2x DQN)',
+                kinds: ['qlearning', 'qlearning', 'dqn', 'dqn']},
+  evo_vs_online: {label: 'Evolutionary vs online learners (Markov-brain, Q-learning, DQN)',
+                  kinds: ['markov_brain', 'qlearning', 'dqn']},
+};
+
+function wizardStep(n) {
+  document.querySelectorAll('#quickstart .wizard-step').forEach(el => {
+    el.style.display = (parseInt(el.dataset.step, 10) === n) ? '' : 'none';
+  });
+  if (n === 3) {
+    const rounds = document.querySelector('input[name="wiz_rounds"]:checked').value;
+    const mixKey = document.querySelector('input[name="wiz_mix"]:checked').value;
+    document.getElementById('wizard-summary').textContent =
+      `${rounds} rounds, ${WIZARD_MIXES[mixKey].label}.`;
+  }
+}
+
+function wizardRun(btn) {
+  const rounds = document.querySelector('input[name="wiz_rounds"]:checked').value;
+  const mixKey = document.querySelector('input[name="wiz_mix"]:checked').value;
+  document.getElementById('rows').innerHTML = '';
+  WIZARD_MIXES[mixKey].kinds.forEach(kind => addRow(kind));
+  document.querySelector('input[name="rounds"]').value = rounds;
+  updateTotals(); updateEpsilonHints();
+  btn.disabled = true;
+  btn.textContent = 'Running... (this can take a few seconds)';
+  document.getElementById('mainform').submit();
+}
 </script>
 {% endblock %}

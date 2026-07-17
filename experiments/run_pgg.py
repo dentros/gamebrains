@@ -25,7 +25,7 @@ from ..engine.console import LiveConsole
 from ..engine.eventlog import EventLog
 from ..engine.runner import run_match
 from ..games.public_goods import PublicGoodsGame
-from ..metrics import social
+from ..metrics import information, social
 from ..repository.record import record_experiment
 
 
@@ -142,6 +142,7 @@ def main() -> None:
         )
 
     metrics = social.compute_all(records, game.max_welfare_per_round())
+    metrics.update(information.compute_all(records, seed=args.seed))
     print()
     # Show one final brain per interesting kind present (Q-table / network / beliefs).
     shown: set[str] = set()

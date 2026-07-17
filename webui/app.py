@@ -34,7 +34,7 @@ from ..engine.eventlog import EventLog
 from ..engine.evolution import EvolutionConfig, evolve
 from ..engine.runner import run_match
 from ..games.public_goods import PublicGoodsGame
-from ..metrics import equilibrium, social
+from ..metrics import equilibrium, information, social
 from ..repository.cas import ContentStore
 from ..repository.ledger import Ledger
 from ..repository.record import (
@@ -75,12 +75,13 @@ _METRIC_META = [
     ("efficiency", "Efficiency"),
     ("payoff_gini", "Payoff Gini"),
     ("action_entropy_bits", "Action entropy (bits)"),
+    ("mutual_information_bits", "Mutual info I(obs;action) (bits)"),
+    ("transfer_entropy_bits", "Transfer entropy (bits, significant pairs)"),
 ]
 # Roadmap placeholders: real code doesn't exist yet (see CLAUDE.md §5) -- shown disabled so the
-# tool itself documents where the platform is going, not just what it does today.
+# tool itself documents where the platform is going, not just what it does today. Transfer entropy
+# and mutual information graduated out of this list (2026-07-17): metrics/information.py.
 _METRIC_ROADMAP = [
-    "Transfer entropy (planned, IDTxl/JIDT)",
-    "Mutual information (planned, IDTxl/dit)",
     "Predictive information (planned)",
     "Graph-theoretic metrics (planned, networkx)",
 ]
@@ -551,6 +552,7 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
     console_log = buf.getvalue()
 
     metrics = social.compute_all(records, game.max_welfare_per_round())
+    metrics.update(information.compute_all(records, seed=seed))
     creatures = [render_creature(a) for a in roster]
     chart_svg = cooperation_svg(metrics["cooperation_series"])
 
@@ -727,6 +729,7 @@ def _run_bakeoff(n_agents: int, mpcr, best_genome, pretrain_rounds: int, eval_ro
 
     records = run_match(eval_game, roster, rounds=eval_rounds, seed=seed + 999)
     metrics = social.compute_all(records, eval_game.max_welfare_per_round())
+    metrics.update(information.compute_all(records, seed=seed + 999))
     leaderboard = sorted(zip(roster, metrics["cumulative_payoffs"]), key=lambda p: p[1], reverse=True)
     return {
         "kinds": kinds, "cooperation_rate": metrics["cooperation_rate"],

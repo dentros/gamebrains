@@ -71,6 +71,36 @@
 </div>
 {% endif %}
 
+{% if metrics.mutual_information_detail %}
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Mutual information &amp; transfer entropy</h2>
+  <p class="meta">Discrete plug-in estimator with Miller-Madow bias correction. Every transfer-entropy
+    pair below is tested against {{ metrics.transfer_entropy_detail.n_surrogates }} time-shift
+    surrogates; only pairs with p &lt; 0.05 count toward the "Transfer entropy" figure in the
+    Summary panel above &mdash; a nonzero raw value with a large p-value here is not evidence of a
+    real link, it can be finite-sample noise or a shared confound (e.g. both agents reacting to the
+    same public signal).</p>
+  <table>
+    <tr><th>Agent</th><th>Kind</th><th>I(obs;action) bits</th></tr>
+    {% for bits in metrics.mutual_information_detail.bits_by_agent %}
+    <tr><td>{{ roster[loop.index0].name }}</td><td>{{ roster[loop.index0].kind }}</td>
+        <td>{{ "%.4f"|format(bits) }}</td></tr>
+    {% endfor %}
+  </table>
+  <table>
+    <tr><th>Source &rarr; Target</th><th>TE (bits)</th><th>p-value</th><th>Significant?</th></tr>
+    {% for pair, d in metrics.transfer_entropy_detail.by_pair.items() %}
+    <tr>
+      <td>{{ roster[pair[0]].name }} &rarr; {{ roster[pair[1]].name }}</td>
+      <td>{{ "%.4f"|format(d.bits) }}</td>
+      <td>{{ "%.4f"|format(d.p_value) }}</td>
+      <td>{% if d.p_value < 0.05 %}<span class="badge ok">yes</span>{% else %}<span class="badge warn">no</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
 {% if phi_info %}
 <div class="panel">
   <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>&Phi; (integrated information) &amp; causal autonomy</h2>

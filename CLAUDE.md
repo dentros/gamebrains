@@ -112,9 +112,20 @@ Deep mechanistic interpretability (activation probing) is **out of scope for the
     (e.g. TE lag length, $k$ for a kNN estimator) and a bootstrap confidence interval — a bare
     point number is not an acceptable report. (3) Keep Φ restricted to small Markov-brains only
     (already our practice, see above) — the same exponential-cost caution the paper raises.
-  - **Not yet started.** Candidate home once implemented: Paper 3 (JAAMAS) is the natural venue for
-    the TE-as-ToM-signature result; Paper 2 (software journal) should still mention the plan and
-    cite the framework paper (already added, see `IEEE SOFTWARE GAMEBRAINS/root.tex` Future Work).
+  - **Delivered (2026-07-17): `metrics/information.py`.** `mutual_information_per_agent()` --
+    I(observation; action) per agent, discrete plug-in + Miller-Madow correction, no engine changes
+    needed (the shared PGG observation is reconstructed from the already-logged `cooperators`
+    series). `transfer_entropy_pairwise()` -- T(agent_i -> agent_j) at lag 1 for every ordered
+    pair, each validated against 200 time-shift surrogates with a reported p-value (never a bare
+    TE point value, per the guardrails above). Wired into `experiments/run_pgg.py` and both
+    `webui/app.py` match routes via `information.compute_all()`; the two headline scalars
+    (`mutual_information_bits`, `transfer_entropy_bits`, the latter averaged only over
+    surrogate-significant pairs) are in `_METRIC_META`; the full per-agent/per-pair breakdown
+    (including every p-value) has its own results-page panel. Tests: `tests/test_information.py`.
+    Predictive information and graph-theoretic metrics remain not started. Candidate home for the
+    TE-as-ToM-signature result once an actual experiment is run: Paper 3 (JAAMAS); Paper 2
+    (software journal) should still mention this and cite the framework paper (already added, see
+    `IEEE SOFTWARE GAMEBRAINS/root.tex` Future Work).
 
 ## 6. Games
 
@@ -156,7 +167,7 @@ Games expose: number of rounds, information visibility, payoff parameters.
     viz/           # TS frontend (canvas creatures + live console + charts) — planned
     .venv/         # dedicated venv (numpy, torch, gymnasium, pettingzoo, pygambit)
   ```
-  Current: `agents/{classic,qlearning,dqn,fep,markov_brain}.py`, `metrics/{social,equilibrium,phi_autonomy}.py`,
+  Current: `agents/{classic,qlearning,dqn,fep,markov_brain}.py`, `metrics/{social,equilibrium,phi_autonomy,information}.py`,
   `engine/evolution.py`, `repository/{normalize,cas,ledger,smart_filter,record}.py`, `webui/` — see 9e.
   `markov_brain.py`/`phi_autonomy.py` planned entries above are now implemented.
 - **Style:** match surrounding code; type hints on public functions; keep the engine framework-free

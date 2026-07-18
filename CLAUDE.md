@@ -416,6 +416,18 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
   planned as thinner layers on top of the same primitives. A fourth mode (alternating
   learning-vs-frozen phases across paradigms) is deliberately deferred — noted as a candidate
   Theory-of-Mind research question for Paper 3/JAAMAS, not a demo feature.
+- **New `/analytics` tab (2026-07-17), delivered.** A third webui tab (alongside Match and
+  Evolutionary) that queries every run ever recorded to the repository-lite ledger, not just the
+  one just executed: a "smart filter" over game fields, every scalar metric, and every per-kind
+  hyperparameter actually stored in a run's `roster[i]["params"]` (reusing
+  `repository/record.py`'s `_PARAM_ATTRS` as the single source of truth for what's filterable, so
+  it can't drift out of sync with what a record stores), combined with AND; a per-kind-parameter
+  filter matches a run if *any* agent of that kind in its roster satisfies the condition (e.g.
+  "runs with a Q-learning agent whose epsilon_decay >= 0.8"). Results render as a table plus a
+  user-chosen X/Y scatter chart (server-side SVG, no JS charting library) over the filtered set.
+  This is the "general page with smart filters + correlations + charts across all games" the user
+  asked for; the full parameter-space-map (know every possible config per game and auto-run
+  what's missing) remains separate, not-yet-built future work.
 
 ## 10. References
 

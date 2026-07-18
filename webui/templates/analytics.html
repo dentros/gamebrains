@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block content %}
+
+<form action="/analytics" method="post">
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Smart filters</h2>
+    <p class="meta">Query every run ever recorded to the repository-lite ledger. Filters combine
+      with AND; a filter on a per-kind parameter (e.g. "Q-learning &middot; epsilon_decay") matches
+      a run if <em>any</em> agent of that kind in its roster satisfies the condition.</p>
+
+    <label>Only runs whose roster includes at least one of:</label>
+    <div class="checkrow-group">
+      {% for kind, meta in kind_meta.items() %}
+      <label class="checkrow" style="display:inline-flex; width:auto; margin-right:14px;">
+        <input type="checkbox" name="include_kind" value="{{ kind }}"
+               {% if kind in include_kinds %}checked{% endif %}>
+        <span style="margin:0">{{ meta.label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div id="filter-rows" style="margin-top:14px"></div>
+    <button type="button" class="secondary" onclick="addFilterRow()">+ filter</button>
+
+    <div class="grid" style="margin-top:14px">
+      <div>
+        <label>Chart X axis</label>
+        <select name="chart_x">
+          {% for key, label in chart_axis_options %}
+          <option value="{{ key }}" {% if key == chart_x %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Chart Y axis</label>
+        <select name="chart_y">
+          {% for key, label in chart_axis_options %}
+          <option value="{{ key }}" {% if key == chart_y %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <button type="submit" style="margin-top:14px">Apply filters</button>
+  </div>
+</form>
+
+<template id="filter-row-template">
+  <div class="rosterrow filterrow">
+    <div>
+      <label>Field</label>
+      <select name="filter_field[]">
+        {% for key, label in field_options %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Operator</label>
+      <select name="filter_op[]">
+        <option value=">=">&ge;</option><option value="<=">&le;</option>
+        <option value=">">&gt;</option><option value="<">&lt;</option>
+        <option value="==">=</option><option value="!=">&ne;</option>
+      </select>
+    </div>
+    <div>
+      <label>Value</label>
+      <input type="text" name="filter_value[]" placeholder="e.g. 0.8">
+    </div>
+    <button type="button" class="removerow" onclick="this.closest('.filterrow').remove()">Remove</button>
+  </div>
+</template>
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Correlation chart</h2>
+  <p class="meta">{{ rows|length }} of {{ total_count }} recorded runs match the current filters.</p>
+  {% if chart_svg %}{{ chart_svg | safe }}
+  {% else %}<p class="meta">No two matching runs share both chosen axes yet -- nothing to plot.</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Matching runs</h2>
+  {% if rows %}
+  <table>
+    <tr>
+      <th>Timestamp</th><th>Roster</th><th>n</th><th>MPCR</th><th>Rounds</th>
+      <th>Cooperation rate</th><th>Efficiency</th><th>config_hash</th>
+    </tr>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.timestamp[:19] }}</td>
+      <td>{{ r.kind_summary }}</td>
+      <td>{{ r.n_agents }}</td>
+      <td>{{ r.mpcr }}</td>
+      <td>{{ r.rounds }}</td>
+      <td>{{ "%.4f"|format(r.metrics.cooperation_rate) if r.metrics.cooperation_rate is not none else "-" }}</td>
+      <td>{{ "%.4f"|format(r.metrics.efficiency) if r.metrics.efficiency is not none else "-" }}</td>
+      <td><code>{{ r.config_hash[:12] }}...</code></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="meta">No recorded runs match these filters yet.</p>
+  {% endif %}
+</div>
+
+<script>
+function addFilterRow() {
+  const tmpl = document.getElementById('filter-row-template');
+  document.getElementById('filter-rows').appendChild(tmpl.content.cloneNode(true));
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const existing = {{ active_filters | tojson }};
+  if (existing.length) {
+    existing.forEach(([field, op, value]) => {
+      addFilterRow();
+      const row = document.getElementById('filter-rows').lastElementChild;
+      row.querySelector('select[name="filter_field[]"]').value = field;
+      row.querySelector('select[name="filter_op[]"]').value = op;
+      row.querySelector('input[name="filter_value[]"]').value = value;
+    });
+  } else {
+    addFilterRow();
+  }
+});
+</script>
+{% endblock %}

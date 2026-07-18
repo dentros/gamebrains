@@ -38,7 +38,8 @@ from ..metrics import equilibrium, information, social
 from ..repository.cas import ContentStore
 from ..repository.ledger import Ledger
 from ..repository.record import (
-    DEFAULT_CODE_VERSION, _config_game_desc, _feature_vector, _roster_description, record_experiment,
+    DEFAULT_CODE_VERSION, _config_game_desc, _feature_vector, _PARAM_ATTRS, _roster_description,
+    record_experiment,
 )
 from ..repository.smart_filter import lookup as smart_filter_lookup
 
@@ -47,7 +48,11 @@ app = Flask(__name__)
 
 @app.context_processor
 def _inject_active_tab():
-    return {"active_tab": "evolve" if request.path.startswith("/evolve") else "match"}
+    if request.path.startswith("/evolve"):
+        return {"active_tab": "evolve"}
+    if request.path.startswith("/analytics"):
+        return {"active_tab": "analytics"}
+    return {"active_tab": "match"}
 
 
 _GAMEBRAINS_ROOT = Path(__file__).resolve().parents[1]
@@ -797,6 +802,156 @@ def evolve_run():
         best_fitness=float(result.fitness.max()), avg_fitness=float(result.fitness.mean()),
         fitness_svg=fitness_svg(result.fitness_history), evo_log=evo_log, phi_info=phi_info,
         bakeoff=bakeoff, genome_cid=genome_cid,
+    )
+
+
+# --- Analytics: flexible querying/correlation over every recorded run ------------------------
+
+_ANALYTICS_SIMPLE_FIELDS = [
+    ("n_agents", "Number of agents"), ("mpcr", "MPCR"), ("cost", "Cost"),
+    ("rounds", "Rounds"), ("seed", "Seed"),
+]
+
+
+def _analytics_field_options() -> list[tuple[str, str]]:
+    """(field_key, label) pairs offered in the filter dropdown: simple game/run fields, every
+    scalar metric, and every per-kind hyperparameter actually stored in the ledger (see
+    repository/record.py's `_PARAM_ATTRS`, the authoritative list of what `roster[i]["params"]`
+    can contain -- reused here rather than duplicated so this list can never drift out of sync
+    with what a record actually stores)."""
+    options = list(_ANALYTICS_SIMPLE_FIELDS)
+    options += [(f"metric:{k}", label) for k, label in _METRIC_META]
+    for kind, params in _PARAM_ATTRS.items():
+        for p in params:
+            options.append((f"roster:{kind}:{p}", f"{KIND_META[kind]['label']} · {p}"))
+    return options
+
+
+def _analytics_row(record: dict[str, Any]) -> dict[str, Any]:
+    game = record.get("game", {})
+    roster = record.get("roster", [])
+    metrics = record.get("metrics_summary", {})
+    kind_counts: dict[str, int] = {}
+    for a in roster:
+        kind_counts[a["kind"]] = kind_counts.get(a["kind"], 0) + 1
+    return {
+        "config_hash": record["config_hash"], "content_cid": record["content_cid"],
+        "timestamp": record.get("timestamp", ""),
+        "n_agents": game.get("n_agents"), "mpcr": game.get("mpcr"), "cost": game.get("cost"),
+        "rounds": record.get("horizon", {}).get("rounds"),
+        "seed": record.get("seeds", {}).get("master"),
+        "kind_counts": kind_counts,
+        "kind_summary": ", ".join(f"{v}x {k}" for k, v in kind_counts.items()),
+        "roster": roster, "metrics": metrics, "lineage": record.get("lineage", {}),
+    }
+
+
+def _row_field_candidates(row: dict[str, Any], field: str) -> list[float]:
+    """Numeric candidate value(s) for `field` on this row. `roster:<kind>:<param>` fields return
+    one value per matching agent (empty if the roster has none of that kind, or the agent lacks
+    that param) -- so filtering means "at least one agent of this kind satisfies the condition",
+    the natural reading of a request like "runs with an RL agent whose epsilon_decay is above 0.8".
+    """
+    if field.startswith("metric:"):
+        v = row["metrics"].get(field.split(":", 1)[1])
+        return [v] if isinstance(v, (int, float)) else []
+    if field.startswith("roster:"):
+        _, kind, param = field.split(":", 2)
+        return [a["params"][param] for a in row["roster"]
+                if a["kind"] == kind and isinstance(a.get("params", {}).get(param), (int, float))]
+    v = row.get(field)
+    return [v] if isinstance(v, (int, float)) else []
+
+
+_ANALYTICS_OPS = {
+    ">=": lambda a, b: a >= b, "<=": lambda a, b: a <= b,
+    ">": lambda a, b: a > b, "<": lambda a, b: a < b,
+    "==": lambda a, b: a == b, "!=": lambda a, b: a != b,
+}
+
+
+def _row_matches_filters(row: dict[str, Any], filters: list[dict[str, Any]]) -> bool:
+    for f in filters:
+        candidates = _row_field_candidates(row, f["field"])
+        op = _ANALYTICS_OPS[f["op"]]
+        if not any(op(v, f["value"]) for v in candidates):
+            return False
+    return True
+
+
+def _row_matches_kind_filter(row: dict[str, Any], include_kinds: set[str]) -> bool:
+    return not include_kinds or bool(include_kinds & set(row["kind_counts"].keys()))
+
+
+def _scatter_svg(points: list[tuple[float, float]], x_label: str, y_label: str,
+                 width: int = 720, height: int = 360, color: str = "#3d6b8a") -> str:
+    if not points:
+        return ""
+    xs, ys = [p[0] for p in points], [p[1] for p in points]
+    xmin, xmax, ymin, ymax = min(xs), max(xs), min(ys), max(ys)
+    xspan, yspan = (xmax - xmin) or 1.0, (ymax - ymin) or 1.0
+    pad = 40
+
+    def sx(x: float) -> float:
+        return pad + (x - xmin) / xspan * (width - 2 * pad)
+
+    def sy(y: float) -> float:
+        return height - pad - (y - ymin) / yspan * (height - 2 * pad)
+
+    dots = "".join(
+        f"<circle cx='{sx(x):.1f}' cy='{sy(y):.1f}' r='4' fill='{color}' fill-opacity='0.75'/>"
+        for x, y in points
+    )
+    axes = (
+        f"<line x1='{pad}' y1='{height - pad}' x2='{width - pad}' y2='{height - pad}' stroke='#8886'/>"
+        f"<line x1='{pad}' y1='{pad}' x2='{pad}' y2='{height - pad}' stroke='#8886'/>"
+    )
+    labels = (
+        f"<text x='{width / 2}' y='{height - 8}' text-anchor='middle' font-size='12' "
+        f"fill='currentColor'>{x_label}</text>"
+        f"<text x='12' y='{height / 2}' text-anchor='middle' font-size='12' fill='currentColor' "
+        f"transform='rotate(-90 12 {height / 2})'>{y_label}</text>"
+    )
+    return f"<svg viewBox='0 0 {width} {height}' class='coopchart'>{axes}{dots}{labels}</svg>"
+
+
+@app.route("/analytics", methods=["GET", "POST"])
+def analytics():
+    records = Ledger(_REPO_ROOT).load_all()
+    rows = [_analytics_row(r) for r in records]
+
+    include_kinds = set(request.values.getlist("include_kind"))
+    filter_fields = request.values.getlist("filter_field[]")
+    filter_ops = request.values.getlist("filter_op[]")
+    filter_values = request.values.getlist("filter_value[]")
+    filters: list[dict[str, Any]] = []
+    for field, op, value in zip(filter_fields, filter_ops, filter_values):
+        if not field or not value.strip():
+            continue
+        try:
+            filters.append({"field": field, "op": op, "value": float(value)})
+        except ValueError:
+            continue
+
+    filtered = [row for row in rows if _row_matches_kind_filter(row, include_kinds)
+               and _row_matches_filters(row, filters)]
+
+    chart_axis_options = list(_ANALYTICS_SIMPLE_FIELDS) + [(f"metric:{k}", l) for k, l in _METRIC_META]
+    chart_x = request.values.get("chart_x", "n_agents")
+    chart_y = request.values.get("chart_y", "metric:cooperation_rate")
+    points = []
+    for row in filtered:
+        xs, ys = _row_field_candidates(row, chart_x), _row_field_candidates(row, chart_y)
+        if xs and ys:
+            points.append((xs[0], ys[0]))
+    chart_svg = _scatter_svg(points, chart_x, chart_y)
+
+    return render_template(
+        "analytics.html", rows=filtered, total_count=len(rows), kind_meta=KIND_META,
+        field_options=_analytics_field_options(), chart_axis_options=chart_axis_options,
+        include_kinds=include_kinds,
+        active_filters=list(zip(filter_fields, filter_ops, filter_values)),
+        chart_x=chart_x, chart_y=chart_y, chart_svg=chart_svg,
     )
 
 

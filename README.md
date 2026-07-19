@@ -69,26 +69,33 @@ python -m gamebrains.tests.test_pettingzoo_adapter
 python -m gamebrains.tests.test_gym_adapter
 ```
 
+## Authorship
+
+All code in this repository was conceived, designed, and implemented by **Nikolaos Al.
+Papadopoulos**, who is its sole author and copyright holder. Co-authors on the accompanying papers
+(see "How to Cite" below) contributed supervision and manuscript review; they did not author code.
+
 ## License
 
-GPL-3.0 (see `LICENSE`). Two independent reasons: (1) `vendor/pyphi/` is a patched fork of
-PyPhi (Mayner et al. 2018), itself GPL-3.0-licensed, so a copyleft license for the repository as a
-whole is the correct choice, not just a preference; (2) the authors independently wanted a
-"strict but open" license for the rest of the codebase.
+Copyright (C) 2026 Nikolaos Al. Papadopoulos. GPL-3.0 (see `LICENSE`). Two independent reasons:
+(1) `vendor/pyphi/` is a patched fork of PyPhi (Mayner et al. 2018), itself GPL-3.0-licensed, so a
+copyleft license for the repository as a whole is the correct choice, not just a preference; (2)
+a "strict but open" license was independently wanted for the rest of the codebase.
 
 Code under `agents/dqn.py`, `agents/qlearning.py` (encoding logic), and `games/` originates from
-the authors' own prior, sole-authored ALT/MBoE project (`github.com/dentros/Alternation`) and is
+the author's own prior, sole-authored ALT/MBoE project (`github.com/dentros/Alternation`) and is
 100% author-owned — free to relicense here regardless of that project's own license.
 
 ## How to Cite
 
 This is active research software; please cite the most specific publication available at the time:
 
-1. **Preprint** (arXiv) — not yet posted; check back or open an issue.
-2. **Conference paper** — *GameBrains: An Open Platform for Comparing Cognitive Agent
-   Architectures in Repeated Games* (tool demonstration, CoopIS 2026) — citation details to be
-   added once accepted/published.
+1. **Preprint** (arXiv) — not yet posted; single-authored (N. Al. Papadopoulos only), to establish
+   a clear historical record of original authorship. Check back or open an issue.
+2. **Conference paper** — *GameBrains: A Platform for Cognitive Agent Interaction in
+   Game-Theoretic Scenarios* — citation details to be added once accepted/published. Lists
+   additional co-authors (supervision/review, see "Authorship" above).
 3. **Journal paper** (systems/software venue, in submission) — citation details to be added once
-   accepted/published.
+   accepted/published. Same co-authorship basis as the conference paper.
 
 Until all three exist, citing the GitHub repository itself (with commit hash) is acceptable.

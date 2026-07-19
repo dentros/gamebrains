@@ -72,7 +72,11 @@
 <div class="panel">
   <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Correlation chart</h2>
   <p class="meta">{{ rows|length }} of {{ total_count }} recorded runs match the current filters.</p>
-  {% if chart_svg %}{{ chart_svg | safe }}
+  {% if chart_svg %}
+  {{ chart_svg | safe }}
+  <p class="meta"><a href="{{ chart_download }}" download="gamebrains_analytics_chart.svg">Download
+    this chart as a standalone SVG</a> &mdash; a real vector file (not a screenshot), suitable to
+    drop directly into a paper figure.</p>
   {% else %}<p class="meta">No two matching runs share both chosen axes yet -- nothing to plot.</p>
   {% endif %}
 </div>

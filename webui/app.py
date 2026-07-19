@@ -22,6 +22,7 @@ import io
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import numpy as np
 from flask import Flask, render_template, request
@@ -883,36 +884,98 @@ def _row_matches_kind_filter(row: dict[str, Any], include_kinds: set[str]) -> bo
     return not include_kinds or bool(include_kinds & set(row["kind_counts"].keys()))
 
 
+def _format_tick(v: float) -> str:
+    """Integer-looking values (n_agents, rounds, seed) print without decimals; everything else
+    (metrics, hyperparameters) prints to 3 significant figures -- readable at both scales without
+    a bare point number's false precision (e.g. `2` not `2.000`, but `0.00347` not `0.0`)."""
+    if float(v).is_integer():
+        return str(int(v))
+    return f"{v:.3g}"
+
+
 def _scatter_svg(points: list[tuple[float, float]], x_label: str, y_label: str,
-                 width: int = 720, height: int = 360, color: str = "#3d6b8a") -> str:
+                 width: int = 720, height: int = 360, color: str = "#3d6b8a",
+                 n_ticks: int = 5) -> tuple[str, str]:
+    """Returns (inline_html, download_href): `inline_html` embeds the chart in the results page;
+    `download_href` is a self-contained `data:image/svg+xml` URI of the *same* chart as a
+    standalone SVG file (its own `xmlns`, no CSS-class dependency on this page's stylesheet), so a
+    "Download SVG" link works as a real, portable vector figure suitable for a paper -- not a
+    screenshot of the page.
+    """
     if not points:
-        return ""
+        return "", ""
     xs, ys = [p[0] for p in points], [p[1] for p in points]
     xmin, xmax, ymin, ymax = min(xs), max(xs), min(ys), max(ys)
     xspan, yspan = (xmax - xmin) or 1.0, (ymax - ymin) or 1.0
-    pad = 40
+    pad_left, pad_right, pad_top, pad_bottom = 60, 20, 30, 50
 
     def sx(x: float) -> float:
-        return pad + (x - xmin) / xspan * (width - 2 * pad)
+        return pad_left + (x - xmin) / xspan * (width - pad_left - pad_right)
 
     def sy(y: float) -> float:
-        return height - pad - (y - ymin) / yspan * (height - 2 * pad)
+        return height - pad_bottom - (y - ymin) / yspan * (height - pad_top - pad_bottom)
+
+    def ticks(vmin: float, vmax: float) -> list[float]:
+        if vmin == vmax:
+            return [vmin]
+        step = (vmax - vmin) / (n_ticks - 1)
+        return [vmin + i * step for i in range(n_ticks)]
+
+    x_ticks, y_ticks = ticks(xmin, xmax), ticks(ymin, ymax)
+
+    gridlines = "".join(
+        f"<line x1='{sx(t):.1f}' y1='{pad_top}' x2='{sx(t):.1f}' y2='{height - pad_bottom}' "
+        f"stroke='#8884' stroke-dasharray='2,3'/>"
+        f"<text x='{sx(t):.1f}' y='{height - pad_bottom + 16}' text-anchor='middle' "
+        f"font-size='10' fill='currentColor'>{_format_tick(t)}</text>"
+        for t in x_ticks
+    ) + "".join(
+        f"<line x1='{pad_left}' y1='{sy(t):.1f}' x2='{width - pad_right}' y2='{sy(t):.1f}' "
+        f"stroke='#8884' stroke-dasharray='2,3'/>"
+        f"<text x='{pad_left - 8}' y='{sy(t):.1f}' text-anchor='end' dominant-baseline='middle' "
+        f"font-size='10' fill='currentColor'>{_format_tick(t)}</text>"
+        for t in y_ticks
+    )
 
     dots = "".join(
         f"<circle cx='{sx(x):.1f}' cy='{sy(y):.1f}' r='4' fill='{color}' fill-opacity='0.75'/>"
         for x, y in points
     )
     axes = (
-        f"<line x1='{pad}' y1='{height - pad}' x2='{width - pad}' y2='{height - pad}' stroke='#8886'/>"
-        f"<line x1='{pad}' y1='{pad}' x2='{pad}' y2='{height - pad}' stroke='#8886'/>"
+        f"<line x1='{pad_left}' y1='{height - pad_bottom}' x2='{width - pad_right}' "
+        f"y2='{height - pad_bottom}' stroke='#8888' stroke-width='1.5'/>"
+        f"<line x1='{pad_left}' y1='{pad_top}' x2='{pad_left}' y2='{height - pad_bottom}' "
+        f"stroke='#8888' stroke-width='1.5'/>"
+    )
+    title = (
+        f"<text x='{width / 2}' y='16' text-anchor='middle' font-size='13' font-weight='700' "
+        f"fill='currentColor'>{y_label} vs {x_label} (n={len(points)})</text>"
     )
     labels = (
-        f"<text x='{width / 2}' y='{height - 8}' text-anchor='middle' font-size='12' "
+        f"<text x='{width / 2}' y='{height - 10}' text-anchor='middle' font-size='12' "
         f"fill='currentColor'>{x_label}</text>"
-        f"<text x='12' y='{height / 2}' text-anchor='middle' font-size='12' fill='currentColor' "
-        f"transform='rotate(-90 12 {height / 2})'>{y_label}</text>"
+        f"<text x='16' y='{height / 2}' text-anchor='middle' font-size='12' fill='currentColor' "
+        f"transform='rotate(-90 16 {height / 2})'>{y_label}</text>"
     )
-    return f"<svg viewBox='0 0 {width} {height}' class='coopchart'>{axes}{dots}{labels}</svg>"
+    body = f"{title}{gridlines}{axes}{dots}{labels}"
+    # `currentColor` (used by title/labels/ticks above) inherits the CSS `color` of whatever
+    # wraps the SVG. The felt-dark chart background (`.scatterchart`, matching `.coopchart`) sits
+    # inside a light `.panel` whose text color is `--ink` (dark brown, meant for a light
+    # background) -- inherited as-is, that text would be near-invisible against the dark chart
+    # background. Setting `style="color:..."` directly on the `<svg>` root fixes `currentColor`
+    # locally, independent of the surrounding page: `--felt-text` (light cream) inline, plain dark
+    # gray for the standalone downloadable file (which sets its own white background below).
+    inline_html = (
+        f"<svg viewBox='0 0 {width} {height}' class='scatterchart' style='color:#e6e0c8'>"
+        f"{body}</svg>"
+    )
+    standalone_svg = (
+        f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}' "
+        f"width='{width}' height='{height}' style='background:#fff;color:#222;font-family:sans-serif'>"
+        f"{body}</svg>"
+    )
+    download_href = "data:image/svg+xml;charset=utf-8," + quote(standalone_svg)
+    return inline_html, download_href
 
 
 @app.route("/analytics", methods=["GET", "POST"])
@@ -937,6 +1000,7 @@ def analytics():
                and _row_matches_filters(row, filters)]
 
     chart_axis_options = list(_ANALYTICS_SIMPLE_FIELDS) + [(f"metric:{k}", l) for k, l in _METRIC_META]
+    axis_labels = dict(chart_axis_options)
     chart_x = request.values.get("chart_x", "n_agents")
     chart_y = request.values.get("chart_y", "metric:cooperation_rate")
     points = []
@@ -944,12 +1008,14 @@ def analytics():
         xs, ys = _row_field_candidates(row, chart_x), _row_field_candidates(row, chart_y)
         if xs and ys:
             points.append((xs[0], ys[0]))
-    chart_svg = _scatter_svg(points, chart_x, chart_y)
+    chart_svg, chart_download = _scatter_svg(
+        points, axis_labels.get(chart_x, chart_x), axis_labels.get(chart_y, chart_y),
+    )
 
     return render_template(
         "analytics.html", rows=filtered, total_count=len(rows), kind_meta=KIND_META,
         field_options=_analytics_field_options(), chart_axis_options=chart_axis_options,
-        include_kinds=include_kinds,
+        include_kinds=include_kinds, chart_download=chart_download,
         active_filters=list(zip(filter_fields, filter_ops, filter_values)),
         chart_x=chart_x, chart_y=chart_y, chart_svg=chart_svg,
     )

@@ -149,10 +149,25 @@
   <button type="submit" id="mainsubmit">Run the experiment</button>
 </form>
 <script>
+const LOADING_MESSAGES = [
+  'Rolling initiative...', 'Shuffling the deck...', 'Teaching Q-tables to behave...',
+  'Waiting for the FEP agent to stop overthinking...', 'Evolving little brains...',
+  'Counting cooperators...', 'Bribing the defectors...', 'Consulting the Nash oracle...',
+];
 document.getElementById('mainform').addEventListener('submit', () => {
-  const btn = document.getElementById('mainsubmit');
-  btn.disabled = true;
-  btn.textContent = 'Running... (this can take a few seconds)';
+  const mainBtn = document.getElementById('mainsubmit');
+  const wizBtn = document.querySelector('#quickstart [data-step="3"] .btn');
+  mainBtn.disabled = true;
+  if (wizBtn) wizBtn.disabled = true;
+  let i = 0;
+  const cycle = () => {
+    const msg = LOADING_MESSAGES[i % LOADING_MESSAGES.length];
+    mainBtn.textContent = msg;
+    if (wizBtn) wizBtn.textContent = msg;
+    i++;
+  };
+  cycle();
+  setInterval(cycle, 1100);
 });
 </script>
 
@@ -317,9 +332,7 @@ function wizardRun(btn) {
   WIZARD_MIXES[mixKey].kinds.forEach(kind => addRow(kind));
   document.querySelector('input[name="rounds"]').value = rounds;
   updateTotals(); updateEpsilonHints();
-  btn.disabled = true;
-  btn.textContent = 'Running... (this can take a few seconds)';
-  document.getElementById('mainform').submit();
+  document.getElementById('mainform').requestSubmit();
 }
 </script>
 {% endblock %}

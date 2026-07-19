@@ -3,161 +3,196 @@
 <a class="backlink" href="/">&larr; new experiment</a>
 
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-game"/></svg>Summary</h2>
   <p class="meta">
     <b>{{ game.name }}</b> &middot; n={{ game.n_agents }} &middot; rounds={{ rounds }} &middot;
     seed={{ seed }} &middot; MPCR={{ game.mpcr }} &middot; cost={{ game.cost }} &middot;
     event log: <code>{{ log_path }}</code>
   </p>
-  <table>
-    <tr>{% for key, label in metric_meta %}{% if key in show_metrics %}<th>{{ label }}</th>{% endif %}{% endfor %}</tr>
-    <tr>{% for key, label in metric_meta %}{% if key in show_metrics %}<td>{{ "%.4f"|format(metrics[key]) }}</td>{% endif %}{% endfor %}</tr>
-  </table>
-  {% if epsilon_hints %}
-  <p class="meta">
-    {% for h in epsilon_hints %}
-      &epsilon; ({{ h.kind }}): decay={{ h.decay }} min={{ h.emin }} &rarr; needs
-      ~{{ (h.rounds_needed)|round(0, 'ceil')|int }} rounds
-      {% if h.reached %}<span class="badge ok">reached &epsilon;_min</span>{% else %}<span class="badge warn">not yet reached</span>{% endif %}
-      &middot;
+  <a href="{{ zip_download }}" download="gamebrains_results.zip" class="btn" style="display:inline-block; width:auto; text-decoration:none; padding:8px 16px;">
+    Download everything (charts + CSVs + log) as ZIP
+  </a>
+</div>
+
+<nav class="subtabs">
+  <button type="button" class="subtab-btn active" data-tab="overview" onclick="showSubtab('overview')">Overview</button>
+  <button type="button" class="subtab-btn" data-tab="brains" onclick="showSubtab('brains')">Brains</button>
+  <button type="button" class="subtab-btn" data-tab="analysis" onclick="showSubtab('analysis')">Analysis</button>
+  {% if repo_info %}<button type="button" class="subtab-btn" data-tab="repository" onclick="showSubtab('repository')">Repository</button>{% endif %}
+  <button type="button" class="subtab-btn" data-tab="log" onclick="showSubtab('log')">Log</button>
+</nav>
+
+<div class="subtab-panel" data-tab="overview">
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-game"/></svg>Summary</h2>
+    <table>
+      <tr>{% for key, label in metric_meta %}{% if key in show_metrics %}<th>{{ label }}</th>{% endif %}{% endfor %}</tr>
+      <tr>{% for key, label in metric_meta %}{% if key in show_metrics %}<td>{{ "%.4f"|format(metrics[key]) }}</td>{% endif %}{% endfor %}</tr>
+    </table>
+    {% if epsilon_hints %}
+    <p class="meta">
+      {% for h in epsilon_hints %}
+        &epsilon; ({{ h.kind }}): decay={{ h.decay }} min={{ h.emin }} &rarr; needs
+        ~{{ (h.rounds_needed)|round(0, 'ceil')|int }} rounds
+        {% if h.reached %}<span class="badge ok">reached &epsilon;_min</span>{% else %}<span class="badge warn">not yet reached</span>{% endif %}
+        &middot;
+      {% endfor %}
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Cooperation rate by round</h2>
+    {{ chart_svg | safe }}
+  </div>
+
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-versus"/></svg>Leaderboard</h2>
+    <table>
+      <tr><th>#</th><th>Agent</th><th>Kind</th><th>Cumulative payoff</th></tr>
+      {% for row in leaderboard %}
+      <tr><td>{{ loop.index }}</td><td>{{ row.name }}</td><td>{{ row.kind }}</td>
+          <td>{{ "%+.2f"|format(row.payoff) }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="subtab-panel" data-tab="brains" style="display:none">
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-roster"/></svg>Brain creatures</h2>
+    {% for c in creatures %}
+    <div class="creature" style="--piece-color: {{ c.color }}">
+      <h3><svg class="glyph"><use href="#{{ c.glyph }}"/></svg> {{ c.name }} <span class="kindtag">{{ c.kind }}</span> <span class="kindtag">{{ c.mode }}</span></h3>
+      {{ c.body | safe }}
+    </div>
     {% endfor %}
-  </p>
+  </div>
+
+  {% if genome_cids %}
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>Evolved genomes from this match</h2>
+    <p class="meta">Paste this CID into a markov_brain row's Evolved Genome CID field on a future
+      run to reuse this genome instead of a random one.</p>
+    <table>
+      <tr><th>Agent</th><th>Genome CID</th></tr>
+      {% for g in genome_cids %}<tr><td>{{ g.name }}</td><td><code>{{ g.cid }}</code></td></tr>{% endfor %}
+    </table>
+  </div>
   {% endif %}
 </div>
 
-<div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Cooperation rate by round</h2>
-  {{ chart_svg | safe }}
-</div>
-
-<div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-roster"/></svg>Brain creatures</h2>
-  {% for c in creatures %}
-  <div class="creature" style="--piece-color: {{ c.color }}">
-    <h3><svg class="glyph"><use href="#{{ c.glyph }}"/></svg> {{ c.name }} <span class="kindtag">{{ c.kind }}</span> <span class="kindtag">{{ c.mode }}</span></h3>
-    {{ c.body | safe }}
+<div class="subtab-panel" data-tab="analysis" style="display:none">
+  {% if nash_html %}
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-scale"/></svg>Nash equilibrium (pygambit)</h2>
+    <pre class="console">{{ nash_html }}</pre>
+    {{ nash_explain | safe }}
   </div>
-  {% endfor %}
-</div>
+  {% endif %}
 
-{% if genome_cids %}
-<div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>Evolved genomes from this match</h2>
-  <p class="meta">Paste this CID into a markov_brain row's Evolved Genome CID field on a future
-    run to reuse this genome instead of a random one.</p>
-  <table>
-    <tr><th>Agent</th><th>Genome CID</th></tr>
-    {% for g in genome_cids %}<tr><td>{{ g.name }}</td><td><code>{{ g.cid }}</code></td></tr>{% endfor %}
-  </table>
-</div>
-{% endif %}
+  {% if metrics.mutual_information_detail %}
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Mutual information &amp; transfer entropy</h2>
+    <p class="meta">Discrete plug-in estimator with Miller-Madow bias correction. Every transfer-entropy
+      pair below is tested against {{ metrics.transfer_entropy_detail.n_surrogates }} time-shift
+      surrogates; only pairs with p &lt; 0.05 count toward the "Transfer entropy" figure in the
+      Summary panel above &mdash; a nonzero raw value with a large p-value here is not evidence of a
+      real link, it can be finite-sample noise or a shared confound (e.g. both agents reacting to the
+      same public signal).</p>
+    <table>
+      <tr><th>Agent</th><th>Kind</th><th>I(obs;action) bits</th></tr>
+      {% for bits in metrics.mutual_information_detail.bits_by_agent %}
+      <tr><td>{{ roster[loop.index0].name }}</td><td>{{ roster[loop.index0].kind }}</td>
+          <td>{{ "%.4f"|format(bits) }}</td></tr>
+      {% endfor %}
+    </table>
+    <table>
+      <tr><th>Source &rarr; Target</th><th>TE (bits)</th><th>p-value</th><th>Significant?</th></tr>
+      {% for pair, d in metrics.transfer_entropy_detail.by_pair.items() %}
+      <tr>
+        <td>{{ roster[pair[0]].name }} &rarr; {{ roster[pair[1]].name }}</td>
+        <td>{{ "%.4f"|format(d.bits) }}</td>
+        <td>{{ "%.4f"|format(d.p_value) }}</td>
+        <td>{% if d.p_value < 0.05 %}<span class="badge ok">yes</span>{% else %}<span class="badge warn">no</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
 
-<div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-versus"/></svg>Leaderboard</h2>
-  <table>
-    <tr><th>#</th><th>Agent</th><th>Kind</th><th>Cumulative payoff</th></tr>
-    {% for row in leaderboard %}
-    <tr><td>{{ loop.index }}</td><td>{{ row.name }}</td><td>{{ row.kind }}</td>
-        <td>{{ "%+.2f"|format(row.payoff) }}</td></tr>
-    {% endfor %}
-  </table>
+  {% if phi_info %}
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>&Phi; (integrated information) &amp; causal autonomy</h2>
+    <p class="meta">agent: {{ phi_info.agent }}</p>
+    <table>
+      <tr><th>&Phi;</th><th>Causal autonomy (bits)</th></tr>
+      <tr><td>{{ "%.4f"|format(phi_info.phi) }}</td><td>{{ "%.4f"|format(phi_info.autonomy) }}</td></tr>
+    </table>
+  </div>
+  {% endif %}
 </div>
-
-{% if nash_html %}
-<div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-scale"/></svg>Nash equilibrium (pygambit)</h2>
-  <pre class="console">{{ nash_html }}</pre>
-  {{ nash_explain | safe }}
-</div>
-{% endif %}
-
-{% if metrics.mutual_information_detail %}
-<div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Mutual information &amp; transfer entropy</h2>
-  <p class="meta">Discrete plug-in estimator with Miller-Madow bias correction. Every transfer-entropy
-    pair below is tested against {{ metrics.transfer_entropy_detail.n_surrogates }} time-shift
-    surrogates; only pairs with p &lt; 0.05 count toward the "Transfer entropy" figure in the
-    Summary panel above &mdash; a nonzero raw value with a large p-value here is not evidence of a
-    real link, it can be finite-sample noise or a shared confound (e.g. both agents reacting to the
-    same public signal).</p>
-  <table>
-    <tr><th>Agent</th><th>Kind</th><th>I(obs;action) bits</th></tr>
-    {% for bits in metrics.mutual_information_detail.bits_by_agent %}
-    <tr><td>{{ roster[loop.index0].name }}</td><td>{{ roster[loop.index0].kind }}</td>
-        <td>{{ "%.4f"|format(bits) }}</td></tr>
-    {% endfor %}
-  </table>
-  <table>
-    <tr><th>Source &rarr; Target</th><th>TE (bits)</th><th>p-value</th><th>Significant?</th></tr>
-    {% for pair, d in metrics.transfer_entropy_detail.by_pair.items() %}
-    <tr>
-      <td>{{ roster[pair[0]].name }} &rarr; {{ roster[pair[1]].name }}</td>
-      <td>{{ "%.4f"|format(d.bits) }}</td>
-      <td>{{ "%.4f"|format(d.p_value) }}</td>
-      <td>{% if d.p_value < 0.05 %}<span class="badge ok">yes</span>{% else %}<span class="badge warn">no</span>{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </table>
-</div>
-{% endif %}
-
-{% if phi_info %}
-<div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>&Phi; (integrated information) &amp; causal autonomy</h2>
-  <p class="meta">agent: {{ phi_info.agent }}</p>
-  <table>
-    <tr><th>&Phi;</th><th>Causal autonomy (bits)</th></tr>
-    <tr><td>{{ "%.4f"|format(phi_info.phi) }}</td><td>{{ "%.4f"|format(phi_info.autonomy) }}</td></tr>
-  </table>
-</div>
-{% endif %}
 
 {% if repo_info %}
-<div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Repository (blockchain-lite ledger)</h2>
-  <table>
-    <tr><th>config_hash</th><td><code>{{ repo_info.config_hash }}</code></td></tr>
-    <tr><th>content_cid</th><td><code>{{ repo_info.content_cid }}</code></td></tr>
-    <tr><th>contributor</th><td><code>{{ repo_info.contributor }}</code></td></tr>
-    <tr><th>signature</th><td>
-      {% if repo_info.signature_valid %}<span class="badge ok">valid Ed25519</span>
-      {% else %}<span class="badge warn">invalid</span>{% endif %}
-    </td></tr>
-    <tr><th>lineage</th><td>{{ repo_info.lineage }}</td></tr>
-  </table>
-</div>
+<div class="subtab-panel" data-tab="repository" style="display:none">
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Repository (blockchain-lite ledger)</h2>
+    <table>
+      <tr><th>config_hash</th><td><code>{{ repo_info.config_hash }}</code></td></tr>
+      <tr><th>content_cid</th><td><code>{{ repo_info.content_cid }}</code></td></tr>
+      <tr><th>contributor</th><td><code>{{ repo_info.contributor }}</code></td></tr>
+      <tr><th>signature</th><td>
+        {% if repo_info.signature_valid %}<span class="badge ok">valid Ed25519</span>
+        {% else %}<span class="badge warn">invalid</span>{% endif %}
+      </td></tr>
+      <tr><th>lineage</th><td>{{ repo_info.lineage }}</td></tr>
+    </table>
+  </div>
 
-<div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Smart Filter</h2>
-  {% if filter_info.exact %}
-    <p><span class="badge ok">exact match found</span>: the same config/seed/rounds already
-    ran (<code>{{ filter_info.exact.content_cid[:12] }}...</code>). In principle this rerun could
-    have been skipped.</p>
-  {% else %}
-    <p><span class="badge warn">no exact match</span>: a new config/seed/rounds combination.</p>
-  {% endif %}
-  {% if filter_info.similar %}
-  <table>
-    <tr><th>content_cid</th><th>config_hash</th><th>rounds</th><th>seed</th>
-        <th>cooperation_rate</th><th>distance</th></tr>
-    {% for s in filter_info.similar %}
-    <tr>
-      <td><code>{{ s.content_cid }}...</code></td><td><code>{{ s.config_hash }}...</code></td>
-      <td>{{ s.rounds }}</td><td>{{ s.seed }}</td>
-      <td>{{ "%.3f"|format(s.cooperation_rate) if s.cooperation_rate is not none else "-" }}</td>
-      <td>{{ "%.1f"|format(s.distance) }}</td>
-    </tr>
-    {% endfor %}
-  </table>
-  {% else %}
-  <p class="meta">No prior experiments in the repository to compare against yet.</p>
-  {% endif %}
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Smart Filter</h2>
+    {% if filter_info.exact %}
+      <p><span class="badge ok">exact match found</span>: the same config/seed/rounds already
+      ran (<code>{{ filter_info.exact.content_cid[:12] }}...</code>). In principle this rerun could
+      have been skipped.</p>
+    {% else %}
+      <p><span class="badge warn">no exact match</span>: a new config/seed/rounds combination.</p>
+    {% endif %}
+    {% if filter_info.similar %}
+    <table>
+      <tr><th>content_cid</th><th>config_hash</th><th>rounds</th><th>seed</th>
+          <th>cooperation_rate</th><th>distance</th></tr>
+      {% for s in filter_info.similar %}
+      <tr>
+        <td><code>{{ s.content_cid }}...</code></td><td><code>{{ s.config_hash }}...</code></td>
+        <td>{{ s.rounds }}</td><td>{{ s.seed }}</td>
+        <td>{{ "%.3f"|format(s.cooperation_rate) if s.cooperation_rate is not none else "-" }}</td>
+        <td>{{ "%.1f"|format(s.distance) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="meta">No prior experiments in the repository to compare against yet.</p>
+    {% endif %}
+  </div>
 </div>
 {% endif %}
 
-<div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-log"/></svg>Log (round by round)</h2>
-  <pre class="console">{{ console_log }}</pre>
+<div class="subtab-panel" data-tab="log" style="display:none">
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-log"/></svg>Log (round by round)</h2>
+    <a href="{{ log_download }}" download="gamebrains_log.txt" class="meta">Download this log as .txt</a>
+    <pre class="console">{{ console_log }}</pre>
+  </div>
 </div>
 
+<script>
+function showSubtab(name) {
+  document.querySelectorAll('.subtab-panel').forEach(el => {
+    el.style.display = (el.dataset.tab === name) ? '' : 'none';
+  });
+  document.querySelectorAll('.subtab-btn').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === name);
+  });
+}
+</script>
 {% endblock %}

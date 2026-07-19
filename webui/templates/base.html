@@ -43,6 +43,14 @@
   }
   nav.tabs a:hover { opacity: 1; }
   nav.tabs a.active { background: var(--panel); color: var(--ink); opacity: 1; font-weight: 600; }
+  nav.subtabs { display: flex; gap: 6px; margin: 14px 0; flex-wrap: wrap; }
+  .subtab-btn {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid var(--panel-edge);
+    background: #ffffff33; color: var(--felt-text); font-family: var(--font-display);
+    font-size: 13px; cursor: pointer; opacity: .8;
+  }
+  .subtab-btn:hover { opacity: 1; }
+  .subtab-btn.active { background: var(--panel); color: var(--ink); opacity: 1; font-weight: 600; }
   main { max-width: 1080px; margin: 0 auto; padding: 26px 24px 70px; }
   .panel {
     background: var(--panel); color: var(--ink); border-radius: 10px;

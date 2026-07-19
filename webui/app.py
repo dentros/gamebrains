@@ -17,8 +17,11 @@ then open http://127.0.0.1:5000/ in a browser.
 
 from __future__ import annotations
 
+import base64
 import contextlib
+import csv
 import io
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -436,6 +439,79 @@ def fitness_svg(history: list[dict], width: int = 720, height: int = 160) -> str
            f"<span style='color:#6ec6ff'>&#9644;</span> avg fitness</p>")
 
 
+# --- CSV / ZIP export helpers: every chart and table on the results page, downloadable in one
+# click as real files (not screenshots), so they can be dropped directly into a paper. -----------
+
+def _text_download_href(text: str, mime: str = "text/plain") -> str:
+    encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+    return f"data:{mime};charset=utf-8;base64,{encoded}"
+
+
+def _metrics_csv(metrics: dict[str, Any], metric_meta: list[tuple[str, str]]) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["metric", "label", "value"])
+    for key, label in metric_meta:
+        if key in metrics and isinstance(metrics[key], (int, float)):
+            writer.writerow([key, label, metrics[key]])
+    return buf.getvalue()
+
+
+def _leaderboard_csv(leaderboard: list[dict[str, Any]]) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["agent", "kind", "cumulative_payoff"])
+    for row in leaderboard:
+        writer.writerow([row["name"], row["kind"], row["payoff"]])
+    return buf.getvalue()
+
+
+def _mi_te_csv(metrics: dict[str, Any], roster: list[Any]) -> str:
+    """One CSV combining both information-theoretic breakdowns (mutual information per agent,
+    transfer entropy per pair with its surrogate p-value) -- empty string if neither was computed
+    this run, so the ZIP simply omits the file rather than including an empty/misleading one."""
+    mi = metrics.get("mutual_information_detail")
+    te = metrics.get("transfer_entropy_detail")
+    if not mi and not te:
+        return ""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    if mi:
+        writer.writerow(["mutual_information"])
+        writer.writerow(["agent", "kind", "I(obs;action)_bits"])
+        for i, bits in enumerate(mi["bits_by_agent"]):
+            writer.writerow([roster[i].name, roster[i].kind, bits])
+        writer.writerow([])
+    if te:
+        writer.writerow(["transfer_entropy"])
+        writer.writerow(["source", "target", "TE_bits", "p_value", "significant_p<0.05"])
+        for (i, j), d in te["by_pair"].items():
+            writer.writerow([roster[i].name, roster[j].name, d["bits"], d["p_value"],
+                             d["p_value"] < 0.05])
+    return buf.getvalue()
+
+
+def _build_results_zip(chart_svg: str, metrics_csv: str, leaderboard_csv: str, mi_te_csv: str,
+                       console_log: str) -> str:
+    """Every chart/CSV/log on the results page, bundled into one ZIP, returned as a downloadable
+    data URI -- no server-side temp file or extra route needed, matching how the single-chart SVG
+    download already works (embed the file's own bytes directly in the link)."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        if chart_svg:
+            zf.writestr("cooperation_rate.svg", chart_svg)
+        if metrics_csv:
+            zf.writestr("metrics_summary.csv", metrics_csv)
+        if leaderboard_csv:
+            zf.writestr("leaderboard.csv", leaderboard_csv)
+        if mi_te_csv:
+            zf.writestr("mutual_information_transfer_entropy.csv", mi_te_csv)
+        if console_log:
+            zf.writestr("log.txt", console_log)
+    encoded = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:application/zip;base64,{encoded}"
+
+
 # --- routes: single match ------------------------------------------------------------------------
 
 @app.route("/", methods=["GET"])
@@ -620,6 +696,12 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
             "lineage": ", ".join(lineage_bits) if lineage_bits else "none (first of its kind)",
         }
 
+    metrics_csv = _metrics_csv(metrics, _METRIC_META)
+    leaderboard_csv = _leaderboard_csv(leaderboard)
+    mi_te_csv = _mi_te_csv(metrics, roster)
+    zip_download = _build_results_zip(chart_svg, metrics_csv, leaderboard_csv, mi_te_csv, console_log)
+    log_download = _text_download_href(console_log)
+
     return {
         "game": game, "roster": roster, "seed": seed, "rounds": rounds, "metrics": metrics,
         "show_metrics": show_metrics, "metric_meta": _METRIC_META, "creatures": creatures,
@@ -627,6 +709,7 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
         "nash_html": nash_html, "nash_explain": _NASH_EXPLAIN, "phi_info": phi_info,
         "repo_info": repo_info, "filter_info": filter_info, "log_path": log_path.name,
         "epsilon_hints": epsilon_hints, "genome_cids": genome_cids,
+        "zip_download": zip_download, "log_download": log_download,
     }
 
 

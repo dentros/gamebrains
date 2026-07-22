@@ -247,7 +247,7 @@ def _epsilon_rounds_to_min(decay: float, emin: float) -> float:
 def _heat_color(value: float, vmax: float) -> str:
     """Diverging red(-)/green(+) background, intensity scaled by |value| / vmax."""
     if vmax <= 0:
-        return "background:#eee"
+        return "background:#2a3050"
     t = min(abs(value) / vmax, 1.0)
     if value >= 0:
         return f"background:rgba(34,160,80,{0.12 + 0.55 * t:.2f})"
@@ -547,7 +547,7 @@ def _polyline_svg(series: list[float], width: int = 720, height: int = 140, colo
     ]
     gridlines = "".join(
         f"<line x1='0' y1='{height * frac:.1f}' x2='{width}' y2='{height * frac:.1f}' "
-        f"stroke='#3336' stroke-width='1'/>" for frac in (0.0, 0.5, 1.0)
+        f"stroke='#ffffff30' stroke-width='1'/>" for frac in (0.0, 0.5, 1.0)
     )
     return (f"<svg viewBox='0 0 {width} {height}' class='{css_class}'>"
            f"{gridlines}<polyline points='{' '.join(pts)}' fill='none' stroke='{color}' "
@@ -1206,14 +1206,15 @@ def _scatter_svg(points: list[tuple[float, float]], x_label: str, y_label: str,
     )
     body = f"{title}{gridlines}{axes}{dots}{labels}"
     # `currentColor` (used by title/labels/ticks above) inherits the CSS `color` of whatever
-    # wraps the SVG. The felt-dark chart background (`.scatterchart`, matching `.coopchart`) sits
-    # inside a light `.panel` whose text color is `--ink` (dark brown, meant for a light
-    # background) -- inherited as-is, that text would be near-invisible against the dark chart
+    # wraps the SVG. The dark chart background (`.scatterchart`, matching `.coopchart`) sits
+    # inside a `.panel` whose text color is `--ink` (bright, meant to sit on the panel's own dark
+    # background) -- inherited as-is, that text would blend into the equally-dark chart
     # background. Setting `style="color:..."` directly on the `<svg>` root fixes `currentColor`
-    # locally, independent of the surrounding page: `--felt-text` (light cream) inline, plain dark
-    # gray for the standalone downloadable file (which sets its own white background below).
+    # locally, independent of the surrounding page: `--felt-text` inline, plain dark gray for the
+    # standalone downloadable file (which sets its own white background below, deliberately
+    # print/paper-appropriate regardless of the on-page theme).
     inline_html = (
-        f"<svg viewBox='0 0 {width} {height}' class='scatterchart' style='color:#e6e0c8'>"
+        f"<svg viewBox='0 0 {width} {height}' class='scatterchart' style='color:#c7cbe6'>"
         f"{body}</svg>"
     )
     standalone_svg = (

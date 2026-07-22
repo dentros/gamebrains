@@ -310,28 +310,38 @@ def _dqn_network_html(agent: Any) -> str:
            f"This is the network's architecture, not the Q-values it produces (see table below).</p>")
 
 
-_FEP_EXPLAIN = (
-    "<details class='explain'><summary>&#8505; How to read this</summary>"
-    "<p><b>Theory.</b> The FEP agent holds a categorical belief over how many other players are "
-    "cooperating, updated by exact Bayesian filtering each round. It picks an action by minimizing "
-    "expected free energy: a softmax over expected value, not reward-maximizing learning like "
-    "Q-learning.</p>"
-    "<p><b>Reading it.</b> Each bar is the probability the agent assigns to that many cooperators. "
-    "E[others] is the expectation of that distribution. <code>reciprocity</code> controls how "
-    "social the agent is: 0 is purely selfish (maximizes only its own payoff); higher values make "
-    "it prefer cooperating when it believes others will too: a simple Theory-of-Mind rule, since "
-    "what I expect others to do shapes what I do.</p></details>"
-)
+# One shared slide-out drawer (base.html) replaces what used to be a <details> accordion repeated
+# inline in every single creature card of the same kind (e.g. three Q-learners each carried their
+# own copy of the same explanation). The content below is now rendered exactly once per page
+# (results.html's <template id="help-tmpl-*"> blocks); each card just gets a small trigger button
+# (`_help_trigger`) pointing at the shared topic. Less scrolling, no duplicated text.
+_HELP_TOPICS: dict[str, tuple[str, str]] = {
+    "fep": ("FEP / Active Inference", (
+        "<p><b>Theory.</b> The FEP agent holds a categorical belief over how many other players are "
+        "cooperating, updated by exact Bayesian filtering each round. It picks an action by minimizing "
+        "expected free energy: a softmax over expected value, not reward-maximizing learning like "
+        "Q-learning.</p>"
+        "<p><b>Reading it.</b> Each bar is the probability the agent assigns to that many cooperators. "
+        "E[others] is the expectation of that distribution. <code>reciprocity</code> controls how "
+        "social the agent is: 0 is purely selfish (maximizes only its own payoff); higher values make "
+        "it prefer cooperating when it believes others will too: a simple Theory-of-Mind rule, since "
+        "what I expect others to do shapes what I do.</p>"
+    )),
+    "nash": ("Nash equilibrium (pygambit)", (
+        "<p><b>Theory.</b> Computed analytically (via pygambit) on the single-round stage game: which "
+        "action profile is stable when no player benefits from unilaterally deviating, given mpcr/cost/n. "
+        "It ignores repeated-game effects such as reputation and whatever the actual agents learned.</p>"
+        "<p><b>Reading it.</b> This is where a fully rational, one-shot player would end up. Compare it "
+        "with the cooperation rate this run actually reached: if your agents haven't converged there yet "
+        "(e.g. epsilon is still high), they likely need more rounds.</p>"
+    )),
+}
 
-_NASH_EXPLAIN = (
-    "<details class='explain'><summary>&#8505; How to read this</summary>"
-    "<p><b>Theory.</b> Computed analytically (via pygambit) on the single-round stage game: which "
-    "action profile is stable when no player benefits from unilaterally deviating, given mpcr/cost/n. "
-    "It ignores repeated-game effects such as reputation and whatever the actual agents learned.</p>"
-    "<p><b>Reading it.</b> This is where a fully rational, one-shot player would end up. Compare it "
-    "with the cooperation rate this run actually reached: if your agents haven't converged there yet "
-    "(e.g. epsilon is still high), they likely need more rounds.</p></details>"
-)
+
+def _help_trigger(topic: str) -> str:
+    title = _HELP_TOPICS[topic][0]
+    return (f"<button type='button' class='help-trigger' onclick=\"openHelpDrawer('{topic}')\">"
+           f"&#8505; How to read this ({title})</button>")
 
 
 _MB_ROLE_COLORS = {"sensor": "#3d6b8a", "hidden": "#b5541f", "motor": "#6b8a3d"}
@@ -473,40 +483,39 @@ def _policy_vs_behavior_html(brain: dict, coop_rate: float | None) -> str:
            f"{coop_rate * 100:.1f}% of rounds{eps_note}.</p>")
 
 
-_QL_EXPLAIN = (
-    "<details class='explain'><summary>&#8505; How to read this</summary>"
+_HELP_TOPICS["qlearning"] = ("Q-learning", (
     "<p><b>Theory.</b> Tabular Q-learning keeps one row per observed state (here: how many players "
     "cooperated last round) and one column per action; each cell estimates the long-run value of "
     "taking that action in that state. The table IS the agent's entire mind -- nothing is hidden.</p>"
     "<p><b>Reading it.</b> Green = higher value. The arrow marks the greedy choice per state. "
     "With &epsilon;-greedy exploration the agent sometimes acts against its own table on purpose; "
-    "the policy-vs-behavior line quantifies exactly how often that happened this match.</p></details>"
-)
+    "the policy-vs-behavior line quantifies exactly how often that happened this match.</p>"
+))
 
-_DQN_EXPLAIN = (
-    "<details class='explain'><summary>&#8505; How to read this</summary>"
+_HELP_TOPICS["dqn"] = ("Deep Q-Network", (
     "<p><b>Theory.</b> The DQN replaces the table with a neural network that maps a one-hot state "
     "to Q-values, trained by experience replay against a target network. The network diagram is "
     "its actual architecture; the table below it is the network <i>evaluated</i> at every state, "
     "so it stays directly comparable with the tabular agent's table.</p>"
     "<p><b>Reading it.</b> If the DQN's evaluated table and a tabular Q-learner's table disagree "
     "sharply on the same match, that difference is the function approximation itself -- same "
-    "algorithm family, different representation. loss is the last training-batch TD error.</p></details>"
-)
+    "algorithm family, different representation. loss is the last training-batch TD error.</p>"
+))
 
 
 def render_creature(agent: Any, coop_rate: float | None = None) -> dict[str, Any]:
     brain = agent.render_brain()
     kind = brain.get("kind")
     if kind == "qlearning":
-        body = _qtable_html(brain, "q_table") + _policy_vs_behavior_html(brain, coop_rate) + _QL_EXPLAIN
+        body = (_qtable_html(brain, "q_table") + _policy_vs_behavior_html(brain, coop_rate)
+                + _help_trigger("qlearning"))
     elif kind == "dqn":
         net = f"<p class='meta'>net {'-'.join(map(str, brain.get('layers', [])))} " \
              f"&middot; loss={brain.get('last_loss', 0):.4f} &middot; {brain.get('device')}</p>"
         body = (net + _dqn_network_html(agent) + _qtable_html(brain, "q_values")
-                + _policy_vs_behavior_html(brain, coop_rate) + _DQN_EXPLAIN)
+                + _policy_vs_behavior_html(brain, coop_rate) + _help_trigger("dqn"))
     elif kind == "fep":
-        body = _fep_html(brain) + _FEP_EXPLAIN
+        body = _fep_html(brain) + _help_trigger("fep")
     elif kind == "markov_brain":
         body = _markov_brain_html(brain)
     elif kind == "classic":
@@ -869,7 +878,8 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
         "game": game, "roster": roster, "seed": seed, "rounds": rounds, "metrics": metrics,
         "show_metrics": show_metrics, "metric_meta": _METRIC_META, "creatures": creatures,
         "chart_svg": chart_svg, "console_log": console_log, "leaderboard": leaderboard,
-        "nash_html": nash_html, "nash_explain": _NASH_EXPLAIN, "phi_info": phi_info,
+        "nash_html": nash_html, "nash_help_trigger": _help_trigger("nash"), "phi_info": phi_info,
+        "help_topics": _HELP_TOPICS,
         "repo_info": repo_info, "filter_info": filter_info, "log_path": log_path.name,
         "epsilon_hints": epsilon_hints, "genome_cids": genome_cids,
         "zip_download": zip_download, "log_download": log_download,

@@ -175,13 +175,19 @@
   a:hover { color: #ffbc5c; }
   .backlink { display: inline-block; margin-bottom: 16px; color: var(--felt-text); }
   .rosterrow {
-    display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; padding: 12px;
-    border: 1px solid var(--panel-edge); border-radius: 8px; margin-bottom: 8px; background: #171c30;
+    padding: 12px; border: 1px solid var(--panel-edge); border-radius: 8px; margin-bottom: 8px;
+    background: #171c30;
   }
-  .rosterrow .kindpick { min-width: 190px; display: flex; align-items: flex-end; gap: 8px; }
+  .rosterrow .rr-head { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+  .rosterrow .rr-body {
+    display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-top: 12px;
+    padding-top: 12px; border-top: 1px dashed var(--panel-edge);
+  }
+  .rosterrow .kindpick { min-width: 190px; display: flex; align-items: flex-end; gap: 8px; flex: 1; }
   .rosterrow .kindpick .glyph { color: var(--ink-soft); margin-bottom: 8px; }
   .rosterrow .kindpick select { flex: 1; }
   .rosterrow .countpick { width: 80px; }
+  .rosterrow .rr-toggle { margin: 0 0 1px; flex-shrink: 0; }
   .rosterrow .kindfield { min-width: 140px; }
   .rosterrow .removerow { align-self: center; }
   .rosterrow details.advanced { flex-basis: 100%; margin-top: 4px; }
@@ -251,6 +257,35 @@
   .fw-nav .btn, .fw-nav .secondary { width: auto; min-width: 140px; margin: 0; }
   .fieldicon { display: inline-flex; align-items: center; gap: 5px; }
   .fieldicon .glyph { width: 15px; height: 15px; color: var(--ink-soft); }
+  .help-trigger {
+    display: inline-block; background: none; border: 1px solid var(--panel-edge); color: var(--gold);
+    font-family: var(--font-body); font-size: 12px; font-weight: 600; padding: 5px 12px;
+    border-radius: 999px; cursor: pointer; margin-top: 10px; box-shadow: none;
+  }
+  .help-trigger:hover { background: #f0a83d1a; border-color: var(--gold); }
+  .help-drawer-backdrop {
+    position: fixed; inset: 0; background: #00000070; z-index: 90; opacity: 0; pointer-events: none;
+    transition: opacity .18s ease;
+  }
+  .help-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+  .help-drawer {
+    position: fixed; top: 0; right: 0; height: 100%; width: min(420px, 92vw); z-index: 91;
+    background: var(--panel); color: var(--ink); border-left: 1px solid var(--panel-edge);
+    box-shadow: -12px 0 30px #00000060; padding: 24px 22px; overflow-y: auto;
+    transform: translateX(100%); transition: transform .22s ease;
+  }
+  .help-drawer.open { transform: translateX(0); }
+  .help-drawer h3 {
+    font-family: var(--font-display); color: var(--gold); font-size: 16px; margin: 0 0 14px;
+    letter-spacing: .02em;
+  }
+  .help-drawer p { font-size: 13.5px; line-height: 1.6; margin: 0 0 12px; }
+  .help-drawer-close {
+    position: absolute; top: 14px; right: 16px; background: none; border: none; box-shadow: none;
+    font-size: 22px; line-height: 1; color: var(--ink-soft); padding: 0; margin: 0; cursor: pointer;
+  }
+  .help-drawer-close:hover { color: var(--ink); }
+  template { display: none; }
 </style>
 </head>
 <body>
@@ -355,5 +390,26 @@
 <main>
 {% block content %}{% endblock %}
 </main>
+<div id="help-drawer-backdrop" class="help-drawer-backdrop" onclick="closeHelpDrawer()"></div>
+<aside id="help-drawer" class="help-drawer">
+  <button type="button" class="help-drawer-close" onclick="closeHelpDrawer()">&times;</button>
+  <h3 id="help-drawer-title"></h3>
+  <div id="help-drawer-body"></div>
+</aside>
+<script>
+function openHelpDrawer(topic) {
+  const tmpl = document.getElementById('help-tmpl-' + topic);
+  if (!tmpl) return;
+  document.getElementById('help-drawer-title').textContent = tmpl.dataset.title || 'How to read this';
+  document.getElementById('help-drawer-body').innerHTML = tmpl.innerHTML;
+  document.getElementById('help-drawer').classList.add('open');
+  document.getElementById('help-drawer-backdrop').classList.add('open');
+}
+function closeHelpDrawer() {
+  document.getElementById('help-drawer').classList.remove('open');
+  document.getElementById('help-drawer-backdrop').classList.remove('open');
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeHelpDrawer(); });
+</script>
 </body>
 </html>

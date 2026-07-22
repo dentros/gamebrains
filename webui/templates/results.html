@@ -2,6 +2,10 @@
 {% block content %}
 <a class="backlink" href="/">&larr; new experiment</a>
 
+{% for topic, (title, html) in help_topics.items() %}
+<template id="help-tmpl-{{ topic }}" data-title="{{ title }}">{{ html | safe }}</template>
+{% endfor %}
+
 <div class="panel">
   <p class="meta">
     <b>{{ game.name }}</b> &middot; n={{ game.n_agents }} &middot; rounds={{ rounds }} &middot;
@@ -86,7 +90,7 @@
   <div class="panel">
     <h2><svg class="glyph"><use href="#glyph-scale"/></svg>Nash equilibrium (pygambit)</h2>
     <pre class="console">{{ nash_html }}</pre>
-    {{ nash_explain | safe }}
+    {{ nash_help_trigger | safe }}
   </div>
   {% endif %}
 

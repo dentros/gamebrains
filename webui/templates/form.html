@@ -89,6 +89,13 @@
   <div class="panel fw-step" data-fwstep="2" style="display:none">
     <h2><svg class="glyph"><use href="#glyph-roster"/></svg>Roster: add agents one at a time (the total is computed for you)</h2>
     <p class="meta">Total agents: <span id="agent-total">0</span></p>
+    <p class="meta">Squad presets <span class="hint">(replace the whole roster with one click; edit
+      afterward if you like)</span></p>
+    <div class="quickadd">
+      <button type="button" class="secondary" onclick="applyPreset('one_of_each')">One of each</button>
+      <button type="button" class="secondary" onclick="applyPreset('rl_showdown')">RL showdown</button>
+      <button type="button" class="secondary" onclick="applyPreset('evo_vs_online')">Evolutionary vs online</button>
+    </div>
     <div id="rows"></div>
     <div class="quickadd">
       {% for kind in kinds %}
@@ -209,75 +216,80 @@ document.getElementById('mainform').addEventListener('submit', () => {
 
 <template id="row-template">
   <div class="rosterrow">
-    <div class="kindpick">
-      <svg class="glyph"><use href="#glyph-classic"/></svg>
-      <div style="flex:1">
-        <label style="margin-top:0">Kind</label>
-        <select name="row_kind[]" onchange="updateRowVisibility(this)">
-          <option value="">(blank)</option>
-          {% for kind in kinds %}<option value="{{ kind }}">{{ kind_meta[kind].label }}</option>{% endfor %}
-        </select>
-      </div>
-    </div>
-    <div class="countpick">
-      <label style="margin-top:0">Count</label>
-      <input type="number" name="row_count[]" value="1" min="0" max="30" oninput="updateTotals()">
-    </div>
-
-    <div class="kindfield" data-for="classic" style="display:none">
-      <label style="margin-top:0">Strategy</label>
-      <select name="row_classic_strategy[]">
-        {% for s in classic_strategies %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-      </select>
-    </div>
-
-    <div class="kindfield" data-for="fep" style="display:none">
-      <label style="margin-top:0">Reciprocity <span class="hint">(0 = selfish)</span></label>
-      <input type="text" name="row_reciprocity[]" value="0.0">
-    </div>
-
-    <div class="kindfield" data-for="markov_brain" style="display:none">
-      <label style="margin-top:0">Hidden nodes</label>
-      <input type="number" name="row_markov_hidden[]" value="2" min="1" max="6">
-      <label style="margin-top:6px">Evolved genome CID <span class="hint">(optional, from
-        the Evolutionary tab)</span></label>
-      <input type="text" name="row_genome_cid[]" placeholder="e.g. 7bf62b89...">
-    </div>
-
-    <div class="kindfield epsilon-block" data-for="qlearning" style="display:none">
-      <label style="margin-top:0">&epsilon; decay / &epsilon; min</label>
-      <div style="display:flex; gap:6px">
-        <input type="text" name="row_epsilon_decay[]" value="0.9995" oninput="updateEpsilonHints()">
-        <input type="text" name="row_epsilon_min[]" value="0.02" oninput="updateEpsilonHints()">
-      </div>
-      <span class="epsilon-hint epshint"></span>
-    </div>
-    <div class="kindfield epsilon-block" data-for="dqn" style="display:none">
-      <label style="margin-top:0">&epsilon; decay / &epsilon; min</label>
-      <div style="display:flex; gap:6px">
-        <input type="text" name="row_epsilon_decay[]" value="0.9995" oninput="updateEpsilonHints()">
-        <input type="text" name="row_epsilon_min[]" value="0.02" oninput="updateEpsilonHints()">
-      </div>
-      <span class="epsilon-hint epshint"></span>
-    </div>
-
-    <details class="explain advanced">
-      <summary>Advanced parameters</summary>
-      {% for kind, params in advanced_params.items() %}
-      <div class="kindfield" data-for="{{ kind }}" style="display:none">
-        <div class="grid">
-          {% for pname, default, help in params %}
-          <div>
-            <label style="margin-top:0">{{ pname }} <span class="hint">({{ help }})</span></label>
-            <input type="text" name="row_adv_{{ kind }}_{{ pname }}[]" value="{{ default }}">
-          </div>
-          {% endfor %}
+    <div class="rr-head">
+      <div class="kindpick">
+        <svg class="glyph"><use href="#glyph-classic"/></svg>
+        <div style="flex:1">
+          <label style="margin-top:0">Kind</label>
+          <select name="row_kind[]" onchange="updateRowVisibility(this)">
+            <option value="">(blank)</option>
+            {% for kind in kinds %}<option value="{{ kind }}">{{ kind_meta[kind].label }}</option>{% endfor %}
+          </select>
         </div>
       </div>
-      {% endfor %}
-    </details>
+      <div class="countpick">
+        <label style="margin-top:0">Count</label>
+        <input type="number" name="row_count[]" value="1" min="0" max="30" oninput="updateTotals()">
+      </div>
+      <button type="button" class="secondary rr-toggle" onclick="toggleRosterRow(this)">Details &#9662;</button>
+    </div>
 
-    <button type="button" class="secondary removerow" onclick="removeRow(this)">Remove</button>
+    <div class="rr-body" style="display:none">
+      <div class="kindfield" data-for="classic" style="display:none">
+        <label style="margin-top:0">Strategy</label>
+        <select name="row_classic_strategy[]">
+          {% for s in classic_strategies %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="kindfield" data-for="fep" style="display:none">
+        <label style="margin-top:0">Reciprocity <span class="hint">(0 = selfish)</span></label>
+        <input type="text" name="row_reciprocity[]" value="0.0">
+      </div>
+
+      <div class="kindfield" data-for="markov_brain" style="display:none">
+        <label style="margin-top:0">Hidden nodes</label>
+        <input type="number" name="row_markov_hidden[]" value="2" min="1" max="6">
+        <label style="margin-top:6px">Evolved genome CID <span class="hint">(optional, from
+          the Evolutionary tab)</span></label>
+        <input type="text" name="row_genome_cid[]" placeholder="e.g. 7bf62b89...">
+      </div>
+
+      <div class="kindfield epsilon-block" data-for="qlearning" style="display:none">
+        <label style="margin-top:0">&epsilon; decay / &epsilon; min</label>
+        <div style="display:flex; gap:6px">
+          <input type="text" name="row_epsilon_decay[]" value="0.9995" oninput="updateEpsilonHints()">
+          <input type="text" name="row_epsilon_min[]" value="0.02" oninput="updateEpsilonHints()">
+        </div>
+        <span class="epsilon-hint epshint"></span>
+      </div>
+      <div class="kindfield epsilon-block" data-for="dqn" style="display:none">
+        <label style="margin-top:0">&epsilon; decay / &epsilon; min</label>
+        <div style="display:flex; gap:6px">
+          <input type="text" name="row_epsilon_decay[]" value="0.9995" oninput="updateEpsilonHints()">
+          <input type="text" name="row_epsilon_min[]" value="0.02" oninput="updateEpsilonHints()">
+        </div>
+        <span class="epsilon-hint epshint"></span>
+      </div>
+
+      <details class="explain advanced">
+        <summary>Advanced parameters</summary>
+        {% for kind, params in advanced_params.items() %}
+        <div class="kindfield" data-for="{{ kind }}" style="display:none">
+          <div class="grid">
+            {% for pname, default, help in params %}
+            <div>
+              <label style="margin-top:0">{{ pname }} <span class="hint">({{ help }})</span></label>
+              <input type="text" name="row_adv_{{ kind }}_{{ pname }}[]" value="{{ default }}">
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </details>
+
+      <button type="button" class="secondary removerow" onclick="removeRow(this)">Remove</button>
+    </div>
   </div>
 </template>
 
@@ -326,6 +338,13 @@ function removeRow(btn) {
   btn.closest('.rosterrow').remove();
   updateTotals(); updateEpsilonHints();
 }
+function toggleRosterRow(btn) {
+  const row = btn.closest('.rosterrow');
+  const body = row.querySelector('.rr-body');
+  const expanded = body.style.display !== 'none';
+  body.style.display = expanded ? 'none' : '';
+  btn.innerHTML = expanded ? 'Details &#9662;' : 'Details &#9652;';
+}
 function addRow(prefillKind) {
   const tmpl = document.getElementById('row-template');
   const clone = tmpl.content.cloneNode(true);
@@ -360,6 +379,12 @@ const WIZARD_MIXES = {
   evo_vs_online: {label: 'Evolutionary vs online learners (Markov-brain, Q-learning, DQN)',
                   kinds: ['markov_brain', 'qlearning', 'dqn']},
 };
+
+function applyPreset(key) {
+  document.getElementById('rows').innerHTML = '';
+  WIZARD_MIXES[key].kinds.forEach(kind => addRow(kind));
+  updateTotals(); updateEpsilonHints();
+}
 
 function wizardStep(n) {
   document.querySelectorAll('#quickstart .wizard-step').forEach(el => {

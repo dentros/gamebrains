@@ -1257,12 +1257,21 @@ def analytics():
         points, axis_labels.get(chart_x, chart_x), axis_labels.get(chart_y, chart_y),
     )
 
+    # Pearson r needs at least 3 points and variance on both axes to mean anything; below that,
+    # say so instead of printing a coefficient computed from a degenerate sample.
+    correlation = None
+    if len(points) >= 3:
+        xs = np.array([p[0] for p in points], dtype=float)
+        ys = np.array([p[1] for p in points], dtype=float)
+        if xs.std() > 0 and ys.std() > 0:
+            correlation = {"r": float(np.corrcoef(xs, ys)[0, 1]), "n": len(points)}
+
     return render_template(
         "analytics.html", rows=filtered, total_count=len(rows), kind_meta=KIND_META,
         field_options=_analytics_field_options(), chart_axis_options=chart_axis_options,
         include_kinds=include_kinds, chart_download=chart_download,
         active_filters=list(zip(filter_fields, filter_ops, filter_values)),
-        chart_x=chart_x, chart_y=chart_y, chart_svg=chart_svg,
+        chart_x=chart_x, chart_y=chart_y, chart_svg=chart_svg, correlation=correlation,
     )
 
 

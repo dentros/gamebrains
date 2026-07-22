@@ -74,6 +74,14 @@
   <p class="meta">{{ rows|length }} of {{ total_count }} recorded runs match the current filters.</p>
   {% if chart_svg %}
   {{ chart_svg | safe }}
+  {% if correlation %}
+  <p class="meta"><b>Pearson r = {{ "%.3f"|format(correlation.r) }}</b> over n = {{ correlation.n }}
+    matching runs. Correlation across recorded experiments, not causation &mdash; runs differ in
+    whatever the filters did not pin down.</p>
+  {% elif rows|length >= 2 %}
+  <p class="meta">Correlation not shown: it needs at least 3 matching runs with variation on both
+    axes.</p>
+  {% endif %}
   <p class="meta"><a href="{{ chart_download }}" download="gamebrains_analytics_chart.svg">Download
     this chart as a standalone SVG</a> &mdash; a real vector file (not a screenshot), suitable to
     drop directly into a paper figure.</p>

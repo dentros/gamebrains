@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-<div id="quickstart" class="quickstart-modal">
+<div id="quickstart" class="quickstart-modal minimized">
   <button type="button" class="quickstart-close" onclick="document.getElementById('quickstart').style.display='none'">&times;</button>
+  <button type="button" class="quickstart-pill" onclick="document.getElementById('quickstart').classList.remove('minimized')">
+    <svg class="glyph"><use href="#glyph-versus"/></svg> Quick start
+  </button>
 
   <div class="wizard-step" data-step="1">
     <p class="wizard-title">New here? Quick start &mdash; step 1 of 3</p>

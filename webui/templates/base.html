@@ -182,6 +182,20 @@
   }
   .quickstart-modal .btn { width: 100%; margin-top: 8px; }
   .quickstart-modal .secondary { width: 48%; margin-top: 8px; }
+  .quickstart-pill { display: none; }
+  .quickstart-modal.minimized {
+    padding: 0; border-radius: 999px; max-width: none; width: auto; border-top: none;
+    box-shadow: 0 4px 14px #00000050;
+  }
+  .quickstart-modal.minimized .wizard-step, .quickstart-modal.minimized .quickstart-close {
+    display: none !important;
+  }
+  .quickstart-modal.minimized .quickstart-pill {
+    display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 999px;
+    background: var(--panel); color: var(--ink); border: 2px solid var(--gold); box-shadow: none;
+    font-weight: 700; margin: 0; width: auto;
+  }
+  .quickstart-modal.minimized .quickstart-pill .glyph { width: 16px; height: 16px; }
   .spacecell { text-align: center; font-variant-numeric: tabular-nums; }
   .spacecell.full { background: rgba(34, 160, 80, 0.35); }
   .spacecell.partial { background: rgba(217, 164, 65, 0.35); }

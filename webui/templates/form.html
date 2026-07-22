@@ -37,10 +37,22 @@
   </div>
 </div>
 
+<nav class="fw-tabs">
+  {% for n, key, label in [(1,'game','Game'), (2,'roster','Roster'), (3,'metrics','Metrics'),
+                           (4,'ledger','Recording'), (5,'versus','Batch mode')] %}
+  <button type="button" class="fw-tab{% if n == 1 %} active{% endif %}" data-step="{{ n }}"
+          onclick="mainWizardGoto({{ n }})">
+    <span class="fw-num">{{ n }}</span>
+    <svg class="glyph"><use href="#glyph-{{ key }}"/></svg>
+    {{ label }}
+  </button>
+  {% endfor %}
+</nav>
+
 <form action="/run" method="post" id="mainform">
 
-  <div class="panel">
-    <h2><svg class="glyph"><use href="#glyph-game"/></svg><span class="step">1</span>Game</h2>
+  <div class="panel fw-step" data-fwstep="1">
+    <h2><svg class="glyph"><use href="#glyph-game"/></svg>Game</h2>
     <div class="grid">
       <div>
         <label>Game</label>
@@ -50,25 +62,29 @@
         </select>
       </div>
       <div>
-        <label>Rounds</label>
+        <label class="fieldicon"><svg class="glyph"><use href="#glyph-clock"/></svg>Rounds</label>
         <input type="number" name="rounds" value="1500" min="10" max="200000" required
                oninput="updateEpsilonHints()">
       </div>
       <div>
-        <label>MPCR <span class="hint">(marginal per-capita return = r/n. Blank = default)</span></label>
+        <label class="fieldicon"><svg class="glyph"><use href="#glyph-percent"/></svg>MPCR
+          <span class="hint">(marginal per-capita return = r/n. Blank = default)</span></label>
         <input type="text" name="mpcr" placeholder="e.g. 0.5">
         <span class="epsilon-hint">Sets how much cooperating is worth. Needs 1/n &lt; MPCR &lt; 1
           (a genuine social dilemma). Blank picks a safe default automatically.</span>
       </div>
       <div>
-        <label>Seed</label>
+        <label class="fieldicon"><svg class="glyph"><use href="#glyph-dice"/></svg>Seed</label>
         <input type="number" name="seed" value="0">
       </div>
     </div>
+    <div class="fw-nav"><span></span>
+      <button type="button" class="btn" onclick="mainWizardGoto(2)">Next: Roster &rarr;</button>
+    </div>
   </div>
 
-  <div class="panel">
-    <h2><svg class="glyph"><use href="#glyph-roster"/></svg><span class="step">2</span>Roster: add agents one at a time (the total is computed for you)</h2>
+  <div class="panel fw-step" data-fwstep="2" style="display:none">
+    <h2><svg class="glyph"><use href="#glyph-roster"/></svg>Roster: add agents one at a time (the total is computed for you)</h2>
     <p class="meta">Total agents: <span id="agent-total">0</span></p>
     <div id="rows"></div>
     <div class="quickadd">
@@ -78,10 +94,14 @@
       {% endfor %}
       <button type="button" class="secondary" onclick="addRow('')">+ blank row</button>
     </div>
+    <div class="fw-nav">
+      <button type="button" class="secondary" onclick="mainWizardGoto(1)">&larr; Back</button>
+      <button type="button" class="btn" onclick="mainWizardGoto(3)">Next: Metrics &rarr;</button>
+    </div>
   </div>
 
-  <div class="panel">
-    <h2><svg class="glyph"><use href="#glyph-metrics"/></svg><span class="step">3</span>Metrics: what to show</h2>
+  <div class="panel fw-step" data-fwstep="3" style="display:none">
+    <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Metrics: what to show</h2>
     <div class="grid">
       {% for key, label in metric_meta %}
       <div class="checkrow">
@@ -109,10 +129,14 @@
       {% endfor %}
     </fieldset>
     {% endif %}
+    <div class="fw-nav">
+      <button type="button" class="secondary" onclick="mainWizardGoto(2)">&larr; Back</button>
+      <button type="button" class="btn" onclick="mainWizardGoto(4)">Next: Recording &rarr;</button>
+    </div>
   </div>
 
-  <div class="panel">
-    <h2><svg class="glyph"><use href="#glyph-ledger"/></svg><span class="step">4</span>Recording</h2>
+  <div class="panel fw-step" data-fwstep="4" style="display:none">
+    <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Recording</h2>
     <div class="checkrow">
       <input type="checkbox" name="record_repo" id="record_repo" checked>
       <label for="record_repo" style="margin:0">Record to the repository-lite ledger (+ Smart Filter)</label>
@@ -122,10 +146,14 @@
         Doesn't affect the experiment itself, only how detailed the transcript below is)</span></label>
       <input type="number" name="log_lines" value="50" min="5" max="500">
     </div>
+    <div class="fw-nav">
+      <button type="button" class="secondary" onclick="mainWizardGoto(3)">&larr; Back</button>
+      <button type="button" class="btn" onclick="mainWizardGoto(5)">Next: Batch mode &rarr;</button>
+    </div>
   </div>
 
-  <div class="panel">
-    <h2><svg class="glyph"><use href="#glyph-versus"/></svg><span class="step">5</span>Batch mode <span class="hint">(optional)</span></h2>
+  <div class="panel fw-step" data-fwstep="5" style="display:none">
+    <h2><svg class="glyph"><use href="#glyph-versus"/></svg>Batch mode <span class="hint">(optional)</span></h2>
     <div class="checkrow">
       <input type="checkbox" name="batch_mode" id="batch_mode">
       <label for="batch_mode" style="margin:0">Run a batch: vary one field across several values,
@@ -133,7 +161,7 @@
     </div>
     <div class="grid">
       <div>
-        <label>Field to sweep</label>
+        <label class="fieldicon"><svg class="glyph"><use href="#glyph-metrics"/></svg>Field to sweep</label>
         <select name="batch_param">
           <option value="rounds">Rounds</option>
           <option value="seed">Seed</option>
@@ -142,13 +170,16 @@
         </select>
       </div>
       <div>
-        <label>Values <span class="hint">(comma-separated, e.g. 500,1000,2000)</span></label>
+        <label class="fieldicon"><svg class="glyph"><use href="#glyph-log"/></svg>Values
+          <span class="hint">(comma-separated, e.g. 500,1000,2000)</span></label>
         <input type="text" name="batch_values" placeholder="e.g. 500,1000,2000">
       </div>
     </div>
+    <div class="fw-nav">
+      <button type="button" class="secondary" onclick="mainWizardGoto(4)">&larr; Back</button>
+      <button type="submit" id="mainsubmit">Run the experiment</button>
+    </div>
   </div>
-
-  <button type="submit" id="mainsubmit">Run the experiment</button>
 </form>
 <script>
 const LOADING_MESSAGES = [
@@ -301,6 +332,18 @@ function addRow(prefillKind) {
   const lastRow = document.getElementById('rows').lastElementChild;
   updateRowVisibility(lastRow.querySelector('select[name="row_kind[]"]'));
 }
+function mainWizardGoto(n) {
+  document.querySelectorAll('.panel.fw-step').forEach(el => {
+    el.style.display = (parseInt(el.dataset.fwstep, 10) === n) ? '' : 'none';
+  });
+  document.querySelectorAll('.fw-tab').forEach(el => {
+    const step = parseInt(el.dataset.step, 10);
+    el.classList.toggle('active', step === n);
+    el.classList.toggle('done', step < n);
+  });
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   addRow('qlearning'); addRow('dqn'); addRow('fep'); addRow('classic');
   updateTotals(); updateEpsilonHints();

@@ -56,6 +56,8 @@ def _inject_active_tab():
         return {"active_tab": "evolve"}
     if request.path.startswith("/analytics"):
         return {"active_tab": "analytics"}
+    if request.path.startswith("/spacemap"):
+        return {"active_tab": "spacemap"}
     return {"active_tab": "match"}
 
 
@@ -1272,6 +1274,155 @@ def analytics():
         include_kinds=include_kinds, chart_download=chart_download,
         active_filters=list(zip(filter_fields, filter_ops, filter_values)),
         chart_x=chart_x, chart_y=chart_y, chart_svg=chart_svg, correlation=correlation,
+    )
+
+
+# --- Parameter-space map: coverage over a declared grid + auto-fill of missing cells -------------
+
+_SPACE_DEFAULTS = {
+    "n": [2, 3, 4, 5, 6],
+    "mpcr": [0.4, 0.5, 0.6, 0.75],
+    "rounds": [500, 1500, 3000],
+    "seeds": [0, 1, 2],
+}
+
+# markov_brain is deliberately absent from the default mixes: a random, un-evolved genome does not
+# learn within a match (training_mode="evolutionary"), so a grid cell running one says nothing
+# about the architecture -- evolve first on the Evolutionary tab, then study that genome via the
+# Match tab's genome-CID hand-off instead.
+_SPACE_MIXES: dict[str, dict[str, Any]] = {
+    "all_qlearning": {"label": "All Q-learning", "counts": lambda n: {"qlearning": n}},
+    "all_dqn": {"label": "All DQN", "counts": lambda n: {"dqn": n}},
+    "all_fep": {"label": "All FEP", "counts": lambda n: {"fep": n}},
+    "one_of_each": {"label": "One of each (Q, DQN, FEP, Classic) -- n=4 only",
+                    "counts": lambda n: ({"qlearning": 1, "dqn": 1, "fep": 1, "classic": 1}
+                                         if n == 4 else None)},
+}
+
+
+def _parse_num_list(raw: str | None, default: list, cast) -> list:
+    if raw is None or not raw.strip():
+        return list(default)
+    out = []
+    for tok in raw.split(","):
+        tok = tok.strip()
+        if tok:
+            try:
+                out.append(cast(tok))
+            except ValueError:
+                continue
+    return out or list(default)
+
+
+def _space_cells(ns: list[int], mpcrs: list[float], roundss: list[int], seeds: list[int],
+                 mix_keys: list[str]) -> list[dict[str, Any]]:
+    """Enumerate every cell of the declared grid. A cell is `valid` only when the mix is defined
+    at that population size AND the mpcr satisfies the social-dilemma condition 1/n < mpcr < 1
+    (the same constraint PublicGoodsGame itself enforces) -- invalid cells are shown as such on
+    the map rather than silently dropped, so the user can see WHY that corner is empty."""
+    cells = []
+    for mix_key in mix_keys:
+        mix = _SPACE_MIXES[mix_key]
+        for n in ns:
+            counts = mix["counts"](n)
+            for mpcr in mpcrs:
+                valid = counts is not None and (1.0 / n) < mpcr < 1.0
+                for rounds in roundss:
+                    for seed in seeds:
+                        cells.append({"mix": mix_key, "n": n, "mpcr": mpcr, "rounds": rounds,
+                                      "seed": seed, "valid": valid, "counts": counts})
+    return cells
+
+
+def _cell_covered(cell: dict[str, Any], rows: list[dict[str, Any]]) -> bool:
+    """A ledger row covers a cell when it matches on every grid coordinate (n, mpcr, rounds, seed)
+    and its roster has exactly the cell's kind composition. Hyperparameters are deliberately NOT
+    part of the match: the map's dimensions are the grid's coordinates, and a run with custom
+    alpha at those coordinates is still a run at those coordinates."""
+    for row in rows:
+        if (row["n_agents"] == cell["n"] and row["rounds"] == cell["rounds"]
+                and row["seed"] == cell["seed"] and row["mpcr"] is not None
+                and abs(row["mpcr"] - cell["mpcr"]) < 1e-9
+                and row["kind_counts"] == cell["counts"]):
+            return True
+    return False
+
+
+def _run_cell(cell: dict[str, Any]) -> None:
+    """Run one missing cell with default hyperparameters and record it to the ledger -- the lean
+    pipeline (match + metrics + record), not the full results-page pipeline (no Nash/Phi/creature
+    rendering: nobody is looking at this run's page, its purpose is to exist in the ledger so the
+    Analytics page can query it)."""
+    game = PublicGoodsGame(n_agents=cell["n"], rounds=cell["rounds"], mpcr=cell["mpcr"])
+    seed = cell["seed"]
+    roster: list[Any] = []
+    i = 0
+    for kind, cnt in cell["counts"].items():
+        for _ in range(cnt):
+            roster.append(_make_agent(kind, i, game, seed, "AllD", 0.0, 2))
+            i += 1
+    _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    log_path = _RESULTS_DIR / f"webui_space_n{cell['n']}_{stamp}.jsonl"
+    with contextlib.redirect_stdout(io.StringIO()):
+        with EventLog(path=log_path) as log:
+            records = run_match(game, roster, rounds=cell["rounds"], seed=seed, eventlog=log)
+    metrics = social.compute_all(records, game.max_welfare_per_round())
+    metrics.update(information.compute_all(records, seed=seed))
+    metrics.update(graph.compute_all(records, metrics["transfer_entropy_detail"]))
+    record_experiment(_REPO_ROOT, game, roster, log_path, rounds=cell["rounds"], seed=seed,
+                      metrics=metrics, code_version=DEFAULT_CODE_VERSION)
+
+
+@app.route("/spacemap", methods=["GET", "POST"])
+def spacemap():
+    v = request.values
+    ns = _parse_num_list(v.get("grid_n"), _SPACE_DEFAULTS["n"], int)
+    mpcrs = _parse_num_list(v.get("grid_mpcr"), _SPACE_DEFAULTS["mpcr"], float)
+    roundss = _parse_num_list(v.get("grid_rounds"), _SPACE_DEFAULTS["rounds"], int)
+    seeds = _parse_num_list(v.get("grid_seeds"), _SPACE_DEFAULTS["seeds"], int)
+    mix_keys = [m for m in v.getlist("grid_mix") if m in _SPACE_MIXES] or list(_SPACE_MIXES)
+
+    rows = [_analytics_row(r) for r in Ledger(_REPO_ROOT).load_all()]
+    cells = _space_cells(ns, mpcrs, roundss, seeds, mix_keys)
+    for c in cells:
+        c["covered"] = c["valid"] and _cell_covered(c, rows)
+
+    ran = 0
+    if request.method == "POST" and request.form.get("action") == "run_missing":
+        cap = max(1, min(int(request.form.get("cap", 5) or 5), 50))
+        for c in cells:
+            if ran >= cap:
+                break
+            if c["valid"] and not c["covered"]:
+                _run_cell(c)
+                c["covered"] = True
+                ran += 1
+
+    # Per-mix summary: an n x mpcr table whose cells aggregate over rounds x seeds.
+    tables = []
+    for mix_key in mix_keys:
+        grid: dict[int, dict[float, dict[str, Any]]] = {}
+        for c in cells:
+            if c["mix"] != mix_key:
+                continue
+            slot = grid.setdefault(c["n"], {}).setdefault(
+                c["mpcr"], {"covered": 0, "total": 0, "valid": c["valid"]})
+            if c["valid"]:
+                slot["total"] += 1
+                slot["covered"] += int(c["covered"])
+        tables.append({"key": mix_key, "label": _SPACE_MIXES[mix_key]["label"], "grid": grid})
+
+    n_valid = sum(1 for c in cells if c["valid"])
+    n_covered = sum(1 for c in cells if c["covered"])
+    n_invalid = len(cells) - n_valid
+    return render_template(
+        "spacemap.html", tables=tables, ns=ns, mpcrs=mpcrs,
+        grid_n=",".join(map(str, ns)), grid_mpcr=",".join(map(str, mpcrs)),
+        grid_rounds=",".join(map(str, roundss)), grid_seeds=",".join(map(str, seeds)),
+        mix_keys=mix_keys, all_mixes=[(k, m["label"]) for k, m in _SPACE_MIXES.items()],
+        n_cells=len(cells), n_valid=n_valid, n_covered=n_covered,
+        n_missing=n_valid - n_covered, n_invalid=n_invalid, ran=ran,
     )
 
 

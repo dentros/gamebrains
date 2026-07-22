@@ -182,6 +182,11 @@
   }
   .quickstart-modal .btn { width: 100%; margin-top: 8px; }
   .quickstart-modal .secondary { width: 48%; margin-top: 8px; }
+  .spacecell { text-align: center; font-variant-numeric: tabular-nums; }
+  .spacecell.full { background: rgba(34, 160, 80, 0.35); }
+  .spacecell.partial { background: rgba(217, 164, 65, 0.35); }
+  .spacecell.empty { background: rgba(128, 128, 128, 0.18); color: var(--ink-soft); }
+  .spacecell.invalid { color: var(--ink-soft); opacity: 0.5; }
 </style>
 </head>
 <body>
@@ -265,6 +270,7 @@
     <a href="/" class="{{ 'active' if active_tab == 'match' else '' }}">Match</a>
     <a href="/evolve" class="{{ 'active' if active_tab == 'evolve' else '' }}">Evolutionary</a>
     <a href="/analytics" class="{{ 'active' if active_tab == 'analytics' else '' }}">Analytics</a>
+    <a href="/spacemap" class="{{ 'active' if active_tab == 'spacemap' else '' }}">Space map</a>
   </nav>
 </header>
 <main>

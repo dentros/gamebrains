@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Parameter-space map</h2>
+  <p class="meta">The declared grid of experiment configurations for the Public Goods Game, checked
+    against the ledger: which cells have already been run, which are missing, and which are
+    structurally invalid (the social-dilemma condition 1/n &lt; MPCR &lt; 1 fails, or the mix is
+    undefined at that population size). Edit the grid below and Update to redefine the map; runs
+    launched from here use default hyperparameters and record straight to the ledger, so the
+    Analytics page can query them immediately.</p>
+
+  <form method="get" action="/spacemap">
+    <div class="grid">
+      <div><label>Population sizes n</label>
+        <input type="text" name="grid_n" value="{{ grid_n }}"></div>
+      <div><label>MPCR values</label>
+        <input type="text" name="grid_mpcr" value="{{ grid_mpcr }}"></div>
+      <div><label>Rounds</label>
+        <input type="text" name="grid_rounds" value="{{ grid_rounds }}"></div>
+      <div><label>Seeds</label>
+        <input type="text" name="grid_seeds" value="{{ grid_seeds }}"></div>
+    </div>
+    {% for key, label in all_mixes %}
+    <div class="checkrow">
+      <input type="checkbox" name="grid_mix" value="{{ key }}" id="mix_{{ key }}"
+             {% if key in mix_keys %}checked{% endif %}>
+      <label for="mix_{{ key }}" style="margin:0">{{ label }}</label>
+    </div>
+    {% endfor %}
+    <button type="submit" class="secondary">Update map</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Coverage</h2>
+  <p class="meta">
+    <b>{{ n_covered }}</b> covered &middot; <b>{{ n_missing }}</b> missing &middot;
+    {{ n_invalid }} invalid &middot; {{ n_cells }} cells total
+    {% if ran %}<span class="badge ok">just ran {{ ran }} missing cell{{ 's' if ran != 1 }}</span>{% endif %}
+  </p>
+
+  {% if n_missing > 0 %}
+  <form method="post" action="/spacemap">
+    <input type="hidden" name="action" value="run_missing">
+    <input type="hidden" name="grid_n" value="{{ grid_n }}">
+    <input type="hidden" name="grid_mpcr" value="{{ grid_mpcr }}">
+    <input type="hidden" name="grid_rounds" value="{{ grid_rounds }}">
+    <input type="hidden" name="grid_seeds" value="{{ grid_seeds }}">
+    {% for key in mix_keys %}<input type="hidden" name="grid_mix" value="{{ key }}">{% endfor %}
+    <div class="grid">
+      <div>
+        <label>Cells to run this click <span class="hint">(they run synchronously; DQN cells at
+          3000 rounds take the longest)</span></label>
+        <input type="number" name="cap" value="5" min="1" max="50">
+      </div>
+      <div style="align-self:end">
+        <button type="submit">Run missing cells now</button>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+
+  {% for t in tables %}
+  <h4>{{ t.label }}</h4>
+  <table class="qtable">
+    <tr><th>n \ MPCR</th>{% for m in mpcrs %}<th>{{ m }}</th>{% endfor %}</tr>
+    {% for n in ns %}
+    <tr>
+      <th>{{ n }}</th>
+      {% for m in mpcrs %}
+        {% set slot = t.grid.get(n, {}).get(m) %}
+        {% if slot is none or slot.total == 0 %}
+        <td class="spacecell invalid" title="invalid at this n/MPCR">&mdash;</td>
+        {% elif slot.covered == slot.total %}
+        <td class="spacecell full">{{ slot.covered }}/{{ slot.total }}</td>
+        {% elif slot.covered > 0 %}
+        <td class="spacecell partial">{{ slot.covered }}/{{ slot.total }}</td>
+        {% else %}
+        <td class="spacecell empty">{{ slot.covered }}/{{ slot.total }}</td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+  {% endfor %}
+  <p class="meta">Each cell aggregates over the grid's rounds &times; seeds: covered runs / total
+    valid combinations. Green = fully covered, amber = partially, grey = nothing run yet, dash =
+    structurally invalid. Coverage matches on the grid coordinates and roster composition only;
+    hyperparameters are free dimensions (a run with custom alpha still covers its cell).</p>
+</div>
+
+{% endblock %}

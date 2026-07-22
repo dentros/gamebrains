@@ -511,6 +511,14 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
   results-page rendering) per click. `markov_brain` excluded from default mixes on purpose: an
   un-evolved random genome doesn't learn within a match, so it isn't a meaningful data point for a
   population-size/MPCR grid the way an online learner is. Tests: `tests/test_spacemap.py`.
+  **Model handoff, for the record:** Claude Fable 5 implemented the PI/graph metrics, the
+  Markov-brain visualization, the Pearson-correlation addition, and this space-map's entire
+  app.py/template/CSS/test code, in that order — but stopped right after writing
+  `tests/test_spacemap.py`, before running anything. Claude Sonnet 5 picked up from there: ran
+  that test file, import-checked, restarted the dev server, did the live end-to-end verification
+  above (real 2-cell grid run, ledger write confirmed, visible to /analytics), cleaned up test
+  artifacts, re-ran the full regression suite, and did the commit+push for this feature and for
+  this consolidated CLAUDE.md update itself.
 - **2026-07-19, same session — the rest of the earlier punch-list closed out:**
   predictive-information + graph-theoretic metrics delivered (see section 5 above); the
   Markov-brain creature card now shows the evolved wiring/weight-matrix/TPM, not just state bits

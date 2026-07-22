@@ -90,8 +90,8 @@ the author's own prior, sole-authored ALT/MBoE project (`github.com/dentros/Alte
 
 This is active research software; please cite the most specific publication available at the time:
 
-1. **Preprint** (arXiv) — not yet posted; single-authored (N. Al. Papadopoulos only), to establish
-   a clear historical record of original authorship. Check back or open an issue.
+1. **Preprint** (arXiv) — not yet posted; single-authored (N. Al. Papadopoulos only). Check back
+   or open an issue.
 2. **Conference paper** — *GameBrains: A Platform for Cognitive Agent Interaction in
    Game-Theoretic Scenarios* — citation details to be added once accepted/published. Lists
    additional co-authors (supervision/review, see "Authorship" above).

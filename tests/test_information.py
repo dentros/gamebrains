@@ -14,6 +14,7 @@ import numpy as np
 from gamebrains.metrics.information import (
     compute_all,
     mutual_information_per_agent,
+    predictive_information_per_agent,
     transfer_entropy_pairwise,
 )
 
@@ -60,6 +61,23 @@ def test_transfer_entropy_detects_lagged_copying_and_rejects_the_reverse_directi
     assert backward["p_value"] >= 0.05, "no reverse link should not pass the surrogate test"
 
 
+def test_predictive_information_distinguishes_alternator_from_iid_and_constant():
+    rng = np.random.default_rng(3)
+    rounds = 3000
+    actions = np.zeros((rounds, 3), dtype=int)
+    actions[:, 0] = np.arange(rounds) % 2          # deterministic alternator: past fixes future
+    actions[:, 1] = rng.integers(0, 2, size=rounds)  # iid random: past says nothing
+    actions[:, 2] = 1                                # constant (AllC-like): no variation, no info
+
+    records = {"actions": actions, "cooperators": actions.sum(axis=1)}
+    result = predictive_information_per_agent(records)
+
+    assert result["bits_by_agent"][0] > 0.95, "alternator should carry ~1 bit of self-prediction"
+    assert result["bits_by_agent"][1] < 0.03, "iid agent should carry near-zero self-prediction"
+    assert abs(result["bits_by_agent"][2]) < 0.01, "constant agent has no information to carry"
+    assert result["n_samples"] == rounds - 1
+
+
 def test_compute_all_shape_and_headline_scalars():
     rng = np.random.default_rng(2)
     rounds = 500
@@ -70,7 +88,9 @@ def test_compute_all_shape_and_headline_scalars():
 
     assert isinstance(result["mutual_information_bits"], float)
     assert isinstance(result["transfer_entropy_bits"], float)
+    assert isinstance(result["predictive_information_bits"], float)
     assert len(result["mutual_information_detail"]["bits_by_agent"]) == 3
+    assert len(result["predictive_information_detail"]["bits_by_agent"]) == 3
     assert result["transfer_entropy_detail"]["n_pairs"] == 3 * 2  # every ordered pair, i != j
 
 
@@ -79,5 +99,7 @@ if __name__ == "__main__":
     print("OK: mutual information distinguishes independence from deterministic dependence")
     test_transfer_entropy_detects_lagged_copying_and_rejects_the_reverse_direction()
     print("OK: transfer entropy detects a genuine lag-1 link and rejects the reverse direction")
+    test_predictive_information_distinguishes_alternator_from_iid_and_constant()
+    print("OK: predictive information separates alternator / iid / constant agents")
     test_compute_all_shape_and_headline_scalars()
     print("OK: compute_all returns the expected shape and headline scalars")

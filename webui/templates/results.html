@@ -100,10 +100,11 @@
       real link, it can be finite-sample noise or a shared confound (e.g. both agents reacting to the
       same public signal).</p>
     <table>
-      <tr><th>Agent</th><th>Kind</th><th>I(obs;action) bits</th></tr>
+      <tr><th>Agent</th><th>Kind</th><th>I(obs;action) bits</th><th>PI(past;future) bits</th></tr>
       {% for bits in metrics.mutual_information_detail.bits_by_agent %}
       <tr><td>{{ roster[loop.index0].name }}</td><td>{{ roster[loop.index0].kind }}</td>
-          <td>{{ "%.4f"|format(bits) }}</td></tr>
+          <td>{{ "%.4f"|format(bits) }}</td>
+          <td>{{ "%.4f"|format(metrics.predictive_information_detail.bits_by_agent[loop.index0]) }}</td></tr>
       {% endfor %}
     </table>
     <table>
@@ -117,6 +118,36 @@
       </tr>
       {% endfor %}
     </table>
+  </div>
+  {% endif %}
+
+  {% if metrics.graph_detail %}
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Interaction graphs (networkx)</h2>
+    <p class="meta">Two graphs over the same match. <b>Co-cooperation</b> (undirected): edge weight
+      is the fraction of rounds both agents cooperated together &mdash; the literal
+      who-cooperates-with-whom network. <b>Influence</b> (directed): an edge exists only where the
+      transfer entropy above passed its surrogate test, so this is the topological reading of the
+      significant TE links, not a new computation.</p>
+    <table>
+      <tr><th>Pair</th><th>Co-cooperation weight</th></tr>
+      {% for e in metrics.graph_detail.coop_edges %}
+      <tr><td>{{ roster[e.i].name }} &mdash; {{ roster[e.j].name }}</td>
+          <td>{{ "%.4f"|format(e.weight) }}</td></tr>
+      {% endfor %}
+    </table>
+    {% if metrics.graph_detail.influence_edges %}
+    <table>
+      <tr><th>Influence edge</th><th>TE (bits)</th><th>p-value</th></tr>
+      {% for e in metrics.graph_detail.influence_edges %}
+      <tr><td>{{ roster[e.source].name }} &rarr; {{ roster[e.target].name }}</td>
+          <td>{{ "%.4f"|format(e.bits) }}</td><td>{{ "%.4f"|format(e.p_value) }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="meta">No surrogate-significant influence links in this match, so the influence graph
+      has no edges (density 0). That is a finding, not a failure.</p>
+    {% endif %}
   </div>
   {% endif %}
 

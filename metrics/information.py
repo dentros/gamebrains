@@ -88,6 +88,28 @@ def mutual_information_per_agent(records: dict[str, np.ndarray]) -> dict[str, An
     }
 
 
+def predictive_information_per_agent(records: dict[str, np.ndarray]) -> dict[str, Any]:
+    """One-step predictive information PI = I(action_{t-1}; action_t) for every agent: how much
+    of an agent's own next action is already determined by its own previous one. The "bridge"
+    measure of the MI/TE/PI family (see module docstring): a fixed strategy like AllC scores 0
+    (its action carries no information because it never varies), an alternator scores ~1 bit, an
+    iid random agent ~0. Uses the same lag-1 convention as `transfer_entropy_pairwise` so the two
+    are directly comparable (TE measures cross-agent prediction, PI self-prediction, at the same
+    timescale)."""
+    actions = records["actions"]
+    rounds, n_agents = actions.shape
+    if rounds < 2:
+        return {"bits_by_agent": [0.0] * n_agents, "mean_bits": 0.0, "n_samples": 0,
+                "estimator": "discrete plug-in + Miller-Madow correction"}
+    per_agent = [_mi_bits(actions[:-1, i], actions[1:, i]) for i in range(n_agents)]
+    return {
+        "bits_by_agent": per_agent,
+        "mean_bits": float(np.mean(per_agent)) if per_agent else 0.0,
+        "n_samples": int(rounds - 1),
+        "estimator": "discrete plug-in + Miller-Madow correction",
+    }
+
+
 def _te_bits(x_prev: np.ndarray, y_prev: np.ndarray, y_t: np.ndarray) -> float:
     """T(X->Y) at lag 1 = I(Y_t ; X_prev | Y_prev), via the standard conditional-MI identity
     T = H(Y_t,Y_prev) + H(X_prev,Y_prev) - H(Y_prev) - H(Y_t,X_prev,Y_prev). All three inputs are
@@ -175,9 +197,12 @@ def compute_all(records: dict[str, np.ndarray], seed: int = 0, n_surrogates: int
     """
     mi = mutual_information_per_agent(records)
     te = transfer_entropy_pairwise(records, seed=seed, n_surrogates=n_surrogates)
+    pi = predictive_information_per_agent(records)
     return {
         "mutual_information_bits": mi["mean_bits"],
         "mutual_information_detail": mi,
         "transfer_entropy_bits": te["mean_significant_bits"],
         "transfer_entropy_detail": te,
+        "predictive_information_bits": pi["mean_bits"],
+        "predictive_information_detail": pi,
     }

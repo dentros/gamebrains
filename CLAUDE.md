@@ -22,11 +22,13 @@ Two faces, on purpose:
   the paper figures.
 
 Authors / context: Nikolaos Al. Papadopoulos & Konstantinos E. Psannis, Dept. of Applied
-Informatics, University of Macedonia. The platform backs a paper (see `../SMC 2025 GAMEBRAINS/`).
+Informatics, University of Macedonia. The platform backs a paper (see
+`../CONFERENCE PAPER GAMEBRAINS/`, not tied to any specific venue -- see that folder's `death/`
+and `arxiv/` subfolders).
 
 ## 2. Publication strategy (drives priorities)
 
-1. **Conference (work-in-progress), now** — strengthen the existing SMC-style paper: keep the
+1. **Conference (work-in-progress), now** — strengthen the existing conference paper: keep the
    platform review + comparison table + architecture, and add **one catchy experiment/visualization
    from this beta**.
 2. **Journal (full paper), target: JAAMAS** — angle **"Theory of Mind in Multi-Agent Systems."**
@@ -85,8 +87,17 @@ Deep mechanistic interpretability (activation probing) is **out of scope for the
   ⚠️ **Φ is exponential in system size** — compute it **only for the small Markov-brains**
   (~8–16 nodes), never for DQN/LLM. — **DONE**, `metrics/phi_autonomy.py`.
 - **Graph-theoretic:** metrics on the interaction / who-cooperates-with-whom network via
-  **`networkx`**; correlate these with the social metrics. — **TODO, not started.**
-- **⭐ TODO — Transfer Entropy / Mutual Information / Predictive Information (the ToM-relevant
+  **`networkx`**; correlate these with the social metrics. — **Delivered (2026-07-19):
+  `metrics/graph.py`.** Two graphs per match, both pure functions of already-recorded data:
+  a weighted co-cooperation graph (edge weight = fraction of rounds both agents cooperated;
+  headline scalars `coop_graph_weight`, `coop_graph_clustering`) and a directed influence graph
+  whose edges are exactly the surrogate-significant TE pairs from `metrics/information.py`
+  (headline `influence_graph_density`) — reusing the validated TE results, never recomputing them.
+  Validated end-to-end on a real match with a MajorityTFT in the roster: the influence graph
+  recovered exactly the theoretically-required direction (both Q-learners → TFT significant, since
+  TFT literally reads their previous actions; reverse directions correctly rejected). Tests:
+  `tests/test_graph.py`.
+- **Transfer Entropy / Mutual Information / Predictive Information (the ToM-relevant
   family), per our own decision-framework paper** — Papadopoulos & Psannis, *"Information-Theoretic
   Measures in AI: A Practical Decision Guide"* (arXiv:2604.23716, same authors as GameBrains — a
   self-citation, not an external survey). This paper's own prescriptive framework is what
@@ -122,7 +133,11 @@ Deep mechanistic interpretability (activation probing) is **out of scope for the
     (`mutual_information_bits`, `transfer_entropy_bits`, the latter averaged only over
     surrogate-significant pairs) are in `_METRIC_META`; the full per-agent/per-pair breakdown
     (including every p-value) has its own results-page panel. Tests: `tests/test_information.py`.
-    Predictive information and graph-theoretic metrics remain not started. Candidate home for the
+    Predictive information delivered 2026-07-19 (`predictive_information_per_agent` in the same
+    module: one-step PI = I(action_{t-1}; action_t) per agent, same lag-1 convention as TE so the
+    two are directly comparable; validated on alternator ~1 bit / iid ~0 / constant 0); graph
+    metrics also delivered 2026-07-19 (see the Graph-theoretic entry above). The webui
+    `_METRIC_ROADMAP` is now empty — the whole section-5 metric family is implemented. Candidate home for the
     TE-as-ToM-signature result once an actual experiment is run: Paper 3 (JAAMAS); Paper 2
     (software journal) should still mention this and cite the framework paper (already added, see
     `IEEE SOFTWARE GAMEBRAINS/root.tex` Future Work).
@@ -140,9 +155,65 @@ must be genuinely multi-agent, not a 2-player tool.
   `environment.py`), pairs with the ALT metrics. **Naming:** the user has since renamed this game
   to **Honey-Jar Game (HJG)** across their papers (see `../../RP for Journal/paper_main_teac.tex`,
   §"The Honey-Jar Game as Temporal Fair Division"); "MBoE" is now historical-only. Implement as
-  `games/honey_jar.py`, not `mboe.py`. Formal payoff: solo winner → `r_high`; partial tie
-  (2≤m<n) → `r_high/n` (ILF) or `r_high/n²` (IQF); all n simultaneously → `0` (full congestion).
+  `games/honey_jar.py`, not `mboe.py`.
+
+  **⚠️ Corrected 2026-07-19 (was wrong before — verified via web search + actual source code, do
+  not re-assert the old claim that HJG "is just a rename of" Battle of the Exes):**
+  - **The real "Battle of the Exes" (BoE)** is a published game (Hawkins & Goldstone, 2016),
+    introduced by them, not by the user. It is explicitly a variant of the classical Battle of the
+    Sexes with an inverted goal (avoid, not match) but the SAME asymmetric-payoff structure: 2
+    actions, matching → (0,0), differing → **asymmetric** (3,2)/(2,3) (e.g. one coffee shop is
+    "great," the other "average," so whoever avoids-and-lands-on-the-good-one gets more). BoE is
+    close kin to Battle of the Sexes, not its opposite family, contra an earlier note here.
+  - **The ALT project's own `environment.py` is a symmetric simplification, not identical to BoE.**
+    Confirmed by reading the actual code: whichever single agent is a solo winner at ANY position
+    gets the same `full_reward` — no per-position asymmetric payoff like BoE's 3-vs-2. There are
+    two reward-formula variants, verified by reading both source files directly (do not trust this
+    note alone without re-checking if it matters again):
+    - **Main version** (`environment.py`, ILF/IQF): partial-tie reward divides by the fixed total
+      `self.num_agents` (n), not by the actual number of agents in the tie -- so a 3-way tie out of
+      5 gets the same reward as a 4-way tie out of 5. Full congestion (everyone ties) is an
+      **explicit special-cased 0**.
+    - **k-variant / KLF** ("per-claimant reward split," lives in the *Gap project* /
+      `complexity_journal`, re-run at `../../RP for Journal/synthetic_experiments/run_kvariant_rp.py`
+      via a `KEnvironment(Environment)` subclass): divides by `count_of_top_agents`, the *actual*
+      tie size -- this is what makes it a genuine congestion game (payoff degrades with how crowded
+      *your* resource is, not with total population size). **Edge case: no explicit zero at full
+      congestion here** -- `full_reward / count_of_top_agents` when everyone ties just evaluates to
+      `full_reward/n` (small, not zero), unlike the main version's explicit floor.
+  - **Does HJG "become" BoE at n=2? No**, for two independent reasons, not one: (1) reward
+    asymmetry -- BoE gives both parties positive-but-different reward when they differ; HJG (either
+    variant) gives the loser exactly 0 when they differ (a race with one winner, not a mutual-avoidance
+    payoff for both); (2) game shape -- BoE is one simultaneous 2-action choice; HJG is a multi-round
+    race across `num_positions` positions converging on one shared terminal, a different game tree
+    entirely, independent of n. Which variant (main ILF/IQF vs. true k-variant/KLF) GameBrains should
+    actually implement for its own Game #2 is still an open decision, not yet made.
   Type-A state = positions only; Type-B = positions + last-winner memory.
+  - **Why the Gap paper uses ILF/IQF as the main version, not literal Rosenthal congestion
+    (k-variant) — relevant to that open decision above** (source: the Gap paper itself,
+    `2. ALT MEASURES TO MEGALO/complexity_journal/main/paper_main.tex`,
+    §"Differentiating HJG from Congestion, Market-Entry, and Anti-Coordination Games", submitted
+    2026-07-19 alongside the RP paper — both now in their final submission phase): the paper gives
+    5 distinguishing arguments, verified against the primary source directly (not a secondhand
+    paraphrase). The two the paper's own text calls "more fundamental" (used that exact phrase
+    twice) are: (1) the ALT/PA evaluation asks *which specific agent* gets access *and when* across
+    a repeated sequence, not an aggregate statistic like El Farol/Minority-Game literature does —
+    true regardless of reward rule, game dynamics, or even which specific game this is; (2) a
+    robustness check using the literal per-claimant/Rosenthal k-variant shows the coordination gap
+    still persists, and — the paper's stronger point here — that detecting it *still requires the
+    ALT/PA framework rather than congestion-equilibrium analysis even under the most canonical
+    possible congestion payoff*, reinforcing rather than undercutting the framework's necessity.
+    The other 3 arguments (payoff-structure threshold-step vs. declining-per-entrant; dynamic
+    observable approach vs. stateless simultaneous-move; the ILF/IQF choice being deterministic and
+    keeping universal collision at exactly zero) are real but more contextual/methodological —
+    defenses of *this specific implementation choice*, not of why the framework/question exists.
+    **Implication for GameBrains's own Game #2, when built:** the main ILF/IQF version is the
+    scientifically-motivated default (deterministic tie penalty, clean zero-floor at full
+    congestion, avoids confounding the alternation signal), with the k-variant/KLF worth keeping
+    available as an explicit alternative/robustness toggle rather than silently picking one -- that
+    mirrors exactly how the Gap paper itself treats the two (main experiments + one robustness
+    check), and lets GameBrains demonstrate the same "the finding survives the reward-rule choice"
+    argument live in the tool if wanted later.
 - Later: Battle of the Sexes proper, custom game builder.
 
 Games expose: number of rounds, information visibility, payoff parameters.
@@ -441,4 +512,6 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
 - Terry et al., *PettingZoo: Gym for Multi-Agent Reinforcement Learning*; Towers et al., *Gymnasium*.
 - Moritz et al., *Ray/RLlib*; Raffin et al., *Stable-Baselines3*; Arend et al. (2022), *MLPro*.
 - McKelvey, McLennan & Turocy, *Gambit: Software Tools for Game Theory* (`pygambit`).
-- Existing paper sources: `../SMC 2025 GAMEBRAINS/death/root.tex` (final), `gamebrains_architecture.png` (Fig. 1).
+- Existing paper sources: `../CONFERENCE PAPER GAMEBRAINS/death/root.tex` (venue submission,
+  co-authored), `../CONFERENCE PAPER GAMEBRAINS/arxiv/root.tex` (preprint, single-authored). Fig. 1
+  (architecture) is now a TikZ diagram in-source, not the old `gamebrains_architecture.png`.

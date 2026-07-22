@@ -38,7 +38,7 @@ from ..engine.eventlog import EventLog
 from ..engine.evolution import EvolutionConfig, evolve
 from ..engine.runner import run_match
 from ..games.public_goods import PublicGoodsGame
-from ..metrics import equilibrium, information, social
+from ..metrics import equilibrium, graph, information, social
 from ..repository.cas import ContentStore
 from ..repository.ledger import Ledger
 from ..repository.record import (
@@ -86,14 +86,16 @@ _METRIC_META = [
     ("action_entropy_bits", "Action entropy (bits)"),
     ("mutual_information_bits", "Mutual info I(obs;action) (bits)"),
     ("transfer_entropy_bits", "Transfer entropy (bits, significant pairs)"),
+    ("predictive_information_bits", "Predictive info I(past;future) (bits)"),
+    ("coop_graph_weight", "Co-cooperation graph weight"),
+    ("coop_graph_clustering", "Co-cooperation clustering"),
+    ("influence_graph_density", "TE-influence graph density"),
 ]
-# Roadmap placeholders: real code doesn't exist yet (see CLAUDE.md §5) -- shown disabled so the
-# tool itself documents where the platform is going, not just what it does today. Transfer entropy
-# and mutual information graduated out of this list (2026-07-17): metrics/information.py.
-_METRIC_ROADMAP = [
-    "Predictive information (planned)",
-    "Graph-theoretic metrics (planned, networkx)",
-]
+# Roadmap placeholders: shown disabled so the tool documents where the platform is going, not just
+# what it does today. The whole CLAUDE.md section-5 metric family has now graduated out of this
+# list (TE/MI 2026-07-17, predictive information + graph metrics 2026-07-19) -- what remains
+# planned lives at the game level (_GAME_ROADMAP), not the metric level.
+_METRIC_ROADMAP: list[str] = []
 _GAME_ROADMAP = ["Honey-Jar Game, formerly MBoE (coming soon)"]
 
 
@@ -472,15 +474,18 @@ def _mi_te_csv(metrics: dict[str, Any], roster: list[Any]) -> str:
     this run, so the ZIP simply omits the file rather than including an empty/misleading one."""
     mi = metrics.get("mutual_information_detail")
     te = metrics.get("transfer_entropy_detail")
+    pi = metrics.get("predictive_information_detail")
+    gd = metrics.get("graph_detail")
     if not mi and not te:
         return ""
     buf = io.StringIO()
     writer = csv.writer(buf)
     if mi:
-        writer.writerow(["mutual_information"])
-        writer.writerow(["agent", "kind", "I(obs;action)_bits"])
+        writer.writerow(["mutual_information_and_predictive_information"])
+        writer.writerow(["agent", "kind", "I(obs;action)_bits", "PI(past;future)_bits"])
         for i, bits in enumerate(mi["bits_by_agent"]):
-            writer.writerow([roster[i].name, roster[i].kind, bits])
+            pi_bits = pi["bits_by_agent"][i] if pi else ""
+            writer.writerow([roster[i].name, roster[i].kind, bits, pi_bits])
         writer.writerow([])
     if te:
         writer.writerow(["transfer_entropy"])
@@ -488,6 +493,18 @@ def _mi_te_csv(metrics: dict[str, Any], roster: list[Any]) -> str:
         for (i, j), d in te["by_pair"].items():
             writer.writerow([roster[i].name, roster[j].name, d["bits"], d["p_value"],
                              d["p_value"] < 0.05])
+        writer.writerow([])
+    if gd:
+        writer.writerow(["co_cooperation_graph"])
+        writer.writerow(["agent_a", "agent_b", "weight"])
+        for e in gd["coop_edges"]:
+            writer.writerow([roster[e["i"]].name, roster[e["j"]].name, e["weight"]])
+        writer.writerow([])
+        writer.writerow(["influence_graph_significant_te_edges"])
+        writer.writerow(["source", "target", "TE_bits", "p_value"])
+        for e in gd["influence_edges"]:
+            writer.writerow([roster[e["source"]].name, roster[e["target"]].name,
+                             e["bits"], e["p_value"]])
     return buf.getvalue()
 
 
@@ -635,6 +652,7 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
 
     metrics = social.compute_all(records, game.max_welfare_per_round())
     metrics.update(information.compute_all(records, seed=seed))
+    metrics.update(graph.compute_all(records, metrics["transfer_entropy_detail"]))
     creatures = [render_creature(a) for a in roster]
     chart_svg = cooperation_svg(metrics["cooperation_series"])
 
@@ -819,6 +837,7 @@ def _run_bakeoff(n_agents: int, mpcr, best_genome, pretrain_rounds: int, eval_ro
     records = run_match(eval_game, roster, rounds=eval_rounds, seed=seed + 999)
     metrics = social.compute_all(records, eval_game.max_welfare_per_round())
     metrics.update(information.compute_all(records, seed=seed + 999))
+    metrics.update(graph.compute_all(records, metrics["transfer_entropy_detail"]))
     leaderboard = sorted(zip(roster, metrics["cumulative_payoffs"]), key=lambda p: p[1], reverse=True)
     return {
         "kinds": kinds, "cooperation_rate": metrics["cooperation_rate"],

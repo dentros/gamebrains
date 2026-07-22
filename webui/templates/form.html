@@ -98,6 +98,7 @@
       <input type="checkbox" name="compute_phi" id="compute_phi">
       <label for="compute_phi" style="margin:0">&Phi; / causal autonomy (only if a markov_brain is present; slow, ~15s)</label>
     </div>
+    {% if metric_roadmap %}
     <fieldset>
       <legend>Roadmap</legend>
       {% for m in metric_roadmap %}
@@ -107,6 +108,7 @@
       </div>
       {% endfor %}
     </fieldset>
+    {% endif %}
   </div>
 
   <div class="panel">

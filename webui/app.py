@@ -332,20 +332,121 @@ _NASH_EXPLAIN = (
 )
 
 
+_MB_ROLE_COLORS = {"sensor": "#3d6b8a", "hidden": "#b5541f", "motor": "#6b8a3d"}
+
+
+def _mb_role(k: int, ns: int, nh: int) -> str:
+    return "sensor" if k < ns else ("hidden" if k < ns + nh else "motor")
+
+
+def _markov_wiring_svg(W: np.ndarray, labels: list[str], ns: int, nh: int) -> str:
+    """The evolved wiring as a bipartite from->to diagram: every node on the left (sources,
+    including the recurrent hidden/motor nodes), the controlled nodes (hidden+motor, the ones the
+    genome actually drives) on the right. Edge thickness/opacity scale with |weight|; green =
+    excitatory (positive), red = inhibitory (negative). Weak edges (|w| < 20% of the strongest)
+    are omitted so the picture stays readable -- the full matrix is in the table below it."""
+    n_controlled, n_nodes = W.shape
+    row_h, pad_top, lx, rx, width = 30, 18, 70, 230, 300
+    height = pad_top + row_h * max(n_nodes, n_controlled) + 6
+    vmax = float(np.abs(W).max()) or 1.0
+    ly = {k: pad_top + row_h * k for k in range(n_nodes)}
+    ry = {t: pad_top + row_h * t for t in range(n_controlled)}
+    parts = []
+    for t in range(n_controlled):
+        for k in range(n_nodes):
+            w = float(W[t, k])
+            if abs(w) < 0.2 * vmax:
+                continue
+            color = "#2e8b57" if w >= 0 else "#c0392b"
+            parts.append(
+                f"<line x1='{lx + 8}' y1='{ly[k]}' x2='{rx - 8}' y2='{ry[t]}' "
+                f"stroke='{color}' stroke-width='{1 + 2.5 * abs(w) / vmax:.1f}' "
+                f"opacity='{0.3 + 0.6 * abs(w) / vmax:.2f}'><title>{labels[k]} &rarr; "
+                f"{labels[ns + t]}: {w:+.2f}</title></line>"
+            )
+    for k in range(n_nodes):
+        c = _MB_ROLE_COLORS[_mb_role(k, ns, nh)]
+        parts.append(f"<circle cx='{lx}' cy='{ly[k]}' r='7' fill='{c}'/>")
+        parts.append(f"<text x='{lx - 14}' y='{ly[k] + 4}' text-anchor='end' font-size='11' "
+                     f"fill='currentColor'>{labels[k]}</text>")
+    for t in range(n_controlled):
+        c = _MB_ROLE_COLORS[_mb_role(ns + t, ns, nh)]
+        parts.append(f"<circle cx='{rx}' cy='{ry[t]}' r='7' fill='{c}'/>")
+        parts.append(f"<text x='{rx + 14}' y='{ry[t] + 4}' font-size='11' "
+                     f"fill='currentColor'>{labels[ns + t]}</text>")
+    return (f"<svg viewBox='0 0 {width} {height}' width='{width}' height='{height}' "
+           f"class='mbwiring' role='img'>{''.join(parts)}</svg>")
+
+
+def _markov_weight_table(W: np.ndarray, bias: np.ndarray, labels: list[str], ns: int) -> str:
+    vmax = float(max(np.abs(W).max(), np.abs(bias).max())) or 1.0
+    head = "".join(f"<th>{lab}</th>" for lab in labels) + "<th>bias</th>"
+    rows = []
+    for t, row in enumerate(W):
+        cells = "".join(f"<td style='{_heat_color(float(v), vmax)}'>{v:+.2f}</td>" for v in row)
+        cells += f"<td style='{_heat_color(float(bias[t]), vmax)}'>{bias[t]:+.2f}</td>"
+        rows.append(f"<tr><th>{labels[ns + t]}</th>{cells}</tr>")
+    return f"<table class='qtable'><tr><th>to \\ from</th>{head}</tr>{''.join(rows)}</table>"
+
+
+def _markov_tpm_html(W: np.ndarray, bias: np.ndarray, state: list[int],
+                     labels: list[str], ns: int) -> str:
+    """The TPM over the controlled (hidden+motor) subsystem, conditioned on the sensors as
+    currently read -- the same subsystem metrics/phi_autonomy.py analyzes. Each row is one
+    possible current (hidden,motor) configuration; each cell is P(that node = 1 next step).
+    Guarded to small brains: 2^n_controlled rows explode fast, and this view is only legible
+    when it fits on a screen."""
+    n_controlled = W.shape[0]
+    if n_controlled > 5:
+        return ("<p class='meta'>TPM omitted: 2^" + str(n_controlled) +
+                " rows is beyond what a table can usefully show.</p>")
+    sensor_bits = np.array(state[:ns], dtype=float)
+    combos = 2 ** n_controlled
+    head = "".join(f"<th>P({labels[ns + t]}=1)</th>" for t in range(n_controlled))
+    rows = []
+    for c in range(combos):
+        bits = np.array([(c >> k) & 1 for k in range(n_controlled)], dtype=float)  # little-endian
+        full_state = np.concatenate([sensor_bits, bits])
+        p = 1.0 / (1.0 + np.exp(-(W @ full_state + bias)))
+        label = "".join(str(int(b)) for b in bits)
+        cells = "".join(f"<td style='{_mono_color(float(v), 1.0)}'>{v:.2f}</td>" for v in p)
+        rows.append(f"<tr><th><code>{label}</code></th>{cells}</tr>")
+    return (f"<table class='qtable'><tr><th>state ({''.join(labels[ns:])})</th>{head}</tr>"
+           f"{''.join(rows)}</table>"
+           f"<p class='meta'>Conditioned on the sensors as currently read "
+           f"(<code>{''.join(str(int(b)) for b in sensor_bits)}</code>); this is the same "
+           f"hidden+motor subsystem the &Phi;/autonomy panel analyzes.</p>")
+
+
 def _markov_brain_html(brain: dict) -> str:
     state = brain["state"]
     ns, nh = brain["n_sensor"], brain["n_hidden"]
     boxes = "".join(
-        f"<span class='bit {'on' if b else 'off'} {'sensor' if k < ns else ('hidden' if k < ns + nh else 'motor')}'>"
-        f"{b}</span>"
+        f"<span class='bit {'on' if b else 'off'} {_mb_role(k, ns, nh)}'>{b}</span>"
         for k, b in enumerate(state)
     )
-    return (f"<div class='mbrain'>{boxes}</div>"
-           f"<p class='meta'>sensor={ns} hidden={nh} motor={brain['n_motor']} "
-           f"<span class='legend'>(sensor / hidden / motor)</span>. A snapshot of the final "
-           f"state, not something it learned during this match: training_mode is "
-           f"\"evolutionary\", meaning it evolves between generations, not within a match "
-           f"(see the Evolutionary tab).</p>")
+    out = (f"<div class='mbrain'>{boxes}</div>"
+          f"<p class='meta'>sensor={ns} hidden={nh} motor={brain['n_motor']} "
+          f"<span class='legend'>(sensor / hidden / motor)</span>. A snapshot of the final "
+          f"state, not something it learned during this match: training_mode is "
+          f"\"evolutionary\", meaning it evolves between generations, not within a match "
+          f"(see the Evolutionary tab).</p>")
+    # Older genomes loaded from the CAS may predate render_brain() exposing W/bias -- degrade
+    # gracefully to the state-bits view rather than crashing the whole results page.
+    if "W" in brain and "bias" in brain:
+        W = np.asarray(brain["W"], dtype=float)
+        bias = np.asarray(brain["bias"], dtype=float)
+        labels = brain.get("node_labels") or [f"n{k}" for k in range(W.shape[1])]
+        out += (
+            f"<h4>Evolved wiring</h4>{_markov_wiring_svg(W, labels, ns, nh)}"
+            f"<p class='meta'>Green = excitatory, red = inhibitory; thickness = |weight|. Edges "
+            f"below 20% of the strongest are hidden here but shown in the matrix.</p>"
+            f"<details class='explain'><summary>Weight matrix (the genome itself)</summary>"
+            f"{_markov_weight_table(W, bias, labels, ns)}</details>"
+            f"<details class='explain'><summary>Transition probabilities (TPM)</summary>"
+            f"{_markov_tpm_html(W, bias, state, labels, ns)}</details>"
+        )
+    return out
 
 
 def _classic_html(brain: dict) -> str:
@@ -353,15 +454,55 @@ def _classic_html(brain: dict) -> str:
     return f"<p class='rule'><b>{brain['strategy']}</b>{extra}: {brain['rule']}</p>"
 
 
-def render_creature(agent: Any) -> dict[str, Any]:
+def _policy_vs_behavior_html(brain: dict, coop_rate: float | None) -> str:
+    """Explainability correlation for RL agents: what the learned greedy policy WOULD do (how many
+    states it picks Cooperate in) next to what the agent ACTUALLY did this match. A large gap with
+    high epsilon is exploration, not a bug; a large gap with epsilon near its floor means the
+    policy shifted late in the match and the run-average no longer reflects it."""
+    policy = brain.get("greedy_policy")
+    if policy is None or coop_rate is None:
+        return ""
+    n_states = len(policy)
+    n_coop = int(sum(1 for a in policy if a == 1))
+    eps = brain.get("epsilon")
+    eps_note = f" with &epsilon; = {eps:.3f} still forcing random moves" if eps and eps > 0.1 else ""
+    return (f"<p class='meta'><b>Policy vs behavior:</b> the greedy policy cooperates in "
+           f"{n_coop}/{n_states} states; this agent actually cooperated in "
+           f"{coop_rate * 100:.1f}% of rounds{eps_note}.</p>")
+
+
+_QL_EXPLAIN = (
+    "<details class='explain'><summary>&#8505; How to read this</summary>"
+    "<p><b>Theory.</b> Tabular Q-learning keeps one row per observed state (here: how many players "
+    "cooperated last round) and one column per action; each cell estimates the long-run value of "
+    "taking that action in that state. The table IS the agent's entire mind -- nothing is hidden.</p>"
+    "<p><b>Reading it.</b> Green = higher value. The arrow marks the greedy choice per state. "
+    "With &epsilon;-greedy exploration the agent sometimes acts against its own table on purpose; "
+    "the policy-vs-behavior line quantifies exactly how often that happened this match.</p></details>"
+)
+
+_DQN_EXPLAIN = (
+    "<details class='explain'><summary>&#8505; How to read this</summary>"
+    "<p><b>Theory.</b> The DQN replaces the table with a neural network that maps a one-hot state "
+    "to Q-values, trained by experience replay against a target network. The network diagram is "
+    "its actual architecture; the table below it is the network <i>evaluated</i> at every state, "
+    "so it stays directly comparable with the tabular agent's table.</p>"
+    "<p><b>Reading it.</b> If the DQN's evaluated table and a tabular Q-learner's table disagree "
+    "sharply on the same match, that difference is the function approximation itself -- same "
+    "algorithm family, different representation. loss is the last training-batch TD error.</p></details>"
+)
+
+
+def render_creature(agent: Any, coop_rate: float | None = None) -> dict[str, Any]:
     brain = agent.render_brain()
     kind = brain.get("kind")
     if kind == "qlearning":
-        body = _qtable_html(brain, "q_table")
+        body = _qtable_html(brain, "q_table") + _policy_vs_behavior_html(brain, coop_rate) + _QL_EXPLAIN
     elif kind == "dqn":
         net = f"<p class='meta'>net {'-'.join(map(str, brain.get('layers', [])))} " \
              f"&middot; loss={brain.get('last_loss', 0):.4f} &middot; {brain.get('device')}</p>"
-        body = net + _dqn_network_html(agent) + _qtable_html(brain, "q_values")
+        body = (net + _dqn_network_html(agent) + _qtable_html(brain, "q_values")
+                + _policy_vs_behavior_html(brain, coop_rate) + _DQN_EXPLAIN)
     elif kind == "fep":
         body = _fep_html(brain) + _FEP_EXPLAIN
     elif kind == "markov_brain":
@@ -653,7 +794,9 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
     metrics = social.compute_all(records, game.max_welfare_per_round())
     metrics.update(information.compute_all(records, seed=seed))
     metrics.update(graph.compute_all(records, metrics["transfer_entropy_detail"]))
-    creatures = [render_creature(a) for a in roster]
+    per_agent_coop = records["actions"].mean(axis=0)
+    creatures = [render_creature(a, coop_rate=float(per_agent_coop[i]))
+                 for i, a in enumerate(roster)]
     chart_svg = cooperation_svg(metrics["cooperation_series"])
 
     leaderboard = sorted(

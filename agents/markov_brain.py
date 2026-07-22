@@ -160,10 +160,18 @@ class MarkovBrainAgent(Agent):
         }
 
     def render_brain(self) -> dict:
+        # W/bias ARE the genome (see __init__) -- exposing them here is what lets the webui draw
+        # the actual evolved wiring (edges/weights/TPM), not just the current state bits.
+        labels = ([f"s{k}" for k in range(self.n_sensor)]
+                  + [f"h{k}" for k in range(self.n_hidden)]
+                  + [f"m{k}" for k in range(self.n_motor)])
         return {
             "kind": self.kind,
             "n_sensor": self.n_sensor, "n_hidden": self.n_hidden, "n_motor": self.n_motor,
             "state": self.state.tolist(),
+            "node_labels": labels,
+            "W": self.W.tolist(),
+            "bias": self.bias.tolist(),
         }
 
 

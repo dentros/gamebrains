@@ -497,8 +497,28 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
   "runs with a Q-learning agent whose epsilon_decay >= 0.8"). Results render as a table plus a
   user-chosen X/Y scatter chart (server-side SVG, no JS charting library) over the filtered set.
   This is the "general page with smart filters + correlations + charts across all games" the user
-  asked for; the full parameter-space-map (know every possible config per game and auto-run
-  what's missing) remains separate, not-yet-built future work.
+  asked for. **Pearson r added 2026-07-19** next to the scatter chart (guarded to n>=3 points with
+  variance on both axes; below that it says why rather than printing a degenerate coefficient) —
+  the page now does correlation, not just filtering-and-plotting.
+- **New `/spacemap` tab (2026-07-19), delivered.** The parameter-space-map the analytics note above
+  used to call "not-yet-built future work" — no longer true. Declares a grid (population size,
+  MPCR, rounds, seed, and a roster-mix menu: all-Q/all-DQN/all-FEP/one-of-each), checks it against
+  the ledger (`_cell_covered`: matches on every grid coordinate + exact roster kind-composition;
+  hyperparameters are deliberately free — a custom-alpha run still covers its cell), and renders an
+  n x MPCR coverage table per mix, invalid cells (violates `1/n < mpcr < 1`, or the mix is
+  undefined at that n) shown as such rather than hidden. "Run missing cells now" runs a capped
+  number of missing valid cells through the lean pipeline (match + metrics + ledger record, no
+  results-page rendering) per click. `markov_brain` excluded from default mixes on purpose: an
+  un-evolved random genome doesn't learn within a match, so it isn't a meaningful data point for a
+  population-size/MPCR grid the way an online learner is. Tests: `tests/test_spacemap.py`.
+- **2026-07-19, same session — the rest of the earlier punch-list closed out:**
+  predictive-information + graph-theoretic metrics delivered (see section 5 above); the
+  Markov-brain creature card now shows the evolved wiring/weight-matrix/TPM, not just state bits
+  (`agents/markov_brain.py`'s `render_brain()` now exposes `W`/`bias`/`node_labels`); Q-learning/DQN
+  cards gained a policy-vs-behavior explainability line + "how to read this" panels. What's left of
+  that list: Honey-Jar Game #2 (design guidance now recorded, see section 6's Gap-paper addendum),
+  the LLM agent, Battle of the Sexes, the custom game/metrics builder, the gamified/live-animation
+  visualization, and the full decentralized network — all still genuinely not started.
 
 ## 10. References
 

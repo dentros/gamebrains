@@ -527,6 +527,24 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
   that list: Honey-Jar Game #2 (design guidance now recorded, see section 6's Gap-paper addendum),
   the LLM agent, Battle of the Sexes, the custom game/metrics builder, the gamified/live-animation
   visualization, and the full decentralized network — all still genuinely not started.
+- **Match-tab form rebuilt as a multi-step wizard (2026-07-22).** The five panels (Game, Roster,
+  Metrics, Recording, Batch mode) are now one-at-a-time steps behind a sticky, clickable tab bar
+  (`.fw-tabs`/`.fw-tab`, `mainWizardGoto(n)` in `form.html` — deliberately separate from the
+  pre-existing quick-start modal's own `wizardStep(n)`, scoped by `.panel.fw-step` vs `#quickstart
+  .wizard-step` so the two never collide) plus Back/Next buttons per step ("editorial-manager
+  style," the user's own reference point). All fields stay in the DOM throughout (only
+  `display:none` toggles), so form submission is unaffected — verified with a real end-to-end
+  match run. New per-field icons (`glyph-clock`/`glyph-dice`/`glyph-percent`) on Rounds/Seed/MPCR
+  and the batch sweep-field/values fields. **Scoped to the Match tab only** (explicit user
+  decision) — the Evolutionary tab does not have this treatment yet. **Explicitly NOT built**:
+  sliders for bounded numeric fields (0-1 reciprocity, 1-8 hidden nodes, etc.) — the user asked for
+  this but said "let's think about it carefully" first (see
+  [[gamebrains-webui-wizard-redesign]] in memory); don't add sliders without a fresh, explicit go.
+  Also recorded but not started: evolutionary/GA optimization extended to RL/DQN/Transformer/LSTM
+  substrates (not just Markov-brain animats), which the user called "the most important" of this
+  batch and tied explicitly to the Bohm & Hintze/MABE lineage already cited in this file — see
+  [[gamebrains-evolutionary-any-architecture-scope]] in memory for the open questions before this
+  can be scoped into real work (what a "genome" means for a transformer/LSTM, compute cost).
 
 ## 10. References
 

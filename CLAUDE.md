@@ -545,6 +545,32 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
   batch and tied explicitly to the Bohm & Hintze/MABE lineage already cited in this file — see
   [[gamebrains-evolutionary-any-architecture-scope]] in memory for the open questions before this
   can be scoped into real work (what a "genome" means for a transformer/LSTM, compute cost).
+- **Episodic games supported in the engine (2026-07-25).** Prerequisite for Game #2, done as its
+  own commit ahead of it. `runner.run_match` previously called `game.reset()` exactly once and
+  passed `StepResult.done` to the agents without ever acting on it, so a match was always a single
+  run of `rounds` steps. It now treats `rounds` as a total round *budget*: when a game reports
+  `done`, the episode is recorded and `game.reset()` starts the next one, until the budget runs
+  out. A match may therefore contain many episodes, which is what the congestion family needs
+  (agents race to a terminal, episode ends, next contest begins).
+  - New `episode` event type in the log (documented in `eventlog.py`'s docstring alongside the
+    others). It carries per-agent reward totals and the episode's round count, both computed by
+    the runner, merged with whatever the game itself put in `StepResult.info["episode"]`. That
+    split keeps the runner game-agnostic: for the congestion game the payload will be the
+    per-agent reach vector, but the runner never needs to know that. `run_match` also returns
+    the same records under a new `"episodes"` key (purely additive, existing keys untouched).
+  - **This is the series ALT/RP consume.** Those metrics ask who won and when, per *episode*, and
+    a per-round log cannot answer that, so without this event they cannot be computed at all.
+  - **Two deliberate edge-case choices**, both tested: (1) no reset fires on the final round, since
+    that would leave the game rewound behind the caller's back for no benefit (and PGG reports
+    `done` exactly there, so this is the common case, not an exotic one); (2) a trailing partial
+    episode, where the budget runs out mid-contest, is *not* reported, because a truncated contest
+    has no winner and would corrupt the alternation series.
+  - Regression risk was concentrated on `PublicGoodsGame`, which does set `done` on its last round
+    (`public_goods.py:78`) rather than never. Verified: same seed still reproduces identical
+    actions/rewards/cooperators, the `round` events are byte-identical, only the opening reset
+    runs, and the whole match now correctly reports as exactly one episode. Tests:
+    `tests/test_episodic.py` (4 cases). Full suite re-run green, including `test_evolution`, which
+    drives fitness through `run_match` and is the most exposed caller.
 - **Second theme, "Horsey Lab", + a Scientific/Gamified toggle (2026-07-25).** The dark console
   theme above is no longer the only skin. A bright, deliberately goofy alternative ("Horsey Lab":
   cream background, white sticker-panels with thick plum borders and hard offset shadows, saturated

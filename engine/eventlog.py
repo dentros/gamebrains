@@ -4,7 +4,19 @@ Structured event-log — the single contract between the engine and everything d
 The same stream of events (a) drives the live console / web visualization, (b) is the
 on-disk reproducibility record, and (c) is the data source for the paper figures. Format is
 JSON Lines (one JSON object per line): the first line is a `meta` header (config + seed),
-each subsequent line is a `round` (or other) event.
+each subsequent line is one event.
+
+Event types currently emitted:
+
+  meta            run header, written once, first: game config, seed, roster, registry
+  round           one simultaneous move by every agent: actions, rewards, cooperator count
+  episode         an episode finished (see runner.run_match): per-agent reward totals and the
+                  episode's round count, plus whatever the game put in `info["episode"]`. For
+                  a single-stage game this fires once, at the end, since the match is one
+                  episode; episodic games emit one per contest. This is the series the
+                  alternation metrics (ALT/RP) consume, since they ask who won and when.
+  brain_snapshot  a periodic dump of one agent's internal state (`render_brain`)
+  generation      one generation of the evolutionary loop (see engine.evolution)
 """
 
 from __future__ import annotations

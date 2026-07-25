@@ -18,7 +18,86 @@
     --font-display: "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
     --font-body: "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif;
     --font-mono: "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+    --psy: #6b6383; --sun: #f0a83d;
   }
+  /* "Horsey Lab": the bright, goofy alternate skin toggled via the header switch (persisted in
+     a cookie, read early in <body> below so there is no flash of the wrong theme). Same variable
+     names as the console theme above so most rules repaint for free; only the handful of rules
+     that used a literal hex (translucent-white overlays, neon glows) need an explicit override
+     here, since a light background needs the opposite treatment. */
+  [data-theme="gamified"] {
+    --felt: #fff9ee; --felt-deep: #fff3d9; --felt-text: #6b6383;
+    --panel: #ffffff; --panel-edge: #2b2440; --ink: #2b2440; --ink-soft: #7a7392;
+    --gold: #ffce54; --gold-deep: #f0a83d;
+    --piece-qlearning: #4fb0e8; --piece-dqn: #b26fe0; --piece-fep: #5ecb6b;
+    --piece-markov_brain: #ff9f43; --piece-classic: #a3a3b8;
+    --coop: #43c96b; --defect: #ff6b6b; --psy: #c77dff; --sun: #ffce54;
+    --font-display: "Trebuchet MS", "Segoe UI", sans-serif;
+  }
+  [data-theme="gamified"] body { background-image: none; }
+  [data-theme="gamified"] header.top h1 { text-shadow: none; }
+  [data-theme="gamified"] .panel h2 .step,
+  [data-theme="gamified"] button, [data-theme="gamified"] .btn { color: var(--ink); }
+  [data-theme="gamified"] nav.tabs a { background: #00000010; border-color: #00000020; color: var(--ink); }
+  [data-theme="gamified"] .subtab-btn { background: #00000008; color: var(--ink); }
+  [data-theme="gamified"] nav.tabs a.active, [data-theme="gamified"] .subtab-btn.active,
+  [data-theme="gamified"] .fw-tab.active, [data-theme="gamified"] button:hover,
+  [data-theme="gamified"] .btn:hover, [data-theme="gamified"] .help-trigger:hover {
+    box-shadow: none;
+  }
+  [data-theme="gamified"] .creature .glyph { filter: none; }
+  [data-theme="gamified"] .panel {
+    border: 3px solid var(--panel-edge); border-top: 3px solid var(--panel-edge);
+    border-radius: 18px; box-shadow: 5px 5px 0 var(--panel-edge);
+  }
+  [data-theme="gamified"] .creature {
+    border: 3px solid var(--panel-edge); border-left: 3px solid var(--panel-edge);
+    border-radius: 18px; box-shadow: 5px 5px 0 var(--panel-edge);
+  }
+  [data-theme="gamified"] button, [data-theme="gamified"] .btn,
+  [data-theme="gamified"] input[type=number], [data-theme="gamified"] input[type=text],
+  [data-theme="gamified"] select { border-radius: 12px; }
+  [data-theme="gamified"] .quickstart-modal, [data-theme="gamified"] .quickstart-modal.minimized .quickstart-pill {
+    border: 3px solid var(--panel-edge); border-top: 3px solid var(--panel-edge); box-shadow: 5px 5px 0 var(--panel-edge);
+  }
+  [data-theme="gamified"] .help-drawer { border-left: 3px solid var(--panel-edge); box-shadow: -8px 0 0 var(--panel-edge); }
+  /* The rules below all replace a literal dark-navy hex that the console theme uses for a
+     "recessed surface inside a panel" (secondary buttons, code chips, roster rows, belief/bit
+     tracks...). Those hexes never got redefined as variables, so under a light background they
+     stayed dark -- unreadable dark-on-dark text. Same fix throughout: swap the literal dark hex
+     for a light cream tone here instead. */
+  [data-theme="gamified"] button.secondary, [data-theme="gamified"] .btn.secondary {
+    background: var(--felt-deep);
+  }
+  [data-theme="gamified"] button.secondary:hover, [data-theme="gamified"] .btn.secondary:hover {
+    background: #ffe6ab;
+  }
+  [data-theme="gamified"] .creature { background: var(--felt-deep); }
+  [data-theme="gamified"] .beliefs .bar { background: #f2e9d2; }
+  [data-theme="gamified"] .mbrain .bit.off { background: #f2e9d2; }
+  [data-theme="gamified"] details.explain { background: var(--felt-deep); }
+  [data-theme="gamified"] .badge.todo { background: #f2e9d2; }
+  [data-theme="gamified"] code { background: #f2e9d2; }
+  [data-theme="gamified"] .rosterrow { background: var(--felt-deep); }
+  [data-theme="gamified"] .neuron { border: 1px solid var(--panel-edge); }
+  [data-theme="gamified"] a:hover { color: var(--gold-deep); }
+  .creature-mascot { display: none; }
+  [data-theme="gamified"] .creature-mascot {
+    display: flex; justify-content: center; margin-bottom: 10px;
+  }
+  [data-theme="gamified"] .creature-mascot svg { width: 76px; height: 76px; }
+  .theme-toggle {
+    display: inline-flex; background: #ffffff12; border: 1px solid #ffffff22; border-radius: 999px;
+    padding: 3px; margin-left: 14px; align-self: center; gap: 0;
+  }
+  .theme-btn {
+    border: none; background: none; color: var(--felt-text); padding: 6px 14px; border-radius: 999px;
+    font-family: var(--font-body); font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: none;
+    margin: 0;
+  }
+  .theme-btn.active { background: var(--gold); color: var(--felt-deep); }
+  [data-theme="gamified"] .theme-toggle { background: #00000010; border-color: #00000020; }
+  [data-theme="gamified"] .theme-btn.active { color: var(--ink); }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--felt);
@@ -289,6 +368,12 @@
 </style>
 </head>
 <body>
+<script>
+(function () {
+  var m = document.cookie.match(/gb_theme=(\w+)/);
+  if (m && m[1] === 'gamified') document.documentElement.setAttribute('data-theme', 'gamified');
+})();
+</script>
 <svg width="0" height="0" style="position:absolute">
   <defs>
     <symbol id="glyph-qlearning" viewBox="0 0 24 24">
@@ -386,6 +471,10 @@
     <a href="/analytics" class="{{ 'active' if active_tab == 'analytics' else '' }}">Analytics</a>
     <a href="/spacemap" class="{{ 'active' if active_tab == 'spacemap' else '' }}">Space map</a>
   </nav>
+  <div class="theme-toggle">
+    <button type="button" class="theme-btn" data-set-theme="scientific" onclick="setGbTheme('scientific')">📐 Scientific</button>
+    <button type="button" class="theme-btn" data-set-theme="gamified" onclick="setGbTheme('gamified')">🧪 Gamified</button>
+  </div>
 </header>
 <main>
 {% block content %}{% endblock %}
@@ -410,6 +499,19 @@ function closeHelpDrawer() {
   document.getElementById('help-drawer-backdrop').classList.remove('open');
 }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeHelpDrawer(); });
+
+function setGbTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.cookie = 'gb_theme=' + theme + ';path=/;max-age=31536000';
+  syncThemeButtons();
+}
+function syncThemeButtons() {
+  var current = document.documentElement.getAttribute('data-theme') || 'scientific';
+  document.querySelectorAll('.theme-btn').forEach(function (b) {
+    b.classList.toggle('active', b.dataset.setTheme === current);
+  });
+}
+syncThemeButtons();
 </script>
 </body>
 </html>

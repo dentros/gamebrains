@@ -67,6 +67,7 @@
     {% for c in creatures %}
     <div class="creature" style="--piece-color: {{ c.color }}">
       <h3><svg class="glyph"><use href="#{{ c.glyph }}"/></svg> {{ c.name }} <span class="kindtag">{{ c.kind }}</span> <span class="kindtag">{{ c.mode }}</span></h3>
+      <div class="creature-mascot">{{ c.mascot | safe }}</div>
       {{ c.body | safe }}
     </div>
     {% endfor %}

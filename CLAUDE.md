@@ -545,6 +545,34 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
   batch and tied explicitly to the Bohm & Hintze/MABE lineage already cited in this file — see
   [[gamebrains-evolutionary-any-architecture-scope]] in memory for the open questions before this
   can be scoped into real work (what a "genome" means for a transformer/LSTM, compute cost).
+- **Second theme, "Horsey Lab", + a Scientific/Gamified toggle (2026-07-25).** The dark console
+  theme above is no longer the only skin. A bright, deliberately goofy alternative ("Horsey Lab":
+  cream background, white sticker-panels with thick plum borders and hard offset shadows, saturated
+  agent-kind colors, rounded display face) now ships alongside it, chosen by a header toggle that
+  persists in a `gb_theme` cookie. **Neither theme replaces the other** (explicit user decision).
+  Implementation notes worth knowing before touching this:
+  - The whole skin is one `[data-theme="gamified"]` block in `base.html` that **redefines the same
+    `:root` variables** the console theme already used, so most existing rules repaint for free.
+    The cookie is read by a tiny inline script at the very top of `<body>`, before any content
+    renders, so there is no flash of the wrong theme.
+  - **The gotcha, found only by looking at the real page:** roughly a dozen rules had a *literal*
+    dark-navy hex (`#262c47`, `#232941`, `#171c30`, `#2a3050`, `#20263f`) rather than a variable,
+    for what the console theme treats as a "recessed surface inside a panel" (secondary buttons,
+    creature cards, roster rows, code chips, `.badge.todo`, belief-bar and mbrain-bit tracks,
+    `details.explain`). Redefining variables did nothing for those, so they stayed dark under a
+    light background: unreadable dark-on-dark. Each one now has an explicit gamified override.
+    **If you add a new rule with a hardcoded dark color, it will silently break the light theme
+    the same way** — prefer a variable, or add the override in the same commit.
+  - `render_creature()` in `app.py` now also returns a `mascot` key: a per-kind cartoon-face SVG
+    (`_mascot_svg`), rendered by `results.html` into `.creature-mascot`, which is `display:none`
+    under Scientific and shown under Gamified. Shape encodes the architecture (squircle = the
+    Q-table, rounded rhombus = a network node, circle = an animat, rounded inverted triangle = a
+    belief funnel, and a face-free quadcopter drone for the fixed-rule classic strategies, since a
+    lookup rule has no mind to depict). Its `--psy`/`--sun` accents and stroke color are fixed, not
+    theme-driven, because it only ever renders on the bright background.
+  - Verified end-to-end on a real 5-agent mixed-roster match (one of each kind): all 5 mascots
+    render, each with the right letter marker (Q/D/M/F, drone has none), and the three webui-facing
+    test modules still pass.
 
 ## 10. References
 

@@ -524,7 +524,95 @@ def render_creature(agent: Any, coop_rate: float | None = None) -> dict[str, Any
         body = f"<pre>{brain}</pre>"
     meta = KIND_META.get(kind, {"glyph": "glyph-classic", "label": kind, "color": "#5c5346"})
     return {"name": agent.name, "kind": kind, "mode": getattr(agent, "training_mode", "?"),
-           "body": body, "glyph": meta["glyph"], "color": meta["color"]}
+           "body": body, "glyph": meta["glyph"], "color": meta["color"], "mascot": _mascot_svg(kind)}
+
+
+# --- "Horsey Lab" gamified-theme mascots: one cute face per kind, CSS-hidden under the
+# Scientific theme (see base.html's .creature-mascot rule) and shown under Gamified. Shape per
+# kind matches the architecture it stands for (table/network/animat/belief-funnel); edge color is
+# fixed (not theme-driven) since these only ever render on the bright Gamified background. ------
+
+_MASCOT_EDGE = "#2b2440"
+
+
+def _mascot_svg(kind: str) -> str:
+    e = _MASCOT_EDGE
+    if kind == "qlearning":
+        return (
+            "<svg viewBox='0 0 100 100'>"
+            f"<rect x='16' y='16' width='68' height='68' rx='28' fill='var(--piece-qlearning)' stroke='{e}' stroke-width='5'/>"
+            f"<text x='50' y='27' text-anchor='middle' dominant-baseline='central' font-family='var(--font-display)' font-size='17' font-weight='700' fill='{e}'>Q</text>"
+            f"<circle cx='35' cy='46' r='7.5' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='65' cy='46' r='7.5' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='38.5' cy='46' r='3' fill='{e}'/><circle cx='61.5' cy='46' r='3' fill='{e}'/>"
+            f"<path d='M38 66 Q50 74 62 66' fill='none' stroke='{e}' stroke-width='4.5' stroke-linecap='round'/>"
+            "<line x1='67' y1='72' x2='74' y2='81' stroke='#ff8fa3' stroke-width='10' stroke-linecap='round'/>"
+            "</svg>"
+        )
+    if kind == "dqn":
+        return (
+            "<svg viewBox='0 0 100 100'>"
+            f"<rect x='18' y='18' width='64' height='64' rx='18' fill='var(--piece-dqn)' stroke='{e}' stroke-width='5' transform='rotate(45 50 50)'/>"
+            f"<text x='50' y='26' text-anchor='middle' dominant-baseline='central' font-family='var(--font-display)' font-size='17' font-weight='700' fill='{e}'>D</text>"
+            f"<rect x='29' y='41' width='19' height='15' rx='4' fill='none' stroke='{e}' stroke-width='3.5'/>"
+            f"<rect x='52' y='41' width='19' height='15' rx='4' fill='none' stroke='{e}' stroke-width='3.5'/>"
+            f"<line x1='48' y1='48.5' x2='52' y2='48.5' stroke='{e}' stroke-width='3.5'/>"
+            f"<circle cx='38.5' cy='48.5' r='2.8' fill='{e}'/><circle cx='61.5' cy='48.5' r='2.8' fill='{e}'/>"
+            f"<path d='M38 69 Q50 74 62 69' fill='none' stroke='{e}' stroke-width='4.5' stroke-linecap='round'/>"
+            "</svg>"
+        )
+    if kind == "markov_brain":
+        return (
+            "<svg viewBox='0 0 100 100'>"
+            f"<rect x='32' y='80' width='14' height='17' rx='6' fill='var(--piece-markov_brain)' stroke='{e}' stroke-width='4'/>"
+            f"<rect x='54' y='80' width='14' height='17' rx='6' fill='var(--piece-markov_brain)' stroke='{e}' stroke-width='4'/>"
+            f"<circle cx='50' cy='52' r='34' fill='var(--piece-markov_brain)' stroke='{e}' stroke-width='5'/>"
+            f"<circle cx='24' cy='28' r='11' fill='var(--piece-markov_brain)' stroke='{e}' stroke-width='4'/>"
+            f"<circle cx='76' cy='28' r='11' fill='var(--piece-markov_brain)' stroke='{e}' stroke-width='4'/>"
+            f"<text x='50' y='29' text-anchor='middle' dominant-baseline='central' font-family='var(--font-display)' font-size='16' font-weight='700' fill='{e}'>M</text>"
+            f"<circle cx='37' cy='48' r='7.3' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='63' cy='48' r='7.3' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='37' cy='49' r='3' fill='{e}'/><circle cx='63' cy='49' r='3' fill='{e}'/>"
+            f"<path d='M48 66 Q50 81 55 72' fill='#ff8fa3' stroke='{e}' stroke-width='3'/>"
+            "</svg>"
+        )
+    if kind == "fep":
+        return (
+            "<svg viewBox='0 0 100 100'>"
+            f"<path d='M30,18 L70,18 Q85,18 77.6,31.1 L57.4,67 Q50,80 42.6,67 L22.4,31.1 Q15,18 30,18 Z' fill='var(--piece-fep)' stroke='{e}' stroke-width='5'/>"
+            f"<path d='M46 26 L46 39 M46 26 L54 26 M46 32 L52 32' fill='none' stroke='{e}' stroke-width='2.6' stroke-linecap='round'/>"
+            f"<path d='M31 44 q7 -4.5 13 0' fill='none' stroke='{e}' stroke-width='2.6' stroke-linecap='round'/>"
+            f"<path d='M56 44 q7 -4.5 13 0' fill='none' stroke='{e}' stroke-width='2.6' stroke-linecap='round'/>"
+            f"<circle cx='37' cy='51' r='6.2' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='63' cy='51' r='6.2' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='37' cy='51' r='2.9' fill='none' stroke='var(--psy)' stroke-width='1.2' opacity='.8'/>"
+            f"<circle cx='63' cy='51' r='2.9' fill='none' stroke='var(--psy)' stroke-width='1.2' opacity='.8'/>"
+            f"<circle cx='37' cy='51' r='1.5' fill='{e}'/><circle cx='63' cy='51' r='1.5' fill='{e}'/>"
+            f"<path d='M41 60 Q50 63 59 60' fill='none' stroke='{e}' stroke-width='4' stroke-linecap='round'/>"
+            "</svg>"
+        )
+    if kind == "classic":
+        return (
+            "<svg viewBox='0 0 100 100'>"
+            f"<rect x='36' y='38' width='28' height='24' rx='6' fill='var(--piece-classic)' stroke='{e}' stroke-width='5'/>"
+            f"<line x1='50' y1='38' x2='50' y2='28' stroke='{e}' stroke-width='3' stroke-linecap='round'/>"
+            f"<circle cx='50' cy='26' r='3' fill='{e}'/>"
+            f"<line x1='37' y1='40' x2='17' y2='19' stroke='{e}' stroke-width='4' stroke-linecap='round'/>"
+            f"<line x1='63' y1='40' x2='83' y2='19' stroke='{e}' stroke-width='4' stroke-linecap='round'/>"
+            f"<line x1='37' y1='60' x2='17' y2='81' stroke='{e}' stroke-width='4' stroke-linecap='round'/>"
+            f"<line x1='63' y1='60' x2='83' y2='81' stroke='{e}' stroke-width='4' stroke-linecap='round'/>"
+            f"<circle cx='17' cy='19' r='9' fill='var(--panel)' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='83' cy='19' r='9' fill='var(--panel)' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='17' cy='81' r='9' fill='var(--panel)' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='83' cy='81' r='9' fill='var(--panel)' stroke='{e}' stroke-width='3'/>"
+            f"<path d='M10 19 L24 19 M17 12 L17 26' stroke='{e}' stroke-width='2' opacity='.6'/>"
+            f"<path d='M76 19 L90 19 M83 12 L83 26' stroke='{e}' stroke-width='2' opacity='.6'/>"
+            f"<path d='M10 81 L24 81 M17 74 L17 88' stroke='{e}' stroke-width='2' opacity='.6'/>"
+            f"<path d='M76 81 L90 81 M83 74 L83 88' stroke='{e}' stroke-width='2' opacity='.6'/>"
+            "<circle cx='50' cy='50' r='4' fill='var(--sun)'/>"
+            "</svg>"
+        )
+    return ""
 
 
 def _fep_html(brain: dict) -> str:

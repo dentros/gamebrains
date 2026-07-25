@@ -43,7 +43,7 @@ from ..repository.cas import ContentStore
 from ..repository.ledger import Ledger
 from ..repository.record import (
     DEFAULT_CODE_VERSION, _config_game_desc, _feature_vector, _PARAM_ATTRS, _roster_description,
-    record_experiment,
+    protocol_from_run, record_experiment,
 )
 from ..repository.smart_filter import lookup as smart_filter_lookup
 
@@ -936,7 +936,8 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
         feature_vector = _feature_vector(game, roster, rounds)
         ledger = Ledger(_REPO_ROOT)
         raw_hits = smart_filter_lookup(ledger, game_desc, roster_desc, DEFAULT_CODE_VERSION, rounds,
-                                       seed, feature_vector, k=5)
+                                       seed, feature_vector, k=5,
+                                       protocol=protocol_from_run(records))
         filter_info = {
             "exact": raw_hits["exact"],
             "similar": [
@@ -947,7 +948,8 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
             ],
         }
         record = record_experiment(_REPO_ROOT, game, roster, log_path, rounds=rounds, seed=seed,
-                                   metrics=metrics, code_version=DEFAULT_CODE_VERSION)
+                                   metrics=metrics, code_version=DEFAULT_CODE_VERSION,
+                                   protocol=protocol_from_run(records))
         lineage_bits = [k for k, v in record["lineage"].items() if v]
         repo_info = {
             "config_hash": record["config_hash"], "content_cid": record["content_cid"],
@@ -1470,7 +1472,8 @@ def _run_cell(cell: dict[str, Any]) -> None:
     metrics.update(information.compute_all(records, seed=seed))
     metrics.update(graph.compute_all(records, metrics["transfer_entropy_detail"]))
     record_experiment(_REPO_ROOT, game, roster, log_path, rounds=cell["rounds"], seed=seed,
-                      metrics=metrics, code_version=DEFAULT_CODE_VERSION)
+                      metrics=metrics, code_version=DEFAULT_CODE_VERSION,
+                      protocol=protocol_from_run(records))
 
 
 @app.route("/spacemap", methods=["GET", "POST"])

@@ -16,7 +16,8 @@ from pathlib import Path
 from gamebrains.agents.classic import AllD
 from gamebrains.agents.qlearning import QLearningAgent
 from gamebrains.games.public_goods import PublicGoodsGame
-from gamebrains.repository.record import record_experiment
+from gamebrains.repository.ledger import Ledger
+from gamebrains.repository.record import protocol_from_run, record_experiment
 
 
 def _tmp_dir() -> Path:
@@ -70,8 +71,54 @@ def test_config_hash_changes_with_agent_hyperparameters():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_config_hash_separates_runs_scored_under_different_protocols():
+    """Two runs identical in game, roster and seed but scored under different conventions are
+    different experiments. If they shared a config_hash, the Smart Filter would advertise one as
+    a reusable result for the other and the ledger would call them replications."""
+    tmp = _tmp_dir()
+    try:
+        log_path = tmp / "log.jsonl"
+        _write_minimal_log(log_path)
+        game = PublicGoodsGame(n_agents=3, rounds=50)
+        roster = [AllD(f"AllD{i}") for i in range(3)]
+
+        dropped = record_experiment(tmp, game, roster, log_path, rounds=50, seed=0, metrics={},
+                                    protocol={"partial_episode": "drop"})
+        kept = record_experiment(tmp, game, roster, log_path, rounds=50, seed=0, metrics={},
+                                 protocol={"partial_episode": "record"})
+
+        assert dropped["config_hash"] != kept["config_hash"]
+        assert dropped["protocol"] == {"partial_episode": "drop"}
+
+        # The exact-match lookup has to agree with how the records were hashed, or it would offer
+        # the "drop" run as an already-computed answer for a "record" request.
+        ledger = Ledger(tmp)
+        desc, roster_desc = dropped["game"], dropped["roster"]
+        hit = ledger.find_exact(desc, roster_desc, dropped["code_version"], rounds=50,
+                                master_seed=0, protocol={"partial_episode": "drop"})
+        assert hit is not None and hit["config_hash"] == dropped["config_hash"]
+
+        other = ledger.find_exact(desc, roster_desc, dropped["code_version"], rounds=50,
+                                  master_seed=0, protocol={"partial_episode": "record"})
+        assert other is not None and other["config_hash"] == kept["config_hash"]
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_protocol_is_read_back_off_the_run_not_restated():
+    """`protocol_from_run` exists so the recorded conventions cannot drift from the ones that
+    actually produced the numbers."""
+    assert protocol_from_run({"partial_episode_policy": "record"}) == {"partial_episode": "record"}
+    # A caller that predates the field still records the documented default rather than nothing.
+    assert protocol_from_run({}) == {"partial_episode": "drop"}
+
+
 if __name__ == "__main__":
     test_config_hash_independent_of_rounds_and_extends_detected()
     print("OK: config_hash independent of rounds, extends detected across real run_pgg.py-shaped calls")
     test_config_hash_changes_with_agent_hyperparameters()
     print("OK: config_hash changes when agent hyperparameters change")
+    test_config_hash_separates_runs_scored_under_different_protocols()
+    print("OK: config_hash separates runs scored under different protocols")
+    test_protocol_is_read_back_off_the_run_not_restated()
+    print("OK: protocol is read back off the run rather than restated")

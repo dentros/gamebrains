@@ -18,6 +18,12 @@ computed here, but anything game-specific (for a congestion game, which agents r
 terminal) is supplied by the game itself under `StepResult.info["episode"]` and forwarded
 verbatim, so the runner stays as game-agnostic as it is brain-agnostic.
 
+Do not confuse two different ways an episode can end without a winner. If the *game* stops an
+episode at its own round cap because nobody got there, that is a real outcome: the game reports
+`done` and supplies its own (all-zero) payload, and it is recorded like any other episode. What
+`partial_episode` below controls is the other case, where the *match* budget simply ran out
+mid-episode, which is an artifact of how long we chose to run rather than anything the agents did.
+
 Returns per-round records as numpy arrays for the metrics layer, plus the per-episode records.
 """
 
@@ -44,10 +50,13 @@ def run_match(
     log_every: int = 100,
     snapshot_every: int = 0,
     snapshot_agent: int = 0,
-) -> dict[str, np.ndarray]:
+    partial_episode: str = "drop",
+) -> dict[str, Any]:
     n = game.n_agents
     if len(agents) != n:
         raise ValueError(f"game expects {n} agents, roster has {len(agents)}")
+    if partial_episode not in ("drop", "record"):
+        raise ValueError(f"partial_episode must be 'drop' or 'record', got {partial_episode!r}")
 
     if eventlog is not None:
         eventlog.meta(
@@ -128,10 +137,25 @@ def run_match(
     for a in agents:
         a.on_match_end()
 
-    # A trailing partial episode (budget ran out mid-episode) is deliberately absent from
-    # `episodes`: alternation metrics count completed contests, and a truncated one has no winner.
+    # The match budget can run out mid-episode. Whether that half-played contest counts is a
+    # scientific choice, not ours to make silently: "drop" leaves the alternation series to
+    # completed contests only, "record" keeps it as a no-winner episode (everyone scored zero,
+    # nobody reached a terminal). Either way `truncated` marks it and `partial_episode_rounds`
+    # reports how many rounds were involved, so the choice is never invisible downstream.
+    if ep_rounds > 0 and partial_episode == "record":
+        record = {
+            "episode": len(episodes),
+            "rounds": ep_rounds,
+            "rewards": [round(float(r), 6) for r in ep_rewards],
+            "truncated": True,
+        }
+        episodes.append(record)
+        if eventlog is not None:
+            eventlog.log({"type": "episode", **record})
+
     return {"actions": actions_hist, "rewards": rewards_hist, "cooperators": coop_hist,
-            "episodes": episodes}
+            "episodes": episodes, "partial_episode_rounds": ep_rounds,
+            "partial_episode_policy": partial_episode}
 
 
 def _log_snapshots(eventlog: EventLog, agents: Sequence[Agent], rnd: int) -> None:

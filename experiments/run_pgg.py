@@ -26,7 +26,7 @@ from ..engine.eventlog import EventLog
 from ..engine.runner import run_match
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import graph, information, social
-from ..repository.record import record_experiment
+from ..repository.record import protocol_from_run, record_experiment
 
 
 def _classic_agent(strategy: str, i: int, n: int, seed: int):
@@ -165,7 +165,8 @@ def main() -> None:
     if args.repo != "":
         repo_root = Path(args.repo) if args.repo else Path(__file__).resolve().parents[1] / "repo_store"
         record = record_experiment(repo_root, game, roster, log_path, rounds=args.rounds,
-                                   seed=args.seed, metrics=metrics)
+                                   seed=args.seed, metrics=metrics,
+                                   protocol=protocol_from_run(records))
         lineage_bits = [k for k, v in record["lineage"].items() if v]
         lineage_txt = ", ".join(lineage_bits) if lineage_bits else "none (first of its kind)"
         print(f"  repository: config_hash={record['config_hash'][:12]}...  "

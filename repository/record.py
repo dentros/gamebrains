@@ -86,6 +86,17 @@ def _config_game_desc(game: Game) -> dict[str, Any]:
     return desc
 
 
+def protocol_from_run(run_result: dict[str, Any]) -> dict[str, Any]:
+    """The scoring conventions a finished match actually used, read back off the runner's own
+    output rather than re-stated by the caller, so a recorded protocol can never drift from the
+    one that produced the numbers.
+
+    This is the single definition of what "protocol" covers (see normalize.build_config for why
+    it is hashed). Anything added to it later belongs here, once, not at each call site.
+    """
+    return {"partial_episode": run_result.get("partial_episode_policy", "drop")}
+
+
 def _feature_vector(game: Game, roster: list[Agent], rounds: int) -> list[float]:
     counts = [sum(1 for a in roster if a.kind == kind) for kind in _KIND_ORDER]
     base = [game.n_agents, getattr(game, "mpcr", 0.0), getattr(game, "cost", 0.0), rounds]
@@ -107,8 +118,13 @@ def record_experiment(
     seed: int,
     metrics: dict[str, Any],
     code_version: str = DEFAULT_CODE_VERSION,
+    protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Package a completed match's event-log + metrics and append it to the repository.
+
+    `protocol` is the scoring conventions this run used (see normalize.build_config): pass the
+    ones the runner was actually given, not the defaults, or two runs scored differently will
+    collide onto the same config_hash and the Smart Filter will call them the same experiment.
 
     Returns the full signed ledger record (see repository/ledger.py).
     """
@@ -128,4 +144,5 @@ def record_experiment(
         content_cid=content_cid,
         metrics_summary=_scalar_metrics_summary(metrics),
         feature_vector=_feature_vector(game, roster, rounds),
+        protocol=protocol,
     )

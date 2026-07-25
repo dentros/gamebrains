@@ -104,14 +104,35 @@ def test_episode_event_carries_the_games_own_payload_and_reward_totals():
     assert logged[0]["rounds"] == 3
 
 
-def test_trailing_partial_episode_is_not_reported():
-    game = _RotatingRace(n_agents=2, ep_len=3)
-    out = run_match(game, _roster(2), rounds=10, seed=0)
+def test_trailing_partial_episode_follows_the_chosen_policy():
+    # 10 rounds of 3-round episodes = 3 complete contests plus one round of a 4th that the round
+    # budget cut short. Whether that half-played contest counts is the caller's call.
+    dropped = run_match(_RotatingRace(2, 3), _roster(2), rounds=10, seed=0)
+    assert len(dropped["episodes"]) == 3
+    assert sum(e["rounds"] for e in dropped["episodes"]) == 9
 
-    # 10 rounds = 3 complete episodes plus one round of a 4th that never finished. A truncated
-    # contest has no winner, so it must not appear as an episode.
-    assert len(out["episodes"]) == 3
-    assert sum(e["rounds"] for e in out["episodes"]) == 9
+    kept = run_match(_RotatingRace(2, 3), _roster(2), rounds=10, seed=0,
+                     partial_episode="record")
+    assert len(kept["episodes"]) == 4
+    assert kept["episodes"][3]["rounds"] == 1
+    assert kept["episodes"][3]["truncated"] is True
+    # The completed ones are never marked, so a consumer can always tell them apart.
+    assert all("truncated" not in e for e in kept["episodes"][:3])
+
+    # Either way the truncation is visible rather than silent.
+    for out in (dropped, kept):
+        assert out["partial_episode_rounds"] == 1
+    assert dropped["partial_episode_policy"] == "drop"
+    assert kept["partial_episode_policy"] == "record"
+
+
+def test_unknown_partial_episode_policy_is_rejected():
+    try:
+        run_match(_RotatingRace(2, 3), _roster(2), rounds=6, seed=0, partial_episode="maybe")
+    except ValueError as exc:
+        assert "partial_episode" in str(exc)
+    else:
+        raise AssertionError("an unknown partial_episode policy should not be accepted silently")
 
 
 def test_single_stage_game_is_unaffected():
@@ -151,7 +172,9 @@ if __name__ == "__main__":
     print("OK: an episodic game restarts until the round budget is spent")
     test_episode_event_carries_the_games_own_payload_and_reward_totals()
     print("OK: episode events carry the game's own payload plus runner reward totals")
-    test_trailing_partial_episode_is_not_reported()
-    print("OK: a trailing partial episode is not reported")
+    test_trailing_partial_episode_follows_the_chosen_policy()
+    print("OK: a trailing partial episode follows the chosen drop/record policy")
+    test_unknown_partial_episode_policy_is_rejected()
+    print("OK: an unknown partial-episode policy is rejected")
     test_single_stage_game_is_unaffected()
     print("OK: the single-stage Public Goods Game is unaffected")

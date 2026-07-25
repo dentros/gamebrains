@@ -23,7 +23,7 @@ from cryptography.hazmat.primitives.serialization import (
     Encoding, NoEncryption, PrivateFormat, PublicFormat, load_pem_private_key,
 )
 
-from .normalize import canonical_json, hash_config
+from .normalize import build_config, canonical_json, hash_config
 
 SCHEMA = "gamebrains/experiment@1"
 
@@ -106,9 +106,17 @@ class Ledger:
         metrics_summary: dict[str, Any],
         feature_vector: list[float],
         license: str = "TBD (code) / CC-BY (data)",
+        protocol: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Append one immutable experiment record. Returns the full signed record."""
-        config = {"game": game_desc, "roster": roster_desc, "code_version": code_version}
+        """Append one immutable experiment record. Returns the full signed record.
+
+        `protocol` carries the scoring conventions that change the reported numbers without
+        changing the game or the roster (see normalize.build_config for the three-tier rule).
+        """
+        # Built through build_config rather than assembled here, so there is exactly one
+        # definition of what a config_hash covers. These two used to be separate literals, which
+        # is precisely how a new tier could get added in one place and silently missed in the other.
+        config = build_config(game_desc, roster_desc, code_version, protocol)
         config_hash = hash_config(config)
         lineage = self._detect_lineage(config_hash, rounds, master_seed)
 
@@ -118,6 +126,7 @@ class Ledger:
             "content_cid": content_cid,
             "game": game_desc,
             "roster": roster_desc,
+            "protocol": protocol or {},
             "horizon": {"rounds": rounds},
             "seeds": {"master": master_seed},
             "code_version": code_version,
@@ -165,9 +174,14 @@ class Ledger:
     # --- Smart Filter's exact-match lookup (the other half lives in metrics/filter later) ---
 
     def find_exact(self, game_desc: dict, roster_desc: list[dict], code_version: str,
-                   rounds: int, master_seed: int) -> Optional[dict[str, Any]]:
-        """Has this precise experiment (design + seed + rounds) already been run?"""
-        config_hash = hash_config({"game": game_desc, "roster": roster_desc, "code_version": code_version})
+                   rounds: int, master_seed: int,
+                   protocol: dict[str, Any] | None = None) -> Optional[dict[str, Any]]:
+        """Has this precise experiment (design + protocol + seed + rounds) already been run?
+
+        Must hash the same way `append` does, or the Smart Filter reports a reuse hit for a run
+        that was actually scored under a different convention.
+        """
+        config_hash = hash_config(build_config(game_desc, roster_desc, code_version, protocol))
         for record in self.load_all():
             if (record["config_hash"] == config_hash
                     and record["seeds"]["master"] == master_seed

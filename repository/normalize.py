@@ -35,16 +35,33 @@ def hash_config(config: dict) -> str:
     return hashlib.sha256(canonical_json(config).encode("utf-8")).hexdigest()
 
 
-def build_config(game_desc: dict, roster_desc: list[dict], code_version: str) -> dict:
+def build_config(game_desc: dict, roster_desc: list[dict], code_version: str,
+                 protocol: dict | None = None) -> dict:
     """Assemble the dict that becomes `config_hash` -- deliberately EXCLUDES `horizon`/`seeds`.
 
     Per docs/repository-schema.md §4, `extends` ("same config_hash + same seeds, larger rounds")
     and `replicates` ("same config_hash, different seed") are both defined *in terms of* matching
     config_hash while rounds/seed vary independently -- so config_hash itself must identify the
-    experimental *design* (game + roster + code version) only. Horizon and seed are compared as
-    their own record fields, not folded into the hash. An *exact* rerun (identical design, seed,
-    and rounds) is then simply "same config_hash AND same seeds.master AND same horizon.rounds" --
-    and, since GameBrains event-logs are already byte-identical for identical seed+config (see
-    engine/eventlog.py), an exact rerun also yields the same content_cid for free.
+    experimental *design* only. Horizon and seed are compared as their own record fields, not
+    folded into the hash. An *exact* rerun (identical design, seed, and rounds) is then simply
+    "same config_hash AND same seeds.master AND same horizon.rounds" -- and, since GameBrains
+    event-logs are already byte-identical for identical seed+config (see engine/eventlog.py), an
+    exact rerun also yields the same content_cid for free.
+
+    Three tiers of parameter, and the rule for each. **Design** (game, roster, code_version)
+    identifies what was run and is hashed. **Protocol** is hashed too: scoring conventions that
+    change the reported numbers without changing the game or the agents, such as `partial_episode`
+    (engine/runner.py), where a run that drops a budget-truncated episode and one that records it
+    as a no-winner contest are genuinely different experiments and must never collide onto one
+    hash. **Scale** (rounds, seed) stays out, by the lineage argument above.
+
+    The line between the second and third tiers is whether it can change a reported number. A
+    choice that only changes what you look at (the webui's metric checkboxes, the Nash and Phi
+    analysis toggles) is neither, and correctly stays out of the record's identity entirely.
+
+    This matters most for the decentralized layer the repository is a first step toward: once
+    records are shared between people rather than accumulated locally, an unhashed convention is
+    an invisible disagreement, two contributors publishing incomparable numbers under one hash.
     """
-    return {"game": game_desc, "roster": roster_desc, "code_version": code_version}
+    return {"game": game_desc, "roster": roster_desc, "code_version": code_version,
+            "protocol": protocol or {}}

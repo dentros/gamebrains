@@ -46,10 +46,14 @@ def nearest(records: list[dict[str, Any]], feature_vector: Sequence[float],
 
 def lookup(ledger: Ledger, game_desc: dict[str, Any], roster_desc: list[dict[str, Any]],
           code_version: str, rounds: int, master_seed: int, feature_vector: Sequence[float],
-          k: int = 5) -> dict[str, Any]:
+          k: int = 5, protocol: dict[str, Any] | None = None) -> dict[str, Any]:
     """Both Smart Filter lookups against the ledger's *current* state (call before appending the
     new run's own record, or it will trivially appear as its own nearest neighbor at distance 0).
+
+    Pass the same `protocol` the run will be recorded under. Skipping it would make the exact
+    lookup advertise a reuse hit for a run scored by different conventions, which is the one
+    thing this lookup exists to prevent.
     """
-    exact = ledger.find_exact(game_desc, roster_desc, code_version, rounds, master_seed)
+    exact = ledger.find_exact(game_desc, roster_desc, code_version, rounds, master_seed, protocol)
     similar = nearest(ledger.load_all(), feature_vector, k=k)
     return {"exact": exact, "similar": similar}

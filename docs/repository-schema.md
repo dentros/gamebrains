@@ -47,6 +47,9 @@ package/
     { "kind": "qlearning", "params": { "alpha": 0.1, "gamma": 0.95, "eps_decay": 0.9995 } },
     { "kind": "dqn",       "params": { "hidden": 64, "lr": 0.001 } }
   ],
+  "protocol": {                       // hashed: scoring conventions, see §4a
+    "partial_episode": "drop"
+  },
   "horizon":  { "rounds": 5000 },     // the "time" axis (see extension semantics §4)
   "seeds":    { "master": 0 },        // one master seed → deterministic sub-seeds
   "code_version": "git:abcdef1",      // reproducibility anchor
@@ -75,6 +78,31 @@ Three ways one experiment relates to another:
 | **extends** | same `config_hash` + same `seeds`, larger `horizon.rounds` | The shorter run is a **prefix/superset** of the longer (deterministic). Keep the longer; mark the shorter `superseded_by`. Smart Filter: "need T rounds" is satisfied by any run with `rounds ≥ T` at the same config+seed. **Precondition:** schedules (e.g. epsilon decay) must be **independent of total horizon** — our engine already decays per-step. |
 | **replicates** | same `config_hash`, **different** `master` seed | A new sample. Group replications → report mean ± CI. A "result" for a config = the *ensemble* across seeds, not a single run. |
 | **derives_from** | new/extra metric, or a meta-analysis | New versioned object pointing to the same `content_cid` (metric) or to several inputs (meta-analysis). Computed **post-hoc / client-side**, no rerun. |
+
+## 4a. What `config_hash` covers: three tiers
+
+Every relationship above is defined in terms of "same `config_hash`, differing in X", so what the
+hash covers decides what counts as the same experiment. Three tiers, added 2026-07-25:
+
+| Tier | Contents | Hashed? |
+|---|---|---|
+| **Design** | `game` (name, n_agents, payoff params, and for episodic games the positions / reward rule / state type / episode cap), `roster` (kinds and every hyperparameter), `code_version` | **yes** |
+| **Protocol** | scoring conventions that change reported numbers without changing the game or the agents. Currently `partial_episode` (`"drop"` or `"record"`: whether a contest cut short by the round budget counts as a no-winner episode) | **yes** |
+| **Scale** | `horizon.rounds`, `seeds.master` | **no**, by the lineage argument above |
+
+The test for the middle tier is whether it can change a number that gets reported. A choice that
+only changes what you *look at* (which metric columns the UI shows, whether the Nash or Phi
+analysis was run) is in none of the tiers and stays out of the record's identity entirely.
+
+This matters most once records are shared rather than accumulated locally. An unhashed convention
+is an invisible disagreement: two contributors publish incomparable numbers under one hash, and
+the Exact lookup in §6 offers one as a reusable answer for the other. Anything added to the
+protocol tier must therefore go into `normalize.build_config`, which both `Ledger.append` and
+`Ledger.find_exact` call, so the write path and the lookup path cannot drift apart.
+
+A caveat worth stating plainly: adding a tier changes every existing `config_hash`. Done here
+while the local ledger held 2 records; after federation it would be a migration across other
+people's data.
 
 ## 5. Metrics are re-derivable (why we keep raw logs)
 

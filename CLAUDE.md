@@ -571,6 +571,36 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
     runs, and the whole match now correctly reports as exactly one episode. Tests:
     `tests/test_episodic.py` (4 cases). Full suite re-run green, including `test_evolution`, which
     drives fitness through `run_match` and is the most exposed caller.
+- **`config_hash` gained a third tier: `protocol` (2026-07-25).** Found while adding
+  `partial_episode` to the runner (see the episodic entry above): that flag changes the reported
+  numbers but lives in neither `game.describe()` nor the roster, so it entered no hash at all. Two
+  runs identical in game, roster and seed but scored under different conventions therefore shared
+  a `config_hash`, which would have made the Smart Filter offer one as a reusable answer for the
+  other and the ledger call them replications. Harmless locally, wrong the moment records are
+  shared, which is the whole point of the repository layer.
+  - **The rule, now documented in `docs/repository-schema.md` §4a and enforced in
+    `normalize.build_config`:** *Design* (game, roster, code_version) is hashed. *Protocol*
+    (scoring conventions that move a reported number without changing the game or the agents) is
+    hashed. *Scale* (rounds, seed) is not, since the `extends`/`replicates` semantics are defined
+    as "same hash, differing in exactly those". The test for the middle tier is whether it can
+    change a number that gets reported; a choice that only changes what you *look at* (the metric
+    checkboxes, the Nash/Phi toggles) is in no tier and stays out of the record's identity.
+  - **Three copies of the hashed-config literal existed**, which is exactly how a new tier gets
+    added in one place and missed in the others: `build_config`, `Ledger.append`, and
+    `Ledger.find_exact`. The latter two now call `build_config`, so the write path and the reuse
+    lookup cannot drift. `find_exact`/`smart_filter.lookup` take `protocol` too, or the lookup
+    would contradict the way the record it finds was hashed.
+  - `record.protocol_from_run(run_result)` reads the conventions back off the runner's own output
+    instead of having each call site restate them, so a recorded protocol cannot drift from the
+    one that produced the numbers. It is the single place to extend when the congestion game adds
+    its own. All three `record_experiment` call sites (run_pgg, the webui match, the space-map
+    cell runner) go through it.
+  - **Migration was free and is now closed:** the local ledger held 2 records. Verified afterwards
+    on a real recorded match that the chain still verifies with mixed records, old ones (no
+    `protocol` field) still validating individually since a signature only covers its own payload.
+    Doing this after federation would have meant migrating other people's data.
+  - Tests: `tests/test_record.py` gained two cases (different protocols must not collide, and
+    `find_exact` must agree with how records were hashed; plus `protocol_from_run`'s defaulting).
 - **Second theme, "Horsey Lab", + a Scientific/Gamified toggle (2026-07-25).** The dark console
   theme above is no longer the only skin. A bright, deliberately goofy alternative ("Horsey Lab":
   cream background, white sticker-panels with thick plum borders and hard offset shadows, saturated

@@ -150,7 +150,46 @@ must be genuinely multi-agent, not a 2-player tool.
 - **Game #1 — N-player Prisoner's Dilemma = Public Goods Game (PGG):** the textbook generalization
   of PD to n players (reduces to classic PD at n=2). Known result (cooperation collapse /
   free-riding) = strong validation. Social metric: cooperation rate.
-- **Game #2 — Honey-Jar Game (HJG), formerly "MBoE" (Multi-agent Battle of the Exes):** the
+- **Game #2 — DELIVERED 2026-07-26 as `games/congestion.py`.** Built as a *parametrized family*
+  rather than one game, because the Gap paper itself frames it that way ("a minimally dynamic,
+  repeated threshold-congestion game" that "stands on its own footing within the congestion and
+  market-entry family"), and the conference paper already promised "an anti-coordination
+  congestion game in the Hawkins-Goldstone tradition". HJG is the headline preset, not the whole
+  module. Depends on the episodic-runner commit above; it could not have worked before it.
+  - **Axes, each one an axis the source papers actually vary:** `num_positions` (2 = one-shot,
+    the papers' "ballistic"; 3+ = dynamic, with an intermediate cell where approach is observable
+    before commitment, which is the whole "minimally dynamic" claim), `reward_rule`,
+    `collapse_at_full`, `memory_episodes`, `episode_max_rounds`, `full_reward`.
+  - **Reward rules are stored as a resolved `(base, exponent)` pair**, not just a name: ILF=(n,1),
+    IQF=(n,2), KLF=(k,1), KQF=(k,2) are the four the papers ran, ICF/KCF=(·,3) are exposed but
+    flagged `reward_published: False` so an exploratory run can never be mistaken for reproducing
+    a published one. `reward_rule="custom"` takes an arbitrary base/exponent; because `describe()`
+    reports the resolved pair, a custom rule spelling out r/n^2 correctly hashes as the same
+    design as IQF rather than as something new.
+  - **The zero-floor is its own parameter, deliberately.** In the original code the denominator
+    choice and the "everyone arrives pays exactly zero" rule were coupled: the main version had
+    the floor, the k-variant did not. Those are independent decisions, so they are separate
+    parameters here, with the `hjg` / `hjg_k` presets encoding the two published combinations.
+    Tested explicitly in both directions, since the asymmetry looks like an oversight and is easy
+    to "tidy up" by mistake.
+  - `memory_episodes` generalizes Type-A (0) / Type-B (1) to any depth; `state_type` still reports
+    the papers' label. Guarded at 5M states, since the count is
+    `num_positions^n * 2^(n*memory)` and n=10 with one episode of memory is already ~60 million.
+  - **Validated against the papers' arithmetic, not just "it runs":** every reward case asserts
+    the published formula. And a first real 20k-round Q-learning match reproduced the qualitative
+    headline finding immediately: ~9.9k episodes, only ~6% solo wins against ~94% collisions, with
+    those few solo wins spread evenly across agents (175/230/194) so the failure is collision, not
+    monopolization, which is exactly the case where outcome-based fairness looks fine while
+    coordination has collapsed. Tests: `tests/test_congestion.py` (10 cases).
+  - **⚠️ Semantic trap found while testing, not yet resolved:** `agents/classic.py` imports
+    `COOPERATE`/`DEFECT` straight from `games/public_goods.py`, where `COOPERATE == 1`, and `1` is
+    `MOVE` here. So `AllC` *rushes the jar* and `AllD` *hangs back* in a congestion game, the
+    opposite of what the names suggest, since restraint is the cooperative act when a resource
+    jams. The game's own per-round `cooperators` count correctly treats STAY as cooperation, so
+    the metric and the agent labels currently disagree. Fine for the fixed strategies (they are
+    just constant actions) but it will read as a bug to anyone building a roster, and the classic
+    agents need a game-agnostic notion of their action before more games land.
+- **Game #2 background (kept for the design rationale) — Honey-Jar Game (HJG), formerly "MBoE" (Multi-agent Battle of the Exes):** the
   n-player anti-coordination / congestion game from the ALT project (Hawkins & Goldstone lineage;
   `environment.py`), pairs with the ALT metrics. **Naming:** the user has since renamed this game
   to **Honey-Jar Game (HJG)** across their papers (see `../../RP for Journal/paper_main_teac.tex`,

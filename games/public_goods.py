@@ -31,6 +31,14 @@ class PublicGoodsGame(Game):
     name = "public_goods"
     n_actions = 2
     action_names = ["Defect", "Cooperate"]
+    #: The observation is last round's cooperator count, with `n_agents + 1` for the first round,
+    #: so reciprocating strategies may read it (see engine/game.py's vocabulary).
+    observation_kind = "concede_count"
+    #: Contributing is the action that gives up your own endowment for the group, so it is the
+    #: `concede` side of the universal axis; `cooperate`/`defect` are this family's own words for
+    #: the same two actions.
+    action_roles = {"concede": COOPERATE, "claim": DEFECT,
+                    "cooperate": COOPERATE, "defect": DEFECT}
 
     def __init__(
         self,

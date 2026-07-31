@@ -56,6 +56,19 @@ class Agent(ABC):
         """
         return {"kind": self.kind}
 
+    def on_match_start(self, game: Any) -> None:
+        """Hook called once before a match begins, with the game about to be played.
+
+        This is where a strategy defined in meaning rather than in numbers resolves itself: ask
+        `game.action_for("concede")` for the index that plays a role here, or
+        `game.require_observation_kind(...)` to refuse a game whose observations you cannot read.
+        Doing it here rather than in `__init__` keeps agents constructible without a game, and
+        means the check runs at the moment the pairing actually happens.
+
+        No-op by default, for agents that work purely off indices they were told about.
+        """
+        return None
+
     def on_match_end(self) -> None:
         """Hook called once when a match finishes (e.g. decay schedules, bookkeeping)."""
         return None

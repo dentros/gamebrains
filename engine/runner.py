@@ -75,6 +75,12 @@ def run_match(
     rewards_hist = np.zeros((rounds, n), dtype=float)
     coop_hist = np.zeros(rounds, dtype=int)
 
+    # Before anything is played: let every agent resolve itself against this specific game, and
+    # refuse the pairing now if it cannot. A strategy that means "always give way" has to look up
+    # which action that is here, since the index differs per game.
+    for a in agents:
+        a.on_match_start(game)
+
     episodes: list[dict[str, Any]] = []
     ep_rewards = np.zeros(n, dtype=float)
     ep_rounds = 0

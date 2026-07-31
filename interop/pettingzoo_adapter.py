@@ -74,6 +74,12 @@ class GameBrainsParallelEnv(ParallelEnv):
     def reset(
         self, seed: Optional[int] = None, options: Optional[dict] = None
     ) -> tuple[dict[str, int], dict[str, dict]]:
+        # Background agents are driven directly here rather than through engine.runner, so this
+        # adapter owes them the same match-start binding the runner gives: without it a
+        # role-defined strategy has no action to play.
+        for agent in self._background.values():
+            agent.on_match_start(self.game)
+
         obs_list = self.game.reset()
         self.agents = list(self.possible_agents)
         self._last_obs = {aid: obs_list[i] for i, aid in enumerate(self.possible_agents)}

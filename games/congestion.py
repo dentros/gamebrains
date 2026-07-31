@@ -140,6 +140,16 @@ class CongestionGame(Game):
         self.n_agents = n_agents
         self.n_actions = 2
         self.action_names = ["Stay", "Move"]
+        # The board index encodes positions (and any remembered arrivals), so it is not a count
+        # of anything: an agent that tried to read it as one would be acting on a number that
+        # means something else entirely.
+        self.observation_kind = "board_index"
+        # Holding back is what forgoes your own shot at the jar so someone else can get through,
+        # which puts STAY on the `concede` side even though it is numerically 0 here and
+        # cooperating is 1 in the Public Goods Game. Getting this backwards is exactly the bug
+        # the role mechanism exists to prevent.
+        self.action_roles = {"concede": STAY, "claim": MOVE,
+                             "yield": STAY, "contest": MOVE}
 
         self.num_positions = num_positions
         self.reward_rule = reward_rule
@@ -280,14 +290,15 @@ class CongestionGame(Game):
         """Self-contained enough to reconstruct the game, not just label it: every field that
         changes play is here, and the reward rule is reported as its resolved (base, exponent)
         rather than only its name. Written this way so it can become a shareable, addressable game
-        object later without the description having to be redefined."""
-        return {
-            "name": self.name,
+        object later without the description having to be redefined.
+
+        Extends the base description rather than replacing it, so the declared semantics
+        (observation kind, action roles) travel with every record without this game having to
+        remember to repeat them.
+        """
+        described = super().describe()
+        described.update({
             "family": "congestion",
-            "n_agents": self.n_agents,
-            "n_actions": self.n_actions,
-            "action_names": list(self.action_names),
-            "n_states": self.n_states,
             "num_positions": self.num_positions,
             "timing": "one_shot" if self.is_one_shot else "dynamic",
             "reward_rule": self.reward_rule,
@@ -299,7 +310,8 @@ class CongestionGame(Game):
             "memory_episodes": self.memory_episodes,
             "state_type": self.state_type,
             "episode_max_rounds": self.episode_max_rounds,
-        }
+        })
+        return described
 
 
 #: Named configurations. The first three reproduce published setups; `market_entry` is the closest

@@ -61,6 +61,43 @@ Every brain implements the same contract so new brains plug in without touching 
 - `inspect() -> brain_state` — the raw internal state (Q-table, network weights, beliefs, ...)
 - `render_brain() -> viz_payload` — a serializable description the frontend knows how to draw
 
+### Games declare what their numbers mean (2026-07-28)
+
+An action index means nothing on its own, and this bit us for real. `agents/classic.py` imported
+`COOPERATE` from the Public Goods Game, pinning "cooperate" to action 1. Action 1 in
+`games/congestion.py` is MOVE, grabbing the contested resource, so **`AllC` played the most
+aggressive strategy available there while still being labelled cooperative.** Nothing failed; the
+game ran fine, only the meaning was wrong. Found only because a second, structurally different
+game finally existed to expose it.
+
+The fix: a game declares its own semantics, agents ask for meaning rather than for numbers.
+
+- `Game.action_roles` maps a semantic role to *that game's* action index; `Game.action_for(role)`
+  resolves it or refuses with a message naming what the game does declare.
+- `Game.observation_kind` says what the integer means (`opaque` default, `concede_count`,
+  `board_index`); `Game.require_observation_kind(...)` lets an agent refuse early. Majority-TFT
+  needs this second half: counting what others did requires a count, not a board index.
+- **Two vocabulary levels, deliberately.** Universal (`concede`/`claim`) covers any game with an
+  individual-vs-collective tension, so an agent written today works with a game written later.
+  Family aliases (`cooperate`/`defect`, `yield`/`contest`) let a game speak its own literature's
+  language. A game declares only what it truly has, so a coordination game like Battle of the
+  Sexes (no concede axis at all, the question is *which* option) correctly refuses an
+  always-concede agent instead of silently accepting it.
+- New `Agent.on_match_start(game)` hook, symmetric with the existing `on_match_end`. The runner
+  calls it; `interop/pettingzoo_adapter.py` and the webui's `_Frozen` wrapper also must, since
+  they drive agents directly, and both now do.
+- The declarations ride in `describe()`, hence in `config_hash`: a game assigning its roles to
+  different actions makes every role-aware agent behave differently, so it is a different design.
+- **`docs/adding-a-game.md`** is the third-party authoring contract, written because the user
+  wants outside contributors adding games. It uses this bug as the worked example of why the
+  declaration matters. Tests: `tests/test_action_roles.py` (7 cases), including the headline one:
+  the same strategy resolving to *opposite* indices in the two games with one consistent meaning.
+- **Caveat to carry into any anti-coordination game:** no constant strategy is collectively good
+  there. Everyone conceding pays zero exactly as everyone claiming does; the collectively best
+  behaviour is *taking turns*, which no fixed strategy can express. AllC/AllD stay useful
+  baselines in HJG but neither is "the cooperative agent" there, which is precisely the point the
+  ALT metrics exist to make.
+
 This directly realizes the paper's claims of a *"unified agent interface"* and *"transparency /
 inspect internal states."* Building it **is** validating the paper.
 

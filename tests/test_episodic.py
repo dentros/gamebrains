@@ -26,6 +26,9 @@ class _RotatingRace(Game):
         self.action_names = ["Stay", "Move"]
         self.n_states = 2
         self.name = "rotating_race"
+        # Declared so role-defined agents can bind, even though this toy ignores the actions and
+        # rotates its winner on a timer.
+        self.action_roles = {"concede": 0, "claim": 1}
         self.ep_len = ep_len
         self._round = 0
         self._episode = 0

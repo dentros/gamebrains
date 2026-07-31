@@ -154,11 +154,9 @@ def test_runs_end_to_end_as_a_real_episodic_match():
     """The point of the episodic runner change: many contests inside one round budget, each one
     logged with the arrival vector the alternation metrics need."""
     game = from_preset("hjg", n_agents=3)
-    # Careful with these two: the classic agents take their action codes from the Public Goods
-    # Game, where Cooperate is 1, and 1 is MOVE here. So AllC rushes the jar and AllD hangs back,
-    # which is the opposite of what the names suggest in a congestion setting. Named for what
-    # they actually do here rather than for their class.
-    roster = [AllC("Rusher 0"), AllC("Rusher 1"), AllD("Holder 2")]
+    # AllD claims and AllC concedes, in this game as in every other: the roles are resolved from
+    # the game rather than from a hardcoded index, so the two claimers are the ones who move.
+    roster = [AllD("Claimer 0"), AllD("Claimer 1"), AllC("Conceder 2")]
     out = run_match(game, roster, rounds=30, seed=0)
 
     assert len(out["episodes"]) > 1
@@ -166,12 +164,13 @@ def test_runs_end_to_end_as_a_real_episodic_match():
         assert len(episode["top_agents"]) == 3
         assert episode["terminal_occurrences"] == sum(episode["top_agents"])
 
-    # The two rushers tie every single episode and the holder never arrives: the pathological
-    # no-alternation pattern the ALT metrics exist to expose. Under ILF at n=3 a 2-way tie pays
-    # r/n each, never the full reward.
+    # The two claimers collide every single episode and the conceder never arrives: the
+    # pathological no-alternation pattern the ALT metrics exist to expose. Under ILF at n=3 a
+    # 2-way tie pays r/n each, never the full reward.
     assert all(e["top_agents"] == [1, 1, 0] for e in out["episodes"])
     assert all(e["terminal_occurrences"] == 2 for e in out["episodes"])
     assert all(abs(r - 100.0 / 3) < 1e-9 for r in out["rewards"][:, :2][out["rewards"][:, :2] > 0])
+    assert out["rewards"][:, 2].sum() == 0.0     # conceding pays nothing at all here
 
 
 def test_every_preset_builds_and_declares_whether_it_is_published():

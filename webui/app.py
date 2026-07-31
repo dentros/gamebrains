@@ -127,6 +127,10 @@ class _Frozen(Agent):
             if old_eps is not None:
                 self._agent.epsilon = old_eps
 
+    def on_match_start(self, game: Any) -> None:
+        # Forward, or a frozen classic strategy never learns which action plays its role.
+        self._agent.on_match_start(game)
+
     def update(self, *args, **kwargs) -> None:
         return None
 

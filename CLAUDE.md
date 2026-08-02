@@ -134,6 +134,41 @@ Deep mechanistic interpretability (activation probing) is **out of scope for the
   recovered exactly the theoretically-required direction (both Q-learners → TFT significant, since
   TFT literally reads their previous actions; reverse directions correctly rejected). Tests:
   `tests/test_graph.py`.
+- **Temporal fairness: ALT family + RP + the traditional measures — DELIVERED 2026-08-02,
+  `metrics/social_alt.py`.** The author's own measures, ported so the platform can reproduce their
+  central finding rather than only cite it. Depends on the episodic runner and Game #2; the ALT
+  family is defined per *episode* and there was nothing to compute before both existed.
+  - **Ported from two sources, deliberately, and two functions must NOT be used.** ALT ×6 +
+    Efficiency + the 3 fairness measures + coordination score come from
+    `2. ALT MEASURES TO MEGALO/src/metrics.py`. RS/WPE/RP come from
+    `RP for Journal/synthetic_experiments/common.py` (extracted from
+    `compute_rp_full_corrected.py`). **Do not** use `src/metrics.py`'s `compute_rp_metrics`: it
+    averages WPE with AWE, and AWE is RS's deprecated predecessor which is exactly 0 for n>=3, so
+    that RP is silently WPE/2 with no rhythm term (corrected values run 1.5-2x higher). **Do not**
+    use `RP for Journal/compute_rs_all_modes.py`'s `compute_rs`: it predates the boundary fix and
+    roughly doubles RS on real data. A grep for "RS" finds the wrong file first, so this trap is
+    easy to walk into. The user flagged both before the port, which is how they were avoided.
+  - **Reach vs exclusive is computed for everything, never configured.** Following the papers' own
+    "report the whole submetric family, don't pick a winner" principle, so it never becomes a
+    convention two users could disagree on (see the protocol-tier entry in §9e for why that
+    matters). For ALT the split *is* the variant axis (FALT/qFALT count reaches, EALT/qEALT/AALT
+    count solo wins, CALT combines); for RP it is a caller-side choice, so every RP measure ships
+    as both `_reach` and `_excl`.
+  - **Validated against four published oracles, not against itself:** the Gap paper's worked
+    example (CALT = 5 x 0.5625 / 6 = 0.469), ABABABAB at n=2 scoring exactly 1.00, ABBAABBA
+    scoring RS 0.775 / WPE 1.00 / RP 0.8875, and ABCABC at n=3 scoring RS 0.889 rather than 1.00.
+    That last one is the important one: it is the *disclosed finite-boundary edge effect*, and an
+    implementation that dropped boundary waiting periods would score it a cleaner-looking 1.00
+    while hiding the failure mode that matters most (an agent that stops winning partway through
+    and never recovers has a long idle tail that only boundary counting sees).
+  - **Reproduced the headline finding live**, 40k rounds, 3 Q-learners on the `hjg` preset against
+    a matched random-policy baseline: Reward Fairness 0.92, TT-Fairness 0.98, Fairness 0.97 (all
+    look healthy) while CALT 0.040 and AALT 0.025 (collapsed), 95% of 19,844 episodes ending in
+    collision, and coordination scores negative on *every* measure (CALT -50.6%, inside the
+    papers' own 34-74% band). Efficiency 0.22 for Q-learning against 0.87 for random: the random
+    agents are four times more efficient precisely because they do not all learn to rush at once.
+  - Tests: `tests/test_social_alt.py` (11 cases), including the traditional-measures-look-fine
+    scenario as an explicit assertion.
 - **Transfer Entropy / Mutual Information / Predictive Information (the ToM-relevant
   family), per our own decision-framework paper** — Papadopoulos & Psannis, *"Information-Theoretic
   Measures in AI: A Practical Decision Guide"* (arXiv:2604.23716, same authors as GameBrains — a

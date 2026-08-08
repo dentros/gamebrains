@@ -18,10 +18,13 @@ recomputed later over any window without rerunning anything.
                                           (extracted from `compute_rp_full_corrected.py`)
 
   **Do not port RP from `src/metrics.py`.** Its `compute_rp_metrics` averages AWE with WPE, and
-  AWE is the deprecated predecessor of RS: for n>=3 it evaluates to exactly 0, so that RP is
-  silently WPE/2 with no rhythm contribution at all. The corrected values are 1.5-2x higher.
-  Equally, do not port RS from `RP for Journal/compute_rs_all_modes.py`, which predates the
-  boundary fix below and roughly doubles RS on real data.
+  AWE is the deprecated predecessor of RS. AWE returns 0 for any agent whose average wait reaches
+  twice the ideal gap, which is what every collapsed run in the source data does, so that RP
+  becomes WPE/2 with no rhythm contribution at all. Corrected values run 1.5-2x higher. Note the
+  nasty part: on healthy alternation AWE is nonzero and the bug is invisible, so it only shows up
+  on exactly the runs whose failure you are trying to measure. Equally, do not port RS from
+  `RP for Journal/compute_rs_all_modes.py`, which predates the boundary fix below and roughly
+  doubles RS on real data.
 
   Cite when publishing results computed here:
     Papadopoulos, Freire, Sanchez-Fibla, Psannis, "The Coordination Gap: Multi-Agent Alternation
@@ -131,8 +134,10 @@ def wpe_score(wins: int, t_star: float) -> float:
 def awe_score(avg_wait: float, r_star: float) -> float:
     """The deprecated predecessor of RS, kept only so its collapse stays visible.
 
-    Reported for comparison, never as part of RP. It is exactly 0 for n>=3, which is what made the
-    old RP silently equal WPE/2.
+    Reported for comparison, never as part of RP. It falls to exactly 0 once an agent's average
+    wait reaches `2 * r_star`, which is what made the old AWE-based RP silently equal WPE/2 on
+    every collapsed run: the cliff is hit precisely by the agents whose behaviour you most want
+    measured, while well-alternating agents keep a nonzero AWE and hide the problem.
     """
     if r_star <= 0:
         return 0.0

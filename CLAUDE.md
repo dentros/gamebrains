@@ -143,11 +143,31 @@ Deep mechanistic interpretability (activation probing) is **out of scope for the
     `2. ALT MEASURES TO MEGALO/src/metrics.py`. RS/WPE/RP come from
     `RP for Journal/synthetic_experiments/common.py` (extracted from
     `compute_rp_full_corrected.py`). **Do not** use `src/metrics.py`'s `compute_rp_metrics`: it
-    averages WPE with AWE, and AWE is RS's deprecated predecessor which is exactly 0 for n>=3, so
-    that RP is silently WPE/2 with no rhythm term (corrected values run 1.5-2x higher). **Do not**
-    use `RP for Journal/compute_rs_all_modes.py`'s `compute_rs`: it predates the boundary fix and
-    roughly doubles RS on real data. A grep for "RS" finds the wrong file first, so this trap is
-    easy to walk into. The user flagged both before the port, which is how they were avoided.
+    averages WPE with AWE, RS's deprecated predecessor, which returns 0 for any agent whose
+    average wait reaches twice the ideal gap `n-1`. Every collapsed run in the source data does
+    that, so RP becomes WPE/2 with no rhythm term (corrected values run 1.5-2x higher). Verified
+    empirically both ways while adding the warnings: healthy alternation at n=3 gives AWE 0.594
+    and RP != WPE/2, a run with long idle tails gives AWE 0.0000 and RP == WPE/2 exactly. **The
+    bug is therefore invisible on good data and only bites on the runs whose failure you are
+    measuring** (an earlier version of this note wrongly called it "exactly 0 for n>=3", which is
+    a property of that dataset, not an algebraic identity). **Do not** use
+    `RP for Journal/compute_rs_all_modes.py`'s `compute_rs` either: it predates the boundary fix
+    and roughly doubles RS on real data. A grep for "RS" finds the wrong file first, so this trap
+    is easy to walk into; the user flagged both before the port, which is how they were avoided.
+    **A third stale function found while adding those warnings: `compute_wpe` in the same file.**
+    Its `t_i` is the count of waiting *periods*, where canonical WPE uses the raw win-event count
+    `k_i`. The two differ by exactly 1 whenever an agent's first and last win bookend the run, and
+    that **breaks the "WPE = 1 under Perfect Alternation" property**: on n=2, nu=4 with A winning
+    at [0,3] and B at [1,2], canonical gives 1.0000 and this gives 0.5000. This is the RP
+    project's own "Second subtlety", recorded in its CLAUDE.md but never marked at the function
+    that still has it. (`compute_awe` also uses `next - prev` where canonical uses
+    `next - prev - 1`, noted for completeness since AWE is superseded outright.)
+    **All three stale functions now carry an in-place `STALE / SUPERSEDED` warning block at their
+    own definition and at the offending line**, in the authors' own project folders, so a future
+    reader is warned at the point of use rather than only here. Comments only, no behaviour
+    change: those files produced the published numbers and the checkpoint pkls, and every one was
+    re-run afterwards to confirm identical output. That re-run also independently confirmed the
+    ALT family is intact, all six variants scoring exactly 1.000000 on perfect alternation.
   - **Reach vs exclusive is computed for everything, never configured.** Following the papers' own
     "report the whole submetric family, don't pick a winner" principle, so it never becomes a
     convention two users could disagree on (see the protocol-tier entry in §9e for why that

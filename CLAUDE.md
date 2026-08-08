@@ -157,10 +157,16 @@ Deep mechanistic interpretability (activation probing) is **out of scope for the
     **A third stale function found while adding those warnings: `compute_wpe` in the same file.**
     Its `t_i` is the count of waiting *periods*, where canonical WPE uses the raw win-event count
     `k_i`. The two differ by exactly 1 whenever an agent's first and last win bookend the run, and
-    that **breaks the "WPE = 1 under Perfect Alternation" property**: on n=2, nu=4 with A winning
-    at [0,3] and B at [1,2], canonical gives 1.0000 and this gives 0.5000. This is the RP
-    project's own "Second subtlety", recorded in its CLAUDE.md but never marked at the function
-    that still has it. (`compute_awe` also uses `next - prev` where canonical uses
+    that **breaks the "WPE = 1 at an exactly fair share" property**: on n=2, nu=4 with A winning
+    at [0,3] and B at [1,2], each agent holds exactly its fair share of 2 wins, so a
+    frequency-only measure must read 1.0000; canonical does, this gives 0.5000. (That sequence is
+    A,B,B,A, the papers' *clumped* example rather than perfect alternation A,B,A,B. Noted because
+    an earlier version of this entry mislabelled it, and the RP session caught it.) Comparing the
+    two names the defect exactly: stale gives 0.5000 on A,B,B,A but 1.0000 on A,B,A,B, though both
+    hand every agent the same fair share. **The error is not a constant offset, it is order
+    sensitivity leaking into a frequency-only measure**, so that WPE quietly duplicates RS instead
+    of complementing it as RP's independent second dimension. This is the RP project's own "Second
+    subtlety", recorded in its CLAUDE.md but never marked at the function that still has it. (`compute_awe` also uses `next - prev` where canonical uses
     `next - prev - 1`, noted for completeness since AWE is superseded outright.)
     **All three stale functions now carry an in-place `STALE / SUPERSEDED` warning block at their
     own definition and at the offending line**, in the authors' own project folders, so a future

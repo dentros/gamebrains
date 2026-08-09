@@ -286,6 +286,50 @@ class CongestionGame(Game):
         ballistic case; there is no approach to observe, so no room for movement to signal."""
         return self.num_positions == 2
 
+    # --- what the viewer and the generic metrics need ---------------------------------------
+
+    #: Above this, `state_labels()` stops enumerating. A Q-table view of 60 million rows helps
+    #: nobody, and building the list would cost more than the match.
+    _MAX_ENUMERATED_LABELS = 512
+
+    def state_labels(self) -> list[str]:
+        """One readable label per observation index, for the Q-table view.
+
+        A label is the corridor as digits, one per agent, plus the remembered arrival vectors
+        when the state carries memory: "021" means agent 0 is at the start, agent 1 at the
+        terminal, agent 2 one step along. Falls back to bare indices once the space is too large
+        to enumerate usefully.
+        """
+        if self.n_states > self._MAX_ENUMERATED_LABELS:
+            return [f"s{i}" for i in range(self.n_states)]
+
+        board_states = self.num_positions ** self.n_agents
+        labels = []
+        for index in range(self.n_states):
+            board, past = index % board_states, index // board_states
+            digits = []
+            remaining = board
+            for _ in range(self.n_agents):
+                digits.append(str(remaining % self.num_positions))
+                remaining //= self.num_positions
+            label = "".join(reversed(digits))
+            if self.memory_episodes:
+                width = self.n_agents * self.memory_episodes
+                label += "|" + format(past, f"0{width}b")
+            labels.append(label)
+        return labels
+
+    def max_welfare_per_round(self) -> float:
+        """Best total welfare a single round can be worth, for the generic efficiency metric.
+
+        The best outcome an episode can reach is one agent arriving alone for `full_reward`, and
+        the fastest that can happen is `num_positions - 1` rounds. Spreading that over the rounds
+        it takes is what makes the number comparable to a single-stage game's, where every round
+        can pay out. Note this is *not* the papers' Efficiency, which is defined per episode and
+        is computed separately in `metrics/social_alt.py`.
+        """
+        return self.full_reward / (self.num_positions - 1)
+
     def describe(self) -> dict[str, Any]:
         """Self-contained enough to reconstruct the game, not just label it: every field that
         changes play is here, and the reward rule is reported as its resolved (base, exponent)

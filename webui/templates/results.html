@@ -87,6 +87,25 @@
 </div>
 
 <div class="subtab-panel" data-tab="analysis" style="display:none">
+  {% if alt_metrics %}
+  <div class="panel">
+    <h2><svg class="glyph"><use href="#glyph-scale"/></svg>Temporal fairness (ALT &amp; RP)</h2>
+    <p class="meta">Over {{ alt_metrics.n_episodes }} completed episodes:
+      <b>{{ alt_metrics.solo_win_episodes }}</b> won by a single agent,
+      <b>{{ alt_metrics.collision_episodes }}</b> ending in a collision{% if alt_metrics.empty_episodes %},
+      <b>{{ alt_metrics.empty_episodes }}</b> with nobody arriving{% endif %}.
+      Higher is better throughout.</p>
+    <table>
+      <tr>{% for key, label in alt_metric_meta %}{% if key in alt_metrics %}<th>{{ label }}</th>{% endif %}{% endfor %}</tr>
+      <tr>{% for key, label in alt_metric_meta %}{% if key in alt_metrics %}<td>{{ "%.4f"|format(alt_metrics[key]) }}</td>{% endif %}{% endfor %}</tr>
+    </table>
+    <p class="meta">Compare the fairness columns against CALT and AALT. Outcome-based fairness can
+      sit near 1.0 while the alternation measures sit near 0, which is exactly the case these
+      measures exist to expose: everyone got a similar amount, nobody ever took a turn.</p>
+    {{ alt_help_trigger | safe }}
+  </div>
+  {% endif %}
+
   {% if nash_html %}
   <div class="panel">
     <h2><svg class="glyph"><use href="#glyph-scale"/></svg>Nash equilibrium (pygambit)</h2>

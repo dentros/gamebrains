@@ -738,6 +738,38 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
     Doing this after federation would have meant migrating other people's data.
   - Tests: `tests/test_record.py` gained two cases (different protocols must not collide, and
     `find_exact` must agree with how records were hashed; plus `protocol_from_run`'s defaulting).
+- **Game #2 and the temporal-fairness metrics wired into the webui (2026-08-10).** Until this,
+  everything from the congestion family onward ran only from code. Now:
+  - The game selector offers the five congestion presets alongside the Public Goods Game, each
+    labelled with whether it is a published configuration. `_GAME_ROADMAP` no longer claims the
+    Honey-Jar Game is "coming soon", since it has arrived; Battle of the Sexes and the custom
+    builder took its place there.
+  - A "Congestion family" fieldset appears only for those games (and MPCR hides, since it belongs
+    to the Public Goods Game alone), exposing every axis: corridor length with the one-shot dial
+    explained inline, reward rule with published-vs-exploratory marked in the option labels,
+    memory depth, episode cap, full reward, and the zero-floor toggle. All fields blank by
+    default, meaning "keep the preset", so a published configuration stays one click away.
+  - New "Temporal fairness (ALT & RP)" panel on the results page, with all 16 measures, the
+    episode breakdown (won alone / collision / nobody arrived), and a help drawer explaining why
+    outcome fairness cannot see turn-taking. **Shown only when the run produced more than one
+    episode**, since a single-stage game has no sequence to alternate over and a confident zero
+    would be worse than an absent panel.
+  - **Three couplings had to be broken.** `CongestionGame` gained `state_labels()` (the corridor
+    as digits per agent, plus the remembered arrival bits, falling back to bare indices past 512
+    states since a 60-million-row Q-table view helps nobody) and `max_welfare_per_round()` (one
+    agent arriving alone, spread over the `num_positions - 1` rounds that takes, which is *not*
+    the papers' per-episode Efficiency). Nash detection now says plainly that it is built on the
+    Public Goods Game's closed-form payoff and has no normal form for an episodic game, rather
+    than failing.
+  - **A name collision worth knowing about:** both `social.py` and `social_alt.py` produce
+    "efficiency", per round and per episode respectively. Different quantities, so the
+    alternation one is renamed `alt_efficiency` at the merge point rather than silently
+    overwriting.
+  - Verified end-to-end: a real 3000-round HJG match through the form produced 1411 episodes, 487
+    won alone against 924 collisions, and the panel showed the finding directly, Reward Fairness
+    0.9131 and Turn-Taking Fairness 0.9595 sitting beside CALT 0.1840 and AALT 0.1701. Public
+    Goods Game regression confirmed: still runs, still gets its Nash panel, correctly gets no
+    alternation panel.
 - **Second theme, "Horsey Lab", + a Scientific/Gamified toggle (2026-07-25).** The dark console
   theme above is no longer the only skin. A bright, deliberately goofy alternative ("Horsey Lab":
   cream background, white sticker-panels with thick plum borders and hard offset shadows, saturated

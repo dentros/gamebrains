@@ -59,8 +59,10 @@
     <div class="grid">
       <div>
         <label>Game</label>
-        <select name="game_kind">
-          <option value="public_goods" selected>Public Goods Game (active)</option>
+        <select name="game_kind" onchange="toggleCongestionFields()">
+          {% for key, label in game_choices %}
+          <option value="{{ key }}"{% if loop.first %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
           {% for g in game_roadmap %}<option disabled>{{ g }}</option>{% endfor %}
         </select>
       </div>
@@ -81,6 +83,56 @@
         <input type="number" name="seed" value="0">
       </div>
     </div>
+
+    <fieldset id="congestion-fields" style="display:none">
+      <legend>Congestion family</legend>
+      <p class="meta">Every field below is optional. Leave it blank to keep whatever the chosen
+        preset uses, which for the published ones is the configuration the papers actually ran.</p>
+      <div class="grid">
+        <div>
+          <label>Positions in the corridor <span class="hint">(2 = one-shot)</span></label>
+          <input type="number" name="cong_num_positions" min="2" max="10" placeholder="preset">
+          <span class="epsilon-hint">At 2 a single simultaneous move decides the episode, the
+            ballistic case. At 3 or more there is an intermediate cell, so an agent's approach is
+            visible before it commits and movement itself can act as a signal.</span>
+        </div>
+        <div>
+          <label>Reward rule <span class="hint">(how a tie is punished)</span></label>
+          <select name="cong_reward_rule">
+            {% for key, label in reward_rules %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+          <span class="epsilon-hint">Dividing by n keeps the penalty independent of how many
+            actually collided; dividing by k is literal Rosenthal congestion.</span>
+        </div>
+        <div>
+          <label>Memory <span class="hint">(episodes of history in the state)</span></label>
+          <input type="number" name="cong_memory_episodes" min="0" max="3" placeholder="preset">
+          <span class="epsilon-hint">0 is Type-A, positions only. 1 is Type-B, which also shows
+            who arrived last episode and is what makes turn-taking learnable. Each extra episode
+            multiplies the state space by 2^n, so this grows fast.</span>
+        </div>
+        <div>
+          <label>Episode round cap</label>
+          <input type="number" name="cong_episode_max_rounds" min="1" max="500" placeholder="preset">
+          <span class="epsilon-hint">Ends an episode when nobody has arrived in time. Needed
+            because agents that all hold back would otherwise never finish. A capped episode is
+            recorded with no winner, which is a real outcome.</span>
+        </div>
+        <div>
+          <label>Full reward <span class="hint">(for arriving alone)</span></label>
+          <input type="text" name="cong_full_reward" placeholder="preset (100)">
+        </div>
+        <div class="checkrow" style="align-self:end">
+          <input type="checkbox" name="cong_collapse_at_full" id="cong_collapse_at_full" checked>
+          <label for="cong_collapse_at_full" style="margin:0">Zero when everyone arrives at once
+            <span class="hint">(applied only if you pick a reward rule above)</span></label>
+        </div>
+      </div>
+      <p class="meta">The published main rule keeps universal collision at exactly zero, so total
+        non-coordination cannot register as partial success. The published k-variant deliberately
+        does not, since r/k with everyone arriving simply yields r/n.</p>
+    </fieldset>
+
     <div class="fw-nav"><span></span>
       <button type="button" class="btn" onclick="mainWizardGoto(2)">Next: Roster &rarr;</button>
     </div>
@@ -354,6 +406,17 @@ function addRow(prefillKind) {
   const lastRow = document.getElementById('rows').lastElementChild;
   updateRowVisibility(lastRow.querySelector('select[name="row_kind[]"]'));
 }
+// The congestion family has its own axes, and MPCR belongs to the Public Goods Game alone.
+// Showing only what applies keeps the step honest about which knobs the chosen game actually has.
+function toggleCongestionFields() {
+  var kind = document.querySelector('select[name=game_kind]').value;
+  var isCongestion = kind.indexOf('congestion:') === 0;
+  document.getElementById('congestion-fields').style.display = isCongestion ? '' : 'none';
+  var mpcr = document.querySelector('input[name=mpcr]');
+  if (mpcr) mpcr.closest('div').style.display = isCongestion ? 'none' : '';
+}
+document.addEventListener('DOMContentLoaded', toggleCongestionFields);
+
 function mainWizardGoto(n) {
   document.querySelectorAll('.panel.fw-step').forEach(el => {
     el.style.display = (parseInt(el.dataset.fwstep, 10) === n) ? '' : 'none';

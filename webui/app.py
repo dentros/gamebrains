@@ -37,8 +37,9 @@ from ..engine.console import LiveConsole
 from ..engine.eventlog import EventLog
 from ..engine.evolution import EvolutionConfig, evolve
 from ..engine.runner import run_match
+from ..games.congestion import from_preset as congestion_from_preset
 from ..games.public_goods import PublicGoodsGame
-from ..metrics import equilibrium, graph, information, social
+from ..metrics import equilibrium, graph, information, social, social_alt
 from ..repository.cas import ContentStore
 from ..repository.ledger import Ledger
 from ..repository.record import (
@@ -98,7 +99,53 @@ _METRIC_META = [
 # list (TE/MI 2026-07-17, predictive information + graph metrics 2026-07-19) -- what remains
 # planned lives at the game level (_GAME_ROADMAP), not the metric level.
 _METRIC_ROADMAP: list[str] = []
-_GAME_ROADMAP = ["Honey-Jar Game, formerly MBoE (coming soon)"]
+_GAME_ROADMAP = ["Battle of the Sexes (coming soon)", "Custom game builder (coming soon)"]
+
+#: Temporal-fairness measures, shown only for episodic games since they are defined per episode.
+#: `alt_efficiency` is renamed at the merge point: the papers' Efficiency is per episode, while
+#: `social.py`'s is per round, and two different numbers must not share one label.
+_ALT_METRIC_META = [
+    ("CALT", "CALT (primary alternation)"),
+    ("EALT", "EALT (exclusivity)"),
+    ("AALT", "AALT (strictest)"),
+    ("FALT", "FALT (reaches)"),
+    ("qFALT", "qFALT"),
+    ("qEALT", "qEALT"),
+    ("RP_excl", "RP (exclusive wins)"),
+    ("RS_excl", "RS rhythm (exclusive)"),
+    ("WPE_excl", "WPE frequency (exclusive)"),
+    ("RP_reach", "RP (reaches)"),
+    ("RS_reach", "RS rhythm (reaches)"),
+    ("WPE_reach", "WPE frequency (reaches)"),
+    ("alt_efficiency", "Efficiency (per episode)"),
+    ("reward_fairness", "Reward Fairness"),
+    ("tt_fairness", "Turn-Taking Fairness"),
+    ("fairness", "Fairness (exclusive wins)"),
+]
+
+#: Selectable games. Each congestion entry is a preset of the one parametrized family; the label
+#: says which are published configurations so an exploratory run is never mistaken for one.
+_GAME_CHOICES = [
+    ("public_goods", "Public Goods Game (n-player Prisoner's Dilemma)"),
+    ("congestion:hjg", "Honey-Jar Game, ILF (published main)"),
+    ("congestion:hjg_iqf", "Honey-Jar Game, IQF (published)"),
+    ("congestion:hjg_k", "Honey-Jar Game, k-variant (published robustness check)"),
+    ("congestion:hjg_memory", "Honey-Jar Game, Type-B memory"),
+    ("congestion:market_entry", "Market entry (one-shot / ballistic)"),
+]
+
+#: Reward denominators for the congestion family. "n" divides by the whole population, "k" by the
+#: number who actually collided; the latter is literal Rosenthal congestion. Only the first four
+#: appear in the papers, and the label says so.
+_REWARD_RULE_CHOICES = [
+    ("", "keep the preset's rule"),
+    ("ILF", "ILF: r/n, linear in population (published)"),
+    ("IQF", "IQF: r/n squared (published)"),
+    ("KLF", "KLF: r/k, per claimant (published)"),
+    ("KQF", "KQF: r/k squared (published)"),
+    ("ICF", "ICF: r/n cubed (exploratory)"),
+    ("KCF", "KCF: r/k cubed (exploratory)"),
+]
 
 
 # --- a frozen wrapper for the bake-off (Section /evolve) -----------------------------------------
@@ -496,6 +543,27 @@ _HELP_TOPICS["qlearning"] = ("Q-learning", (
     "the policy-vs-behavior line quantifies exactly how often that happened this match.</p>"
 ))
 
+_HELP_TOPICS["alt"] = ("Temporal fairness: ALT and RP", (
+    "<p><b>Why these exist.</b> Efficiency and fairness are time-averaged: they ask how much each "
+    "agent ended up with. That cannot see <i>whether access rotated</i>. Two agents who collide "
+    "in every single episode and split the reduced share can post near-perfect Reward Fairness "
+    "while never once taking turns. ALT and RP ask the question the totals cannot: which agent "
+    "got access, and when.</p>"
+    "<p><b>Reading them.</b> All are 0 to 1, higher is better. <b>CALT</b> is the primary "
+    "measure; <b>AALT</b> is the strictest, counting only agents with exactly one solo win per "
+    "window; <b>FALT</b> is the loosest, counting arrivals including ties. <b>RP</b> is the "
+    "cheap proxy, the mean of <b>RS</b> (rhythm: are the gaps between an agent's wins even?) and "
+    "<b>WPE</b> (frequency: did it win its fair share?). Those two are meant to be independent, "
+    "so a run can score well on one and badly on the other.</p>"
+    "<p><b>Reach vs exclusive.</b> Every measure is reported both ways, because an agent can "
+    "reach the terminal constantly and never once arrive alone. That reads as healthy access by "
+    "one definition and total failure by the other, and neither is designated the answer.</p>"
+    "<p><b>A caution for anti-coordination games.</b> No constant strategy is collectively good "
+    "here. If everyone gives way the payoff is zero, exactly as it is if everyone rushes. The "
+    "best behaviour is taking turns, which no fixed strategy can express, so an always-concede "
+    "agent is a baseline rather than a cooperative one.</p>"
+))
+
 _HELP_TOPICS["dqn"] = ("Deep Q-Network", (
     "<p><b>Theory.</b> The DQN replaces the table with a neural network that maps a one-hot state "
     "to Q-values, trained by experience replay against a target network. The network diagram is "
@@ -781,6 +849,7 @@ def form():
         "form.html", kinds=_KIND_ORDER, kind_meta=KIND_META,
         classic_strategies=_CLASSIC_STRATEGIES, metric_meta=_METRIC_META,
         metric_roadmap=_METRIC_ROADMAP, game_roadmap=_GAME_ROADMAP,
+        game_choices=_GAME_CHOICES, reward_rules=_REWARD_RULE_CHOICES,
         advanced_params=_ADVANCED_PARAMS,
     )
 
@@ -802,8 +871,9 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
     `(error_message, http_status)` pair. Factored out of the `/run` route so batch mode
     (`_run_batch`) can call it repeatedly with one form field swept, without duplicating the
     pipeline."""
-    if f.get("game_kind", "public_goods") != "public_goods":
-        return "That game isn't implemented yet.", 400
+    game_kind = f.get("game_kind", "public_goods")
+    if game_kind not in {key for key, _ in _GAME_CHOICES}:
+        return f"Unknown game {game_kind!r}.", 400
 
     rounds = int(f.get("rounds", 1500))
     seed = int(f.get("seed", 0))
@@ -841,7 +911,22 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
         return "You need at least 2 agents in total. Add rows to the roster.", 400
 
     try:
-        game = PublicGoodsGame(n_agents=n_agents, rounds=rounds, mpcr=mpcr)
+        if game_kind == "public_goods":
+            game = PublicGoodsGame(n_agents=n_agents, rounds=rounds, mpcr=mpcr)
+        else:
+            # Preset first, then any explicit override from the form, so the published
+            # configurations stay one click away while every axis is still reachable.
+            overrides: dict[str, Any] = {}
+            for field, cast in (("num_positions", int), ("memory_episodes", int),
+                                ("episode_max_rounds", int), ("full_reward", float)):
+                raw = (f.get(f"cong_{field}") or "").strip()
+                if raw:
+                    overrides[field] = cast(raw)
+            rule = (f.get("cong_reward_rule") or "").strip()
+            if rule:
+                overrides["reward_rule"] = rule
+                overrides["collapse_at_full"] = f.get("cong_collapse_at_full") == "on"
+            game = congestion_from_preset(game_kind.split(":", 1)[1], n_agents, **overrides)
     except ValueError as exc:
         return str(exc), 400
 
@@ -897,6 +982,19 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
     metrics = social.compute_all(records, game.max_welfare_per_round())
     metrics.update(information.compute_all(records, seed=seed))
     metrics.update(graph.compute_all(records, metrics["transfer_entropy_detail"]))
+
+    # Temporal-fairness measures need a sequence of contests to look at. A single-stage game
+    # produces one episode for the whole match, so there is nothing to alternate over and the
+    # panel is simply absent rather than showing a confident zero.
+    alt_detail = None
+    episodes = records.get("episodes", [])
+    if len(episodes) > 1:
+        alt_detail = social_alt.compute_all(
+            episodes, n_agents=n_agents, full_reward=getattr(game, "full_reward", 100.0))
+        # The papers' Efficiency is per episode; social.py's is per round. Same word, different
+        # quantity, so the alternation one is renamed rather than silently overwriting it.
+        alt_detail["alt_efficiency"] = alt_detail.pop("efficiency")
+        metrics.update({k: v for k, v in alt_detail.items() if not k.startswith("detail_")})
     per_agent_coop = records["actions"].mean(axis=0)
     creatures = [render_creature(a, coop_rate=float(per_agent_coop[i]))
                  for i, a in enumerate(roster)]
@@ -917,7 +1015,13 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
 
     nash_html = None
     if do_nash:
-        if n_agents <= _NASH_MAX_AGENTS:
+        if not isinstance(game, PublicGoodsGame):
+            # The solver builds its 2^n payoff table from the Public Goods Game's closed-form
+            # payoff. An episodic game has no single-round normal form to enumerate, so this is
+            # a genuine gap rather than a size limit.
+            nash_html = ("(skipped: equilibrium detection is currently built on the Public Goods "
+                         "Game's closed-form payoff and has no normal form for an episodic game)")
+        elif n_agents <= _NASH_MAX_AGENTS:
             eqs = equilibrium.pure_nash_equilibria(game)
             nash_html = equilibrium.describe_equilibria(game, eqs)
         else:
@@ -974,6 +1078,8 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
         "chart_svg": chart_svg, "console_log": console_log, "leaderboard": leaderboard,
         "nash_html": nash_html, "nash_help_trigger": _help_trigger("nash"), "phi_info": phi_info,
         "help_topics": _HELP_TOPICS,
+        "alt_metrics": alt_detail, "alt_metric_meta": _ALT_METRIC_META,
+        "alt_help_trigger": _help_trigger("alt") if alt_detail else "",
         "repo_info": repo_info, "filter_info": filter_info, "log_path": log_path.name,
         "epsilon_hints": epsilon_hints, "genome_cids": genome_cids,
         "zip_download": zip_download, "log_download": log_download,

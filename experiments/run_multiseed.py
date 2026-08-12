@@ -108,10 +108,21 @@ def main(argv: Optional[list[str]] = None) -> None:
     print(header)
     print("  " + "-" * (len(header) - 2))
 
+    # Per-seed values, kept so the sweep can be checked inside each seed as well as in aggregate.
+    # The sweep is paired: the same seeds are reused at every budget and per-step schedules do not
+    # depend on the total round count, so a shorter run is a prefix of the longer one with the same
+    # seed. That makes "does every seed decline" a stronger and simpler claim than any comparison
+    # of confidence intervals between rows. Costs nothing extra: the runs already happen below.
+    per_seed: dict[str, list[list[float]]] = {"calt_ql": [], "aalt_ql": [], "calt_rnd": []}
+
     results["congestion"] = {}
     for rounds in args.lengths:
         learners = [congestion_run(s, rounds, learner=True) for s in range(1, n + 1)]
         randoms = [congestion_run(s, rounds, learner=False) for s in range(1, n + 1)]
+
+        per_seed["calt_ql"].append([float(r["CALT"]) for r in learners])
+        per_seed["aalt_ql"].append([float(r["AALT"]) for r in learners])
+        per_seed["calt_rnd"].append([float(r["CALT"]) for r in randoms])
 
         qm, qh = ci95([r["CALT"] for r in learners])
         rm, rh = ci95([r["CALT"] for r in randoms])
@@ -133,6 +144,39 @@ def main(argv: Optional[list[str]] = None) -> None:
             "collision_rate": list(ci95([r["collision_episodes"] / max(r["n_episodes"], 1)
                                          for r in learners])),
         }
+
+    # --- per-seed monotonicity, the paired reading of the same runs -------------------------------
+    if len(args.lengths) > 1:
+        print(f"\nPER-SEED MONOTONICITY  (seeds of {n} that decrease at each step)")
+        labels = {"calt_ql": "CALT (QL)", "aalt_ql": "AALT (QL)", "calt_rnd": "CALT (random)"}
+        head = "  " + f"{'step':>22}" + "".join(f"{labels[k]:>16}" for k in per_seed)
+        print(head)
+        print("  " + "-" * (len(head) - 2))
+
+        matrices = {k: np.asarray(v).T for k, v in per_seed.items()}   # [seed, length]
+        for i in range(len(args.lengths) - 1):
+            step = f"{args.lengths[i]} -> {args.lengths[i+1]}"
+            cells = "".join(f"{int(np.sum(m[:, i + 1] < m[:, i])):>13}/{n:<2}"
+                            for m in matrices.values())
+            print(f"  {step:>22}{cells}")
+
+        cells = "".join(f"{int(np.sum(np.all(np.diff(m, axis=1) < 0, axis=1))):>13}/{n:<2}"
+                        for m in matrices.values())
+        print(f"  {'decreasing at all steps':>22}{cells}")
+        for name, m in matrices.items():
+            results.setdefault("per_seed", {})[name] = {
+                "monotone_all_steps": int(np.sum(np.all(np.diff(m, axis=1) < 0, axis=1))),
+                "pairwise": [int(np.sum(m[:, i + 1] < m[:, i]))
+                            for i in range(len(args.lengths) - 1)],
+                "first_range": [float(m[:, 0].min()), float(m[:, 0].max())],
+                "last_range": [float(m[:, -1].min()), float(m[:, -1].max())],
+                "ranges_disjoint": bool(m[:, -1].max() < m[:, 0].min()),
+                "matrix": m.tolist(),
+            }
+        for name, m in matrices.items():
+            print(f"  {labels[name]}: {m[:,0].min():.3f}-{m[:,0].max():.3f} at the shortest budget, "
+                  f"{m[:,-1].min():.3f}-{m[:,-1].max():.3f} at the longest, "
+                  f"disjoint={bool(m[:,-1].max() < m[:,0].min())}")
 
     if args.json:
         with open(args.json, "w", encoding="utf-8") as handle:

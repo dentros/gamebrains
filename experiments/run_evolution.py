@@ -19,6 +19,7 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+from ..agents.markov_brain import crossover as mb_crossover, spawn as mb_spawn
 from ..engine.console import LiveConsole
 from ..engine.eventlog import EventLog
 from ..engine.evolution import EvolutionConfig, evolve
@@ -59,7 +60,8 @@ def main() -> None:
 
     with EventLog(path=log_path) as log:
         log.meta(game=game_factory().describe(), config=vars(config))
-        result = evolve(game_factory, config, console=console, eventlog=log)
+        result = evolve(game_factory, config, spawn=mb_spawn, crossover=mb_crossover,
+                        console=console, eventlog=log)
 
     print()
     console.rule("═")

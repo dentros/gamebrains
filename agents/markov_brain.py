@@ -20,7 +20,7 @@ index `s` of `full_tpm()` decodes to a state via the little-endian convention
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -185,4 +185,21 @@ def crossover(parent_a: MarkovBrainAgent, parent_b: MarkovBrainAgent, rng: np.ra
     return MarkovBrainAgent(
         name=name, n_states=2 ** parent_a.n_sensor, n_actions=2 ** parent_a.n_motor,
         n_hidden=parent_a.n_hidden, W=W, bias=bias, seed=seed, start_state=parent_a.start_state,
+    )
+
+
+def spawn(name: str, game: Any, seed: int, config: Any) -> MarkovBrainAgent:
+    """Build one random Markov-brain individual for `engine.evolution.evolve`.
+
+    This is the piece that used to live in the engine as a direct
+    `MarkovBrainAgent.random(...)` call, which forced the engine to import this module and broke the
+    platform's own downward-only dependency rule. Keeping it here means the GA stays genome-agnostic
+    and the knowledge of what a Markov-brain genome needs, including the `n_hidden` knob it reads off
+    the config, sits with the genome.
+
+    Matches `engine.evolution.SpawnFn`. Pass it as `evolve(..., spawn=spawn, crossover=crossover)`.
+    """
+    return MarkovBrainAgent.random(
+        name, game.n_states, game.n_actions,
+        n_hidden=getattr(config, "n_hidden", 2), seed=seed, start_state=game.start_state,
     )

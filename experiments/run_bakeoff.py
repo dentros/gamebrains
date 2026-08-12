@@ -31,6 +31,7 @@ from ..agents.classic import AllD
 from ..agents.dqn import DQNAgent
 from ..agents.fep import FEPAgent
 from ..agents.qlearning import QLearningAgent
+from ..agents.markov_brain import crossover as mb_crossover, spawn as mb_spawn
 from ..engine.agent import Agent
 from ..engine.evolution import EvolutionConfig, evolve
 from ..engine.runner import run_match
@@ -102,7 +103,7 @@ def pretrain(kind: str, seed: int, quiet: bool = False) -> Frozen:
     if kind == "markov_brain":
         config = EvolutionConfig(population_size=20, generations=15, match_rounds=200,
                                  matches_per_generation=3, seed=seed)
-        result = evolve(lambda: _game(200), config)
+        result = evolve(lambda: _game(200), config, spawn=mb_spawn, crossover=mb_crossover)
         best = result.population[int(np.argmax(result.fitness))]
         return Frozen(best, "MarkovBrain")
 

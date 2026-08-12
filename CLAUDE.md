@@ -882,3 +882,64 @@ observations outright; MLPro needs a Gymnasium registry entry rather than mere c
 `compute_reward()` takes no arguments, its PettingZoo bridge is closed to third-party envs by
 construction, and its bridge packages do not import until `dill` and `multiprocess` are added by
 hand. All four are asserted in tests, not just written down here.
+
+## 9g. The layering claim was false, and one agent never got the semantics fix (2026-08-12)
+
+Found while checking a hostile review's claim that the paper's architecture figure showed an arrow
+that did not exist. It did, and the audit underneath it turned up worse. Both items below were
+**real defects in claims the paper makes about itself**, not presentation problems.
+
+**⚠️ `agents/fep.py` still carried the COOPERATE/MOVE defect, long after §3 says it was fixed.**
+The declaration mechanism was built, documented, and applied to `agents/classic.py`. The FEP agent
+was never migrated. It imported `COOPERATE`/`DEFECT` from `games/public_goods.py`, had no
+`on_match_start`, and never called `require_observation_kind`. Verified by running it, not by
+reading: in a 60-round HJG match it **ran without refusing**, played action 1 (which is `claim`,
+the aggressive rush) and its own transparency panel reported that action as `"Cooperate"`. Two
+things were wrong at once, which is why it was worse here than in `classic.py`: the action indices
+*and* the observation, since its generative model is over "how many others conceded" and it was
+being handed a `board_index`. Through the webui it happened not to blow up, but only because
+`_make_agent` passes `mpcr=game.mpcr` and `CongestionGame` has no `mpcr`, so the refusal was an
+accidental `AttributeError` rather than the designed one.
+  - Fixed: `on_match_start` now calls `require_observation_kind("concede_count")` then
+    `action_for("concede"/"claim")`. FEP therefore **correctly refuses the whole congestion family**,
+    which is the honest outcome and not a gap to work around: an agent whose hidden state is a count
+    of conceders has nothing to infer from a board position.
+  - Internal value/probability vectors keep their own ordering (`_I_CLAIM`, `_I_CONCEDE`) which is
+    deliberately *not* the game's indices. `own_last_action` became `_last_was_concede: bool`,
+    because the observation arithmetic subtracts our own contribution to a **count**, and using the
+    raw index for that is only correct when conceding happens to be action 1.
+  - `render_brain()` now keys `action_probs`/`expected_values` by **role** and carries the display
+    wording separately in `role_labels`. `webui/_fep_html` read `probs["Cooperate"]` directly, so
+    renaming a key would have silently shown 0.00 -- the same class of failure one layer up.
+    PGG panels still read "Cooperate"/"Defect" because the game declares those aliases.
+  - **Audited the other four**: `classic` was already fixed; `qlearning`, `dqn` and `markov_brain`
+    are genuinely index-agnostic (they learn over indices without assigning them meaning) and need
+    no binding. FEP was the only one.
+
+**⚠️ "the engine can be read and tested without any game, agent or metric present" was false.**
+`engine/evolution.py` did `from ..agents.markov_brain import MarkovBrainAgent, crossover`. A
+reviewer finds that with one grep, and the paper's figure asserted the opposite.
+  - `evolve()` now takes **required** `spawn` and `crossover` parameters and imports no agent. A
+    default would have meant importing one, which is the dependency the signature exists to remove.
+    New `Evolvable` Protocol documents what the GA needs of a genome.
+  - `agents/markov_brain.spawn(name, game, seed, config)` is the counterpart, in the layer that
+    should own that knowledge. `EvolutionConfig.name_prefix` (default `"MB"`) replaced the
+    hardcoded literal so the engine no longer names individuals after one agent type.
+  - Call sites updated: `tests/test_evolution.py`, `experiments/run_evolution.py`,
+    `experiments/run_bakeoff.py`, `webui/app.py`. Verified numerically identical afterwards (same
+    fitness vector, same names, same history) since the seeding order is unchanged.
+  - Also deleted `agents/classic.py`'s `# noqa: F401` re-export of COOPERATE/DEFECT. Its comment
+    claimed "other modules still import them"; nothing did, and it was holding up an
+    `agents -> games` edge on its own.
+  - **Audit the graph with `ast`, not `grep`.** A grep for `from ..agents` in `engine/` matches the
+    docstring that *explains* the removed import and reports a false positive. Parse the imports.
+  - Remaining cross-layer edge, legitimate and now shown in the figure: `metrics/equilibrium.py`
+    imports `games.public_goods`, because it builds that game's normal form from its closed-form
+    payoff. `webui`/`experiments` import everything above them, which is what a front end is for.
+
+**Lesson worth keeping.** Both defects were in the *gap between what the code did and what the
+prose claimed*, and both had been sitting there while the tests passed. The paper's own headline
+argument is that a platform whose games all share a convention cannot discover the convention was
+doing the work. The same applies to its documentation: a claim no test checks will drift. The
+architecture figure is now generated from the parsed import graph, and the two shims are pinned by
+tests that assert the failure they exist to prevent.

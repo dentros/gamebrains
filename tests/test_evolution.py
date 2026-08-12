@@ -10,6 +10,7 @@ pygambit-confirmed Nash equilibrium of universal defection).
 
 import numpy as np
 
+from gamebrains.agents.markov_brain import crossover as mb_crossover, spawn as mb_spawn
 from gamebrains.engine.evolution import EvolutionConfig, evolve
 from gamebrains.games.public_goods import PublicGoodsGame
 
@@ -21,7 +22,7 @@ def _small_game_factory():
 def test_rejects_population_not_divisible_by_n_agents():
     config = EvolutionConfig(population_size=10, generations=1)  # 10 % 4 != 0
     try:
-        evolve(_small_game_factory, config)
+        evolve(_small_game_factory, config, spawn=mb_spawn, crossover=mb_crossover)
         assert False, "expected ValueError"
     except ValueError:
         pass
@@ -30,7 +31,7 @@ def test_rejects_population_not_divisible_by_n_agents():
 def test_runs_and_produces_well_shaped_result():
     config = EvolutionConfig(population_size=8, generations=4, match_rounds=40,
                              matches_per_generation=2, seed=0)
-    result = evolve(_small_game_factory, config)
+    result = evolve(_small_game_factory, config, spawn=mb_spawn, crossover=mb_crossover)
 
     assert len(result.population) == config.population_size
     assert result.fitness.shape == (config.population_size,)
@@ -42,8 +43,8 @@ def test_runs_and_produces_well_shaped_result():
 def test_reproducible_given_seed():
     config = EvolutionConfig(population_size=8, generations=4, match_rounds=40,
                              matches_per_generation=2, seed=7)
-    r1 = evolve(_small_game_factory, config)
-    r2 = evolve(_small_game_factory, config)
+    r1 = evolve(_small_game_factory, config, spawn=mb_spawn, crossover=mb_crossover)
+    r2 = evolve(_small_game_factory, config, spawn=mb_spawn, crossover=mb_crossover)
 
     assert np.allclose(r1.fitness, r2.fitness)
     for h1, h2 in zip(r1.fitness_history, r2.fitness_history):
@@ -55,21 +56,18 @@ def test_elite_genomes_carry_over_unchanged():
                              matches_per_generation=2, elite_count=2, seed=0)
     # Run generation 0 manually via the same internals evolve() uses, to check elitism directly.
     from gamebrains.engine.evolution import _evaluate_population, _next_generation
-    from gamebrains.agents.markov_brain import MarkovBrainAgent
 
     rng = np.random.default_rng(config.seed)
     game0 = _small_game_factory()
     population = [
-        MarkovBrainAgent.random(f"MB{i}", game0.n_states, game0.n_actions,
-                                n_hidden=config.n_hidden, seed=config.seed * 10_000 + i,
-                                start_state=game0.start_state)
+        mb_spawn(f"{config.name_prefix}{i}", game0, config.seed * 10_000 + i, config)
         for i in range(config.population_size)
     ]
     fitness = _evaluate_population(population, _small_game_factory, config, rng)
     order = np.argsort(fitness)[::-1]
     best_genome_W = population[order[0]].W.copy()
 
-    next_gen = _next_generation(population, fitness, config, rng)
+    next_gen = _next_generation(population, fitness, config, rng, mb_crossover)
     assert np.array_equal(next_gen[0].W, best_genome_W)  # top elite preserved exactly
 
 

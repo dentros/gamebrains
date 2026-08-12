@@ -10,6 +10,7 @@ case: the same strategy, two games, opposite action indices, one consistent mean
 """
 
 from gamebrains.agents.classic import AllC, AllD, MajorityTFT, RandomAgent
+from gamebrains.agents.fep import FEPAgent
 from gamebrains.engine.game import Game, StepResult
 from gamebrains.games.congestion import MOVE, STAY, CongestionGame
 from gamebrains.games.public_goods import COOPERATE, DEFECT, PublicGoodsGame
@@ -116,6 +117,57 @@ def test_declared_semantics_are_part_of_what_a_run_records():
     assert CongestionGame(n_agents=3).describe()["action_roles"]["concede"] == 0
 
 
+def test_fep_binds_through_the_mechanism_rather_than_hardcoding_public_goods():
+    """The FEP agent kept this defect long after the classic strategies were fixed.
+
+    It imported COOPERATE from the Public Goods Game, so in a congestion game it played the
+    *claiming* action while its own panel labelled the result "Cooperate". Two things were wrong at
+    once here, the action indices and the observation, since its hidden state is a count of conceders
+    and the congestion family hands out board positions.
+    """
+    pgg = PublicGoodsGame(n_agents=3, rounds=10)
+    agent = FEPAgent("F", n_agents=3, mpcr=pgg.mpcr, start_state=pgg.start_state)
+    agent.on_match_start(pgg)
+
+    bound = agent.inspect()["bound_actions"]
+    assert bound == {"concede": COOPERATE, "claim": DEFECT}, f"resolved wrongly: {bound}"
+    # The panel keeps the game's own vocabulary, and the numbers are keyed by role so a renderer
+    # cannot silently read the wrong one when the wording changes.
+    rendered = agent.render_brain()
+    assert rendered["role_labels"] == {"concede": "Cooperate", "claim": "Defect"}
+    assert set(rendered["action_probs"]) == {"concede", "claim"}
+
+    for _ in range(20):
+        assert agent.act(pgg.start_state) in (COOPERATE, DEFECT)
+
+
+def test_fep_refuses_a_game_whose_observation_it_cannot_read():
+    """Refusal is the correct outcome, not a gap: a count-based belief cannot read a position."""
+    congestion = CongestionGame(n_agents=3)
+    assert congestion.observation_kind == "board_index"
+
+    agent = FEPAgent("F", n_agents=3, mpcr=0.5)
+    try:
+        agent.on_match_start(congestion)
+    except ValueError as exc:
+        assert "concede_count" in str(exc) and "board_index" in str(exc), (
+            f"refusal should name both kinds, got: {exc}")
+    else:
+        raise AssertionError(
+            "FEPAgent accepted a board_index game. Its generative model is over a count of "
+            "conceders, so accepting one means silently misreading the observation.")
+
+
+def test_fep_will_not_act_before_it_has_been_bound():
+    agent = FEPAgent("F", n_agents=3, mpcr=0.5)
+    try:
+        agent.act(4)
+    except RuntimeError as exc:
+        assert "on_match_start" in str(exc)
+    else:
+        raise AssertionError("an unbound FEP agent guessed an action index instead of refusing")
+
+
 if __name__ == "__main__":
     test_the_same_strategy_maps_to_opposite_indices_in_the_two_games()
     print("OK: one strategy, two games, opposite indices, one meaning")
@@ -131,3 +183,9 @@ if __name__ == "__main__":
     print("OK: the random agent mixes between the two declared roles")
     test_declared_semantics_are_part_of_what_a_run_records()
     print("OK: declared semantics are part of what a run records")
+    test_fep_binds_through_the_mechanism_rather_than_hardcoding_public_goods()
+    print("OK: the FEP agent binds through the mechanism, not to Public Goods constants")
+    test_fep_refuses_a_game_whose_observation_it_cannot_read()
+    print("OK: the FEP agent refuses a game whose observation it cannot read")
+    test_fep_will_not_act_before_it_has_been_bound()
+    print("OK: an unbound FEP agent refuses instead of guessing an index")

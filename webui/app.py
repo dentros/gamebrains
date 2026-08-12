@@ -696,10 +696,14 @@ def _fep_html(brain: dict) -> str:
         f"<span class='val'>{p:.2f}</span></div>"
         for lab, p in zip(labels, belief)
     )
+    # Probabilities are keyed by ROLE and the wording comes from role_labels, so this reads the
+    # right number whatever the game calls its two actions. Reading it by display word is how a
+    # renderer silently shows 0.00 the day the wording changes.
     probs = brain.get("action_probs", {})
-    footer = (f"<p class='meta'>E[others cooperating]={brain.get('expected_others', 0):.2f} &middot; "
-             f"P(Cooperate)={probs.get('Cooperate', 0):.2f} &middot; "
-             f"P(Defect)={probs.get('Defect', 0):.2f} &middot; "
+    labels = brain.get("role_labels") or {"concede": "Concede", "claim": "Claim"}
+    footer = (f"<p class='meta'>E[others conceding]={brain.get('expected_others', 0):.2f} &middot; "
+             f"P({labels['concede']})={probs.get('concede', 0):.2f} &middot; "
+             f"P({labels['claim']})={probs.get('claim', 0):.2f} &middot; "
              f"reciprocity={brain.get('reciprocity', 0):g}</p>")
     return f"<div class='beliefs'>{bars}</div>{footer}"
 
@@ -1236,7 +1240,8 @@ def evolve_run():
     with contextlib.redirect_stdout(buf):
         print(f"Evolving: population={cfg.population_size} generations={cfg.generations} "
              f"match_rounds={cfg.match_rounds} n_hidden={cfg.n_hidden} seed={cfg.seed}")
-        result = evolve(game_factory, cfg)
+        from ..agents.markov_brain import crossover as mb_crossover, spawn as mb_spawn
+        result = evolve(game_factory, cfg, spawn=mb_spawn, crossover=mb_crossover)
     evo_log = buf.getvalue()
 
     best = result.best

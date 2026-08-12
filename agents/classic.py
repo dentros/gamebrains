@@ -26,9 +26,11 @@ import numpy as np
 
 from ..engine.agent import Agent
 
-# Kept as module constants because the Public Goods Game's own encoding is a fact about that
-# game, and other modules still import them. Nothing in this file uses them directly any more.
-from ..games.public_goods import COOPERATE, DEFECT  # noqa: F401
+# No import of any game here, deliberately. This module briefly kept re-exporting the Public Goods
+# Game's COOPERATE/DEFECT constants for callers that had imported them from here, which left an
+# agents -> games edge behind after the strategies themselves had stopped using them. Every caller
+# takes them from `games.public_goods` directly, so the re-export was dead weight holding up a
+# dependency the architecture says should not exist.
 
 
 class _Classic(Agent):

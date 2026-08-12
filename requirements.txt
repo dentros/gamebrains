@@ -6,11 +6,22 @@ torch
 
 # Phase 3 (FEP / active-inference brain): implemented directly in numpy, no extra package.
 
-# Interop layer (PettingZoo/Gymnasium adapters -> RLlib/MLPro/Stable-Baselines3 for free)
-# + Nash equilibrium detection.
+# Interop layer (PettingZoo/Gymnasium adapters) + Nash equilibrium detection.
 gymnasium
 pettingzoo
 pygambit
+
+# Optional downstream consumers, for tests/test_interop_*.py only. Not needed to use the platform;
+# each of those test modules skips cleanly when its library is absent. Costs measured, not assumed
+# (see CLAUDE.md 9c): SB3 works as-is, RLlib needs interop.wrappers.OneHotObs, MLPro needs
+# interop.wrappers.register_gym_env, and MLPro's PettingZoo route cannot accept a third-party env.
+# stable-baselines3
+# ray[rllib]
+# mlpro
+# mlpro-int-gymnasium
+# mlpro-int-pettingzoo
+# dill            # undeclared MLPro requirement; its bridges do not import without it
+# multiprocess    # same
 
 # Later phases (install when we reach them):
 # pyphi is NOT installed from PyPI as-is — see gamebrains/vendor/pyphi/FORK_NOTES.md.

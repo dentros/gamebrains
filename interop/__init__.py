@@ -8,9 +8,17 @@ useful rather than a generic pass-through: an outside RL algorithm (via RLlib, S
 MLPro) can be trained *against* GameBrains's own cognitive brains.
 
 Because PettingZoo and Gymnasium are the de facto standard APIs, wrapping our `Game` in them also
-yields, at no extra code:
-  - RLlib      via ray.rllib.env.wrappers.pettingzoo_env.PettingZooEnv
-  - MLPro      via mlpro_int_pettingzoo.wrappers.basics.WrEnvPZOO2MLPro /
-                   mlpro_int_gymnasium.wrappers.basics.WrEnvGYM2MLPro
-  - Stable-Baselines3, which consumes gymnasium.Env directly.
+reaches three further ecosystems. What that actually costs was measured, not assumed
+(tests/test_interop_{sb3,rllib,mlpro}.py):
+
+  - Stable-Baselines3  free. Consumes gymnasium.Env directly, nothing to add.
+  - RLlib              needs `wrappers.OneHotObs`. Its API stack has no default encoder for a
+                       Discrete observation space and refuses to build a model without one.
+  - MLPro (Gymnasium)  needs `wrappers.register_gym_env`. WrEnvGYM2MLPro reads env.env.spec.id,
+                       so the env must be in Gymnasium's registry, not merely conformant.
+  - MLPro (PettingZoo) not possible. WrEnvPZOO2MLPro resolves the env class by name inside five
+                       hardcoded pettingzoo.* submodules, so no third-party env can satisfy it.
+
+The lesson worth carrying: interface conformance predicts that a consumer will accept an
+environment, not that it will run it.
 """

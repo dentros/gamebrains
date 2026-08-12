@@ -238,7 +238,7 @@ Deep mechanistic interpretability (activation probing) is **out of scope for the
     `_METRIC_ROADMAP` is now empty — the whole section-5 metric family is implemented. Candidate home for the
     TE-as-ToM-signature result once an actual experiment is run: Paper 3 (JAAMAS); Paper 2
     (software journal) should still mention this and cite the framework paper (already added, see
-    `IEEE SOFTWARE GAMEBRAINS/root.tex` Future Work).
+    `SPE GAMEBRAINS/root.tex` Future Work).
 
 ## 6. Games
 
@@ -467,13 +467,36 @@ research value, not just "made it look like a generic env."
   than duplicating the seat-splitting logic. Validated against Gymnasium's own
   `gymnasium.utils.env_checker.check_env` (what Stable-Baselines3 runs on a custom env before
   training) plus the same background-learning test. See `tests/test_gym_adapter.py`.
-- **Because PettingZoo/Gymnasium are the de facto standards, these 2 adapters buy compatibility
-  with 3 more ecosystems at zero extra code:**
-  - **RLlib** via `ray.rllib.env.wrappers.pettingzoo_env.PettingZooEnv` (consumes any PettingZoo env).
-  - **MLPro** (`fhswf/MLPro`, continues at `blueAIC/MLPro`, Apache 2.0) via
-    `mlpro_int_pettingzoo.wrappers.basics.WrEnvPZOO2MLPro` /
-    `mlpro_int_gymnasium.wrappers.basics.WrEnvGYM2MLPro`.
-  - **Stable-Baselines3**, which consumes `gymnasium.Env` directly.
+- **The 3 downstream ecosystems, TESTED 2026-08-12 (was asserted before, and the assertion was
+  wrong).** The old claim here and in the paper was "2 adapters buy 3 more ecosystems at zero extra
+  code". One of the three is free, two need a shim, and one advertised route is impossible. Tests:
+  `tests/test_interop_{sb3,rllib,mlpro}.py`, each skipping cleanly if its optional library is absent.
+  - **Stable-Baselines3** — genuinely free, via `gym_adapter`. Its own `check_env` passes, DQN and
+    PPO train, `DummyVecEnv` wraps parallel instances, and background Q-learners really learn inside
+    its training loop (600 updates, epsilon 1.0 -> 0.741 over 600 steps).
+  - **RLlib** — needs `interop/wrappers.py`'s **`OneHotObs`**. The wrapper accepts our env and
+    `check_multiagent_environments` passes, but building an algorithm dies with *"No default encoder
+    config for obs space=Discrete(5)"*: Ray 2.57's API stack has no default encoder for a discrete
+    observation space. One-hot into a `Box` and PPO trains. **The widening lives on RLlib's side
+    deliberately** — `Discrete` is what the observation actually is and what PettingZoo, Gymnasium
+    and SB3 all accept, so do not "fix" the adapters instead. SB3 does this same preprocessing
+    internally without mentioning it, which is exactly why the cost was invisible until a second
+    consumer was tried.
+  - **MLPro, Gymnasium route** — works, but needs `interop/wrappers.py`'s **`register_gym_env`**.
+    `WrEnvGYM2MLPro` reads `env.env.spec.id` and later calls `gymnasium.make` on it, so a bare
+    `gymnasium.Env` subclass has no `.spec` and is refused. Conformance is not enough; it wants a
+    registry entry. Also note `compute_reward()` takes **no arguments** there (passing states raises
+    `NotImplementedError`; the reward is whatever the underlying step produced).
+  - **MLPro, PettingZoo route — IMPOSSIBLE, do not spend time on it.** `WrEnvPZOO2MLPro` resolves the
+    env class by name lookup inside a hardcoded `C_SUPPORTED_MODULES` list (`pettingzoo.classic` /
+    `butterfly` / `atari` / `mpe` / `sisl`). Anything outside the PettingZoo distribution is rejected
+    however well it conforms. No wrapper on our side can satisfy it.
+  - **MLPro's declared deps are incomplete**: the bridge packages do not import until `dill` and
+    `multiprocess` are installed by hand.
+  - **Generalizable lesson, now in the paper**: conformance to a standard interface predicts a
+    consumer will *accept* an env, not that it will *run* it, because consumers add requirements the
+    standard never mentions. And a bridge that resolves envs by name against a fixed list is an
+    integration with specific environments, not with an interface.
 - **`metrics/equilibrium.py`** — Nash equilibrium detection for `PublicGoodsGame` via `pygambit`
   (Gambit's Python bindings): builds the 2ⁱ normal-form payoff table from the closed-form payoff
   function and calls `pygambit.nash.enumpure_solve` (any n) / `enummixed_solve` (n=2 exact only —
@@ -814,3 +837,48 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
 - Existing paper sources: `../CONFERENCE PAPER GAMEBRAINS/death/root.tex` (venue submission,
   co-authored), `../CONFERENCE PAPER GAMEBRAINS/arxiv/root.tex` (preprint, single-authored). Fig. 1
   (architecture) is now a TikZ diagram in-source, not the old `gamebrains_architecture.png`.
+
+## 9f. Reproducibility and interop hardening (2026-08-12, for the SPE submission)
+
+Driven by revising `../SPE GAMEBRAINS/root.tex` for submission. See that folder's
+`REVISION-NOTES.md` for the paper-side decisions; this section records only what changed in code.
+
+**Seven new files, no tracked file's behaviour changed.**
+
+- **`interop/wrappers.py`** — `OneHotObs` and `register_gym_env`, the two shims the downstream
+  ecosystems turned out to need. See the corrected §9c entry above for why each exists. The
+  Discrete observation space stays correct in the adapters; only consumers who need widening pay
+  for it.
+- **`tests/test_interop_sb3.py` / `_rllib.py` / `_mlpro.py`** — the three downstream integrations,
+  tested rather than asserted. Every module SKIPs with exit 0 and a clear install hint when its
+  optional library is absent, so the default suite still runs on a machine without ray/sb3/mlpro
+  (verified by blocking the imports via a `sys.meta_path` hook).
+  - **Two of these tests assert a FAILURE on purpose**, which is unusual enough to flag:
+    `test_raw_discrete_obs_is_refused` and `test_bare_gymnasium_env_is_refused`. They pin down *why*
+    the two shims exist. If a future Ray or MLPro release relaxes its requirement, those tests fail,
+    and that failure is the signal to simplify both `wrappers.py` and the paper's interoperability
+    section. Do not "fix" them by deleting the assertion.
+- **`tests/run_all.py`** — runs every `test_*.py` via `runpy` so there is one definition of what a
+  module's tests are. `--skip-slow` omits the two genuinely slow modules. **The `SLOW` set is
+  measured, not guessed**: a first version listed `test_pyphi_fork` (0.44s) and `test_evolution`
+  (0.20s) while omitting `test_markov_brain` (15.7s), which made the flag nearly useless. Re-measure
+  from the runner's own per-module timings before editing it. Current: 20/20 in ~37s, or 18/18 in
+  ~12s with the flag.
+- **`experiments/run_multiseed.py`** — the paper's two headline experiments over N seeds with 95%
+  intervals. Regenerates Table 4 and Appendix C. Takes `--seeds` and `--lengths` so the trend can be
+  confirmed cheaply before the full 30-seed, five-length run.
+- **`experiments/run_bakeoff.py`** — train each architecture separately, freeze all, play one match.
+  Regenerates Appendix E. The `Frozen` wrapper duplicates the webui's own bake-off construction
+  rather than importing from `webui/`, since `experiments/` must not depend on the web layer.
+
+**Why these last two exist at all, and the lesson.** The paper's tables had been generated by
+throwaway scratchpad scripts, so nothing in the repository reproduced them, while the paper's own
+appendix listed commands (`tests.run_all`, `experiments.run_congestion`) that **did not exist**.
+A paper claiming reproducibility has to be checkable from the repository alone. When a paper table is
+produced, the producing script belongs in `experiments/` in the same commit.
+
+**Findings about third-party code, recorded so nobody re-derives them:** RLlib refuses `Discrete`
+observations outright; MLPro needs a Gymnasium registry entry rather than mere conformance, its
+`compute_reward()` takes no arguments, its PettingZoo bridge is closed to third-party envs by
+construction, and its bridge packages do not import until `dill` and `multiprocess` are added by
+hand. All four are asserted in tests, not just written down here.

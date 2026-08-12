@@ -79,6 +79,15 @@ class DQNAgent(Agent):
         self.rng = np.random.default_rng(seed)
         self._gen = torch.Generator(device="cpu").manual_seed(seed)
         torch.manual_seed(seed)
+        #: Replay sampling has its OWN seeded generator, and this line is load-bearing. It used to
+        #: call the `random` module's global functions, which are seeded from the interpreter and not
+        #: from us, so two matches with identical agent seeds diverged and the same match changed when
+        #: unrelated code touched the global RNG. Measured before the fix: 119 of 600 rounds differed
+        #: between two identically-seeded runs once exploration had decayed, and 45 of 600 changed in
+        #: response to the global seed alone. That silently falsified the platform's byte-identical
+        #: event-log property for any roster containing a DQN, and with it the repository's premise
+        #: that one configuration hash implies one result. Do not replace this with `random.sample`.
+        self._replay_rng = random.Random(seed)
 
         self.policy = _MLP(n_states, n_actions, hidden).to(self.device)
         self.target = _MLP(n_states, n_actions, hidden).to(self.device)
@@ -132,7 +141,7 @@ class DQNAgent(Agent):
             self.target.load_state_dict(self.policy.state_dict())
 
     def _train_step(self) -> None:
-        batch = random.sample(self.buffer, self.batch_size)
+        batch = self._replay_rng.sample(self.buffer, self.batch_size)
         s, a, r, s2, d = zip(*batch)
         s = torch.from_numpy(np.stack(s)).to(self.device)
         s2 = torch.from_numpy(np.stack(s2)).to(self.device)

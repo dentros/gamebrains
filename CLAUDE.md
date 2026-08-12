@@ -943,3 +943,46 @@ argument is that a platform whose games all share a convention cannot discover t
 doing the work. The same applies to its documentation: a claim no test checks will drift. The
 architecture figure is now generated from the parsed import graph, and the two shims are pinned by
 tests that assert the failure they exist to prevent.
+
+## 9h. DQN broke reproducibility, and no test used DQN (2026-08-13)
+
+Found while replacing a wall-clock benchmark with deterministic call counts: the DQN call count varied
+between runs when every other architecture's was identical to the integer. Chasing that variance
+found a real defect.
+
+**⚠️ `agents/dqn.py` drew replay batches from the `random` module's globals.** One line,
+`random.sample(self.buffer, ...)`, against a constructor that seeds everything else per agent
+(`np.random.default_rng(seed)`, a `torch.Generator`, `torch.manual_seed`) and a comment three lines
+above claiming exactly that. The global generator is seeded by the interpreter, not by us.
+  - **Measured, not inferred.** With exploration decayed so actions depend on the network
+    (`epsilon=0.05, epsilon_min=0.0, epsilon_decay=0.99`), two matches with identical agent seeds and
+    identical run seed diverged in **119 of 600 rounds**, and reseeding only the global RNG changed
+    **45 of 600**. This falsified the platform's byte-identical-event-log property for any roster with
+    a DQN in it, and with it the repository's premise that one `config_hash` implies one result.
+  - **⚠️ A weak test will report this as fine.** At the default epsilon schedule (1.0 decaying at
+    0.9995) roughly 80% of actions come from the agent's own seeded generator, so a 400-round default
+    match compares as identical and the bug hides. The first check I ran did exactly that and returned
+    True. Always test determinism in the near-greedy regime.
+  - Fixed with `self._replay_rng = random.Random(seed)`. Do not put `random.sample` back; the
+    constructor now carries a comment saying why.
+  - **Root cause of survival: `tests/` contained no DQN test at all.** The determinism assertions
+    covered the tabular and evolutionary paths, i.e. everywhere the property already held. New
+    `tests/test_dqn.py` (5 cases) guards determinism, global-RNG immunity, that different seeds still
+    differ (so the guard cannot be satisfied by freezing the agent), training, and payload shapes.
+
+**This is the third instance of one meta-pattern, and it is now the paper's own thesis.** All three
+were true statements about the design and false statements about the code, and none was caught by
+running the tests, only by asking whether a claim was checked at all:
+  1. §9g: FEP never migrated to the declaration mechanism (no test paired FEP with congestion).
+  2. §9g: `engine/evolution.py` imported `agents` (no test checked the layering).
+  3. Here: DQN broke determinism (no test used DQN).
+
+**Benchmarking lesson, also new (`experiments/run_benchmark.py`).** Wall-clock on a contended laptop
+is useless at this effect size: the same native operation measured 56% apart in two sections of one
+run, and apparent adapter overhead swung +30% to -2% with run length because a torch-heavy section
+leaves the CPU in another thermal state. The script now reports **deterministic counts** instead:
+`cProfile.total_calls` (reproducible to the integer), `tracemalloc` peak, and exact table arithmetic.
+Results: 369x spread between classic and DQN per agent-step, adapters cost +5.3 and +6.4 calls/round
+(+12%/+14%), metric suite is 2.6% of match calls and paid after. Also: an early version drove the
+adapters with random external actions and showed them 50% *faster* than native, because that version
+had **no agents inside the adapter path** and compared four Q-updates against none.

@@ -35,12 +35,74 @@ from pyphi.convert import state_by_node2state_by_state, to_multidimensional
 from pyphi.tpm import condition_tpm
 from scipy.stats import entropy as _entropy
 
+from ..engine import procguard
+
 pyphi.config.PROGRESS_BARS = False
-# NOTE: we deliberately do NOT force PARALLEL_CUT_EVALUATION off here (PyPhi's own default is
-# True, and it is "the most beneficial for most networks" per PyPhi's own config docs). Disable it
-# only in throwaway `python -c "..."` one-liners, where Windows' spawn-based multiprocessing needs
-# a real importable __main__ module and hangs otherwise -- this module is always imported from a
-# real script/module (experiments/run_evolution.py, tests/*), where parallelism is safe and fast.
+
+
+#: Below this many nodes, spawning workers costs more than the work they do, so $\Phi$ is computed
+#: serially even where spawning is perfectly safe. Measured on this project's own animats, medians
+#: of three repetitions, $\Phi$ identical to six decimal places in every condition. Two independent
+#: sweeps on the same machine:
+#:
+#:                 serial          parallel        verdict
+#:     6 nodes     4.57s / 3.79s   15.87s / 28.35s serial wins, by 3.5x and by 7.5x
+#:     7 nodes     85.12s / 84.56s 46.33s / 76.30s parallel wins, by 1.8x and by 1.1x
+#:
+#: Read those two columns as one finding and one caveat. The finding is that below the crossover
+#: serial is decisively faster, in the same direction by a large margin both times. The caveat is
+#: that at the crossover itself the margin (1.8x, then 1.1x) is inside this machine's known
+#: wall-clock noise, so 7 is where the sign flips rather than where a reliable gain begins.
+#:
+#: The shapes explain it: worker start-up on Windows is a fixed cost of seconds paid per cut, while
+#: cut evaluation grows with the state space. Re-measure before changing this -- it is a property
+#: of the machine as much as of the code, and `experiments/run_phi_scaling.py` regenerates the
+#: table. Anyone porting small-animat IIT work to a spawn-based platform should expect a crossover
+#: of their own rather than inheriting this number.
+PARALLEL_MIN_NODES = 7
+
+_parallelism_settled: int | None = None
+
+
+def _settle_parallelism(n_nodes: int) -> None:
+    """Decide whether to use PyPhi's parallel cut evaluation, by trying it rather than assuming.
+
+    PyPhi's own default is True and it is worth having: parallel cut evaluation is most of the
+    difference between a $\\Phi$ computation taking seconds and one taking minutes. But its workers
+    are spawned, and spawning fails in contexts this project met for real, where the failure is not
+    a clean exception but leaked processes and an eventual MemoryError from the LP solver.
+
+    Both of the project's earlier answers were guesses in opposite directions, and each was wrong
+    somewhere: forcing parallelism off cost it everywhere it was fine, leaving it on leaked
+    processes where it was not. `engine.procguard` decides by starting one worker and waiting for
+    it.
+
+    **Called at computation time, never at import time, and that distinction is not cosmetic.** A
+    spawned child re-imports the parent's `__main__`, so a probe reachable from any module body
+    runs again inside the child and tries to spawn during its bootstrap, which raises. The first
+    version of this code probed at import and reproduced that failure exactly. Deferring the
+    decision to the first $\\Phi$ computation means the probe only ever runs somewhere a process
+    can legitimately be started.
+
+    Two independent questions, and conflating them is what made both earlier answers wrong. *Can*
+    we spawn here is about the environment, and `procguard` probes it. *Should* we is about the
+    workload, and below `PARALLEL_MIN_NODES` the answer is no even in a perfectly healthy process,
+    because worker start-up costs more than the cuts save. The project previously had no answer to
+    the second question at all, and paid up to 3.5x for it on its smallest animats.
+    """
+    global _parallelism_settled
+    if _parallelism_settled == n_nodes:
+        return
+    _parallelism_settled = n_nodes
+
+    big_enough = n_nodes >= PARALLEL_MIN_NODES
+    ok = big_enough and procguard.spawn_is_safe()
+    pyphi.config.PARALLEL_CUT_EVALUATION = ok
+    if not ok:
+        why = (f"{n_nodes} nodes is below the {PARALLEL_MIN_NODES}-node threshold where workers "
+               f"start paying for themselves" if not big_enough
+               else procguard.spawn_verdict_reason())
+        print(f"[phi] computing serially: {why}. The value is identical either way.")
 
 
 def compute_phi(agent) -> dict:
@@ -57,6 +119,7 @@ def compute_phi(agent) -> dict:
     practicality; see FORK_NOTES.md-style honesty here in the docstring rather than silently
     hiding the shortcut.
     """
+    _settle_parallelism(agent.n_nodes)
     tpm = agent.full_tpm()
     state = tuple(int(x) for x in agent.state)
     hm_idx = tuple(range(agent.n_sensor, agent.n_nodes))

@@ -31,6 +31,7 @@ from pettingzoo.utils.env import ParallelEnv
 
 from ..engine.agent import Agent
 from ..engine.game import Game
+from ..engine.semantics import bind_agents
 
 
 class GameBrainsParallelEnv(ParallelEnv):
@@ -75,10 +76,11 @@ class GameBrainsParallelEnv(ParallelEnv):
         self, seed: Optional[int] = None, options: Optional[dict] = None
     ) -> tuple[dict[str, int], dict[str, dict]]:
         # Background agents are driven directly here rather than through engine.runner, so this
-        # adapter owes them the same match-start binding the runner gives: without it a
-        # role-defined strategy has no action to play.
-        for agent in self._background.values():
-            agent.on_match_start(self.game)
+        # adapter owes them the same match-start binding the runner gives, and the same
+        # refusal when an agent has not resolved itself. Going through `bind_agents` rather
+        # than calling the hook directly is what keeps the guarantee from depending on which
+        # entry point a caller happened to use.
+        bind_agents(self.game, list(self._background.values()))
 
         obs_list = self.game.reset()
         self.agents = list(self.possible_agents)

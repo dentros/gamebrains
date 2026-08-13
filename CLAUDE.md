@@ -986,3 +986,140 @@ Results: 369x spread between classic and DQN per agent-step, adapters cost +5.3 
 (+12%/+14%), metric suite is 2.6% of match calls and paid after. Also: an early version drove the
 adapters with random external actions and showed them 50% *faster* than native, because that version
 had **no agents inside the adapter path** and compared four Q-updates against none.
+
+## 9i. Hardening round: enforcement, two corrections, and a measured threshold (2026-08-13)
+
+Driven by a fourth hostile review of the SPE manuscript. Most of that review restated our own
+Limitations section back at us, but four items were real work, and two of them **corrected claims
+this project had been making about itself**. Both corrections came from *running* something we had
+previously only *read*, which is the same lesson as sections 9g and 9h and is now the fourth and
+fifth instance of it.
+
+### The declaration mechanism is enforced now, not advised (`engine/semantics.py`, new)
+
+Section 3 introduced `action_roles`/`observation_kind` and section 9g fixed the one agent that had
+been left behind. What neither did was make the mechanism *binding*: `runner.run_match` called
+`on_match_start` and accepted whatever came back, so an agent that ignored the game entirely played
+on. The paper's own text argued for the distinction ("a checked convention catches a lapse after it
+is written, an enforced contract prevents it") and the code implemented the weaker half.
+
+- **`Agent.semantics` is now required, with no default.** `"index-agnostic"` (qlearning, dqn,
+  markov_brain: they learn over indices without interpreting them) or `"role-bound"` (classic, fep:
+  behaviour depends on meaning, so they must resolve it). Leaving it unset is refused.
+- **`engine/semantics.bind_agents(game, agents)` replaces every bare `on_match_start` loop**, in
+  the runner, the PettingZoo adapter, the benchmark harness and both bake-off wrappers. A guarantee
+  that depends on which entry point a caller used is not a guarantee.
+- **How the check has teeth:** `Game._semantic_queries` increments in `action_for` and
+  `require_observation_kind`, so reading it either side of one agent's hook says whether *that*
+  agent resolved itself against *this* game. A `role-bound` agent that asked nothing is refused
+  before the first round, not after ten thousand.
+- **Wrappers must inherit the declaration, never restate one.** `webui._Frozen` and
+  `run_bakeoff.Frozen` copy `agent.semantics`; answering for themselves would launder a role-bound
+  agent through as index-agnostic.
+- **What this does not guarantee, stated in the module docstring and worth keeping honest:** an
+  agent declaring `index-agnostic` while hardcoding an index still gets through. Nothing short of
+  analysing its arithmetic could catch that. What the declaration buys is that the claim is now
+  explicit and attributable -- skipping it is impossible, getting it wrong is a statement someone
+  made rather than a step someone forgot.
+- Tests: `tests/test_semantics.py` (7 cases), every one asserting a refusal, plus the two that
+  guard against a checker satisfiable by refusing everything.
+
+### CORRECTION: MLPro's PettingZoo route is NOT impossible (`interop/wrappers.py`)
+
+Section 9c said "IMPOSSIBLE, do not spend time on it" and `tests/test_interop_mlpro.py` asserted
+it. **That was wrong, and it was wrong because it was derived from reading `WrEnvPZOO2MLPro`
+rather than trying it.** Two obstacles, both surmountable with mechanisms the two libraries already
+ship:
+
+  1. The bridge speaks the turn-based AEC API (`_reset` calls `.last()`), not Parallel.
+     PettingZoo's own `parallel_to_aec_wrapper` closes that at no cost -- and this file had already
+     noted that converter existed, under "relevant if/when a sequential-move game is added".
+  2. `C_SUPPORTED_MODULES` is a **class attribute**, so a subclass can replace it, and the lookup
+     only needs `<module>.<metadata['name']>` to resolve to something non-None.
+
+`interop.wrappers.to_mlpro_pettingzoo` composes the two. **Verified by running, not constructing:**
+MLPro drives 120 steps and the background Q-learners really learn (updates rise, epsilon decays,
+Q-table non-zero). The interoperability table is now **5/5 ecosystems working** rather than 4/5
+with one impossible.
+
+Detail worth knowing before relying on it: MLPro's resolution loop `break`s after its first entry
+whether or not that entry resolved anything, so only the first module in the list is ever
+consulted. Ours is therefore the only element of the subclass's list.
+
+The generalizable lesson survives the correction and is arguably better for it: a bridge resolving
+environments by name against a fixed list is an integration with specific environments rather than
+with an interface. What changed is that being outside the list is an obstacle, not a wall, and
+reading the source cannot tell those apart.
+
+`to_rllib` and `to_mlpro_gym` were added alongside it so all five routes have one call each and a
+caller never has to rediscover the shim.
+
+### CORRECTION: parallel PyPhi is a net LOSS below 7 nodes (`metrics/phi_autonomy.py`)
+
+Section 9d reports the 85x speedup as coming from the domain restriction *plus* re-enabling
+`PARALLEL_CUT_EVALUATION`, and the paper calls the latter a smaller positive contribution.
+Measured, medians of three, phi identical to six decimals in every condition, two independent
+sweeps:
+
+      6 nodes   serial 4.57s / 3.79s    parallel 15.87s / 28.35s   serial wins 3.5x and 7.5x
+      7 nodes   serial 85.12s / 84.56s  parallel 46.33s / 76.30s   parallel wins 1.8x and 1.1x
+
+So at the size the 85x benchmark actually used, parallelism was a **loss**, and the whole reduction
+came from the domain restriction. Read the two columns as one finding and one caveat: below the
+crossover serial wins decisively and in the same direction both times, while at the crossover the
+margin is inside this machine's known wall-clock noise. `PARALLEL_MIN_NODES = 7` encodes it;
+`experiments/run_phi_scaling.py` regenerates the table. **The paper's section 10.3 needs updating.**
+
+### The Windows process leak, fixed at the source (`engine/procguard.py`, new)
+
+The old answer was avoidance: `use_reloader=False` in the webui, and before that a repo-wide
+force-disable of parallelism. Both were guesses, in opposite directions, and each was wrong
+somewhere.
+
+- `pin_interpreter()` points multiprocessing at `sys.executable` explicitly.
+- `spawn_is_safe()` **starts one real worker and waits for it**, cached per process. A child that
+  never answers is terminated, so a negative probe cannot itself leave the orphan it checked for.
+- `reap_orphans()` at `atexit`, so an interrupted computation leaves nothing holding memory.
+- The webui reloader is **on again** (`GAMEBRAINS_RELOAD=0` to disable).
+
+**⚠️ The probe must be lazy, and this bit us during implementation.** A first version probed at
+module import; a spawned child re-imports the parent's `__main__`, re-imported `phi_autonomy`, and
+tried to spawn during its own bootstrap -- reproducing exactly the failure class it was written to
+detect. `_settle_parallelism` now runs at computation time, and `spawn_is_safe` returns False
+immediately when `multiprocessing.parent_process()` is not None. Do not move it back to import.
+
+Note also that the recorded belief in 9d that `python -c` one-liners hang was **not reproduced**:
+the probe passes there, because spawn only re-imports `__main__` when it has a file path to import.
+
+### The Smart Filter's similarity lookup was returning purely on round count
+
+Documented as a limitation since it was written ("rounds dominates in practice"). Measured for the
+first time here, on **24 real recorded matches**, not synthetic vectors, over a grid where design
+and scale vary independently:
+
+      unweighted raw (old)          same design   0.0%   same length, different design 100.0%
+      standardised weighted (new)   same design  40.0%   same length, different design  20.0%
+
+Zero. Not degraded -- *inverted*: every one of 120 retrieved neighbours matched on length and none
+on design. 40% is the **ceiling** for this grid (each design exists at three round counts, so a
+top-5 list can hold at most two siblings), so the new metric retrieves everything attainable.
+
+The fix is two changes addressing different halves: standardise each dimension against the ledger's
+own spread (so units stop deciding relevance, and the filter adapts as a repository fills), and
+weight design fields above scale (because same-design-different-length is already modelled better
+by `extends` than any distance could). `FEATURE_WEIGHTS` is a visible constant on purpose -- it
+encodes a judgement about what makes two experiments alike, and that should be arguable rather than
+buried in a norm. Zero-spread dimensions are **dropped**, not divided by an epsilon, which would
+turn floating-point noise in a constant column into the dominant term.
+
+`experiments/run_smart_filter_eval.py` regenerates both phases. **Phase 1 uses real runs
+deliberately** (the user's call, and correct: fabricated vectors would assume the very thing being
+tested, and are an attack surface for a reviewer); phase 2 uses synthetic records at 10^3-10^5
+purely for lookup cost, which is a property of the arithmetic. Cost is linear, ~2-4 us per record;
+a ledger large enough for that to matter needs an index, which is a separate future-work item and
+not a distance-metric question. Tests: `tests/test_smart_filter.py` gained 4 cases.
+
+### Suite
+
+22/22 modules green throughout. Platform LOC is now ~10,366 including tests, so **the paper's
+Appendix G table is stale and must be regenerated.**

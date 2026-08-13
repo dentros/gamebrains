@@ -45,6 +45,7 @@ from ..agents.fep import FEPAgent
 from ..agents.markov_brain import MarkovBrainAgent
 from ..agents.qlearning import QLearningAgent
 from ..engine.runner import run_match
+from ..engine.semantics import bind_agents
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import social
 
@@ -122,7 +123,7 @@ def bench_adapters(rounds: int) -> dict:
         agents = _roster("qlearning", game)
         env = GameBrainsParallelEnv(game, [None] + agents[1:], controlled_agent_ids=[0])
         mine = agents[0]
-        mine.on_match_start(game)
+        bind_agents(game, [mine])
         obs, _ = env.reset(seed=0)
         aid = "agent_0"
         for _ in range(rounds):
@@ -138,7 +139,7 @@ def bench_adapters(rounds: int) -> dict:
         agents = _roster("qlearning", game)
         env = GameBrainsGymEnv(game, [None] + agents[1:], controlled_agent_id=0)
         mine = agents[0]
-        mine.on_match_start(game)
+        bind_agents(game, [mine])
         obs, _ = env.reset(seed=0)
         for _ in range(rounds):
             prev = obs

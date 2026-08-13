@@ -36,6 +36,10 @@ from ..engine.agent import Agent
 class _Classic(Agent):
     kind = "classic"
     training_mode = "fixed"
+    # Every strategy here is defined by meaning ("always give way"), never by number,
+    # so each one resolves its role against the game before play. This is the family
+    # the original defect lived in.
+    semantics = "role-bound"
     strategy = "classic"
     rule = ""
 

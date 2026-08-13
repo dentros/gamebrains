@@ -21,6 +21,10 @@ from ..engine.agent import Agent
 class QLearningAgent(Agent):
     kind = "qlearning"
     training_mode = "online"
+    # A Q-table is indexed by action, and the agent never asks what an index stands for:
+    # it learns whichever column pays. Reversing a game's action meanings would change
+    # what it learns, not whether it is correct.
+    semantics = "index-agnostic"
 
     def __init__(
         self,

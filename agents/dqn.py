@@ -42,6 +42,9 @@ class _MLP(nn.Module):
 class DQNAgent(Agent):
     kind = "dqn"
     training_mode = "online"
+    # Same as the tabular learner: the network's output head is indexed by action and
+    # carries no interpretation of what the index means.
+    semantics = "index-agnostic"
 
     def __init__(
         self,

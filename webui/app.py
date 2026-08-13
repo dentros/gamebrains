@@ -21,6 +21,7 @@ import base64
 import contextlib
 import csv
 import io
+import os
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -36,6 +37,7 @@ from ..engine.agent import Agent
 from ..engine.console import LiveConsole
 from ..engine.eventlog import EventLog
 from ..engine.evolution import EvolutionConfig, evolve
+from ..engine import procguard
 from ..engine.runner import run_match
 from ..games.congestion import from_preset as congestion_from_preset
 from ..games.public_goods import PublicGoodsGame
@@ -163,6 +165,10 @@ class _Frozen(Agent):
         self._agent = agent
         self.name = name
         self.kind = agent.kind
+        # Inherit the wrapped agent's declaration rather than restating one. A wrapper that
+        # answered for itself would let a frozen role-bound strategy through as index-agnostic,
+        # which is exactly the hole the declaration exists to close.
+        self.semantics = agent.semantics
 
     def act(self, observation: int) -> int:
         old_eps = getattr(self._agent, "epsilon", None)
@@ -1644,9 +1650,17 @@ def spacemap():
 
 
 if __name__ == "__main__":
-    # debug/reloader off on purpose: Werkzeug's reloader re-execs this module in a second
-    # process, and on Windows that confused PyPhi's spawn-based multiprocessing pool (used by
-    # compute_phi's parallel cut evaluation) into leaking worker processes -- observed directly
-    # as a MemoryError from the LP solver plus several orphaned "--multiprocessing-fork" python
-    # processes after a request that had "compute_phi" checked. A single plain process avoids it.
-    app.run(debug=False, use_reloader=False)
+    # The reloader is available again. It used to be off because Werkzeug re-execs this module in
+    # a second process, and PyPhi's spawn-based workers leaked across that boundary: orphaned
+    # "--multiprocessing-fork" processes plus a MemoryError from the LP solver on any request with
+    # "compute_phi" checked. That was avoidance, not a fix, and it cost automatic reloading during
+    # development for as long as nobody switched it back on.
+    #
+    # `engine.procguard` fixes it at the source instead. It pins the interpreter children are
+    # spawned from, probes once whether spawning actually works in this process, and reaps any
+    # workers still alive at exit. If the probe fails -- which is what happens inside a re-executed
+    # process whose interpreter cannot host a worker -- Phi is computed serially and says so,
+    # rather than leaking. Set GAMEBRAINS_RELOAD=0 to go back to a single process.
+    procguard.pin_interpreter()
+    reload = os.environ.get("GAMEBRAINS_RELOAD", "1") != "0"
+    app.run(debug=reload, use_reloader=reload)

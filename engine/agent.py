@@ -28,6 +28,20 @@ class Agent(ABC):
     #: "fixed" -> never changes within/across matches (classic strategies, a frozen genome);
     #: "evolutionary" -> fixed within a match, evolved between matches by engine/evolution.py.
     training_mode: str = "fixed"
+    #: How this agent relates to what the action indices *mean*. There is no default, because the
+    #: whole point is that the author states it rather than inherits it:
+    #:
+    #:   "index-agnostic"  learns or acts over indices without assigning them meaning, so any
+    #:                     game is safe (tabular Q-learning, a DQN, an evolved animat)
+    #:   "role-bound"      its behaviour depends on what the indices mean, so it MUST resolve
+    #:                     them against the game in `on_match_start`, via `game.action_for` or
+    #:                     `game.require_observation_kind`
+    #:
+    #: `engine.semantics.bind_agents` refuses an agent that leaves this unset, and refuses a
+    #: "role-bound" agent that never actually asked. That is the difference between a documented
+    #: convention and an enforced contract: a convention catches the lapse when someone rereads
+    #: the code, a contract catches it before the first round is played.
+    semantics: str | None = None
 
     @abstractmethod
     def act(self, observation: int) -> int:

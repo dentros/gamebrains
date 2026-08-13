@@ -38,6 +38,7 @@ from .console import LiveConsole
 from .eventlog import EventLog
 from .game import Game
 from .registry import describe_registry
+from .semantics import bind_agents
 
 
 def run_match(
@@ -77,9 +78,10 @@ def run_match(
 
     # Before anything is played: let every agent resolve itself against this specific game, and
     # refuse the pairing now if it cannot. A strategy that means "always give way" has to look up
-    # which action that is here, since the index differs per game.
-    for a in agents:
-        a.on_match_start(game)
+    # which action that is here, since the index differs per game. `bind_agents` also refuses an
+    # agent that skips the resolution entirely, which is what turns the declaration from a
+    # convention into a contract -- see engine/semantics.py.
+    bind_agents(game, agents)
 
     episodes: list[dict[str, Any]] = []
     ep_rewards = np.zeros(n, dtype=float)

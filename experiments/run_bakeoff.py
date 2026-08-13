@@ -59,6 +59,8 @@ class Frozen(Agent):
         self._agent = agent
         self.name = name
         self.kind = agent.kind
+        # Inherited, not restated -- see the same note on the webui's wrapper.
+        self.semantics = agent.semantics
 
     def act(self, observation: int) -> int:
         saved = getattr(self._agent, "epsilon", None)

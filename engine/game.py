@@ -112,12 +112,21 @@ class Game(ABC):
     #: role-aware agents will decline this game rather than guess.
     action_roles: dict[str, int] = {}
 
+    #: How many times an agent has asked this game what its numbers mean. Bookkeeping only, and
+    #: it exists for one reason: `engine.semantics.bind_agents` reads it before and after each
+    #: agent's binding hook to verify that an agent declaring itself meaning-dependent actually
+    #: asked. Without it the declaration mechanism is advice, and advice is what let a
+    #: cooperative-labelled agent play the aggressive move for a fortnight. Class-level default,
+    #: so a game that never overrides it still reads 0 and the first increment makes it per-instance.
+    _semantic_queries: int = 0
+
     def action_for(self, role: str) -> int:
         """This game's action index for a semantic role, or a refusal that says what it does have.
 
         Agents call this instead of hardcoding an index, so the same strategy means the right
         thing in every game that declares the role, and visibly fails in games that do not.
         """
+        self._semantic_queries += 1
         try:
             return self.action_roles[role]
         except KeyError:
@@ -135,6 +144,7 @@ class Game(ABC):
         reading `concede_count` semantics out of an `opaque` index is how a strategy ends up
         confidently acting on a number that means something else entirely.
         """
+        self._semantic_queries += 1
         if self.observation_kind not in kinds:
             raise ValueError(
                 f"{type(self).__name__} hands out {self.observation_kind!r} observations, but "

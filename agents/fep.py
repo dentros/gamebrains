@@ -58,6 +58,10 @@ def _softmax(x: np.ndarray) -> np.ndarray:
 class FEPAgent(Agent):
     kind = "fep"
     training_mode = "online"
+    # Doubly meaning-dependent: its generative model is over how many others conceded,
+    # so it needs both a readable observation and a resolved concede/claim pair. It is
+    # the agent that was left behind when the mechanism was introduced.
+    semantics = "role-bound"
 
     def __init__(
         self,

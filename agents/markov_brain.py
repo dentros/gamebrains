@@ -34,6 +34,9 @@ def _sigmoid(x: np.ndarray) -> np.ndarray:
 class MarkovBrainAgent(Agent):
     kind = "markov_brain"
     training_mode = "evolutionary"
+    # Motor nodes map to action indices positionally. Selection, not the genome, decides
+    # which index is worth taking, so the animat interprets nothing.
+    semantics = "index-agnostic"
 
     def __init__(
         self,

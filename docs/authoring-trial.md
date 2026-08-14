@@ -7,6 +7,17 @@ You are not being tested. **We are testing the documentation.** If you get stuck
 result we are looking for, and a trial where you give up after forty minutes is more useful to us
 than one where you succeed by guessing. Please do not try to make us look good.
 
+**You will not be named against anything you write here.** If any of this is quoted or reported, it
+appears as "P1", "P2" and so on, described by background rather than by name. We say this now rather
+than only in the consent section at the end, because it is the reason you can afford to write "I
+gave up", "this made no sense to me" or "I copied an existing file because the guide was not
+helping". Those are the sentences that make the exercise worth doing, and a log written by someone
+who feels identifiable does not contain them.
+
+If you would *like* to be credited, there is a separate box for that at the end. Being thanked by
+name and having your log attributed to you are different things, and you can have the first without
+the second.
+
 ---
 
 ## What we ask you to do
@@ -52,6 +63,17 @@ Copy everything below into your reply, or edit this file and send it back.
 | Have you used a multi-agent or RL framework before? Which? | |
 | Have you seen this codebase before today? | |
 | Operating system and Python version | |
+
+**Which hat are you wearing today?** Tick whichever fits; both is a fine answer.
+
+- [ ] **Developer.** You are judging the interface: is the contract clear, do the error messages
+      help, is anything missing that you needed.
+- [ ] **Researcher.** You are judging whether you could do your own work on this: could you add
+      your own measure, set up a comparison you would trust, get results you would publish.
+- [ ] Both.
+
+We ask because the two notice different things and we want to know which lens produced which
+comment, not because one is more welcome than the other.
 
 ## Timings
 
@@ -157,3 +179,31 @@ Keep this section out of what you send participants.
   in general. If that stronger claim is wanted, the design changes: recruitment, a real instrument,
   a pre-registered analysis, and institutional ethics approval. Do not let a small round quietly
   grow into a claim it cannot carry.
+
+### Recruitment, recorded as it happens
+
+Fill this in while recruiting, not afterwards. Whatever the answers are, they go in the paper: a
+disclosed recruitment relationship is a limitation, an undisclosed one is a finding.
+
+| | |
+|---|---|
+| Number approached / number who took part | |
+| How they were found | |
+| Relationship to the authors | |
+| Who collected the completed logs | |
+| Was any participant in a position of dependency on an author? | |
+
+**On dependency, because it is the trap here.** A participant who is an author's student cannot
+freely decline, and cannot freely write that the documentation is bad. Consent forms do not fix
+this; they only record it. In order of preference:
+
+1. Recruit outside any dependent relationship: colleagues, doctoral students from another group,
+   external contacts. This costs nothing extra and removes the problem rather than managing it.
+2. If participants must be students, have someone else collect the logs and pass them on
+   anonymised, or run the trial after any assessment they are involved in has concluded.
+3. Authors recruiting their own students and reading identified logs is the version a reviewer
+   experienced in empirical software engineering will notice and name.
+
+**Mix the roles.** A developer will find ambiguities in the contract and unhelpful error messages.
+A researcher will ask how to add their own measure and how to make a comparison they would trust.
+Those are different failures and one participant type will not surface both.

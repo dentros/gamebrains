@@ -46,6 +46,10 @@ class QLearningAgent(Agent):
         self.alpha = alpha
         self.gamma = gamma
         self.epsilon = epsilon
+        # `epsilon` decays in place, so the schedule's starting point is gone by the end of
+        # a match. metrics/information.suggested_burn_in solves for when exploration stops
+        # changing, and it needs where it started.
+        self.epsilon_start = epsilon
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
         self.rng = np.random.default_rng(seed)

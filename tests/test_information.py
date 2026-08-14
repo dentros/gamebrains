@@ -79,6 +79,15 @@ def test_predictive_information_distinguishes_alternator_from_iid_and_constant()
 
 
 def test_compute_all_shape_and_headline_scalars():
+    """Shape, plus the transfer-entropy guardrail's contract.
+
+    Mutual and predictive information are computed over whatever window they are handed, since
+    neither is a significance test and neither is confounded by a shared training trend. Transfer
+    entropy is, so its headline number is only published when the window can be justified, and
+    without a roster there is no exploration schedule to derive a burn-in from. `None` there is the
+    designed answer rather than a missing value, and `transfer_entropy_bits_status` says so. See
+    tests/test_information_guardrail.py for the null control that motivates it.
+    """
     rng = np.random.default_rng(2)
     rounds = 500
     actions = rng.integers(0, 2, size=(rounds, 3))
@@ -87,11 +96,15 @@ def test_compute_all_shape_and_headline_scalars():
     result = compute_all(records, seed=7, n_surrogates=50)
 
     assert isinstance(result["mutual_information_bits"], float)
-    assert isinstance(result["transfer_entropy_bits"], float)
     assert isinstance(result["predictive_information_bits"], float)
+    assert result["transfer_entropy_bits"] is None
+    assert "no roster supplied" in result["transfer_entropy_bits_status"]
+
     assert len(result["mutual_information_detail"]["bits_by_agent"]) == 3
     assert len(result["predictive_information_detail"]["bits_by_agent"]) == 3
     assert result["transfer_entropy_detail"]["n_pairs"] == 3 * 2  # every ordered pair, i != j
+    # The per-pair detail is always present. Only the aggregate is ever withheld.
+    assert len(result["transfer_entropy_detail"]["by_pair"]) == 3 * 2
 
 
 if __name__ == "__main__":

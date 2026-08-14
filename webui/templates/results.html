@@ -30,7 +30,17 @@
     <h2><svg class="glyph"><use href="#glyph-game"/></svg>Summary</h2>
     <table>
       <tr>{% for key, label in metric_meta %}{% if key in show_metrics %}<th>{{ label }}</th>{% endif %}{% endfor %}</tr>
-      <tr>{% for key, label in metric_meta %}{% if key in show_metrics %}<td>{{ "%.4f"|format(metrics[key]) }}</td>{% endif %}{% endfor %}</tr>
+      {# A metric may decline to report itself -- transfer entropy withholds its aggregate over a
+         window it cannot justify (see metrics/information.py). Show that as a labelled refusal
+         carrying its reason, never as a blank or a zero, which would read as a result. #}
+      <tr>{% for key, label in metric_meta %}{% if key in show_metrics %}<td>
+        {%- set value = metrics[key] -%}
+        {%- if value is none -%}
+          <span class="badge warn" title="{{ metrics.get(key ~ '_status', 'not reported') }}">not reported</span>
+        {%- else -%}
+          {{ "%.4f"|format(value) }}
+        {%- endif -%}
+      </td>{% endif %}{% endfor %}</tr>
     </table>
     {% if epsilon_hints %}
     <p class="meta">

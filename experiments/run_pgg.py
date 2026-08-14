@@ -142,7 +142,9 @@ def main() -> None:
         )
 
     metrics = social.compute_all(records, game.max_welfare_per_round())
-    metrics.update(information.compute_all(records, seed=args.seed))
+    # The roster is what lets the burn-in be derived; without it transfer entropy is computed
+    # over the training transient and correctly declines to report a headline number.
+    metrics.update(information.compute_all(records, seed=args.seed, roster=roster))
     metrics.update(graph.compute_all(records, metrics["transfer_entropy_detail"]))
     print()
     # Show one final brain per interesting kind present (Q-table / network / beliefs).

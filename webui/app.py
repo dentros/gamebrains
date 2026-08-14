@@ -990,7 +990,7 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
     console_log = buf.getvalue()
 
     metrics = social.compute_all(records, game.max_welfare_per_round())
-    metrics.update(information.compute_all(records, seed=seed))
+    metrics.update(information.compute_all(records, seed=seed, roster=roster))
     metrics.update(graph.compute_all(records, metrics["transfer_entropy_detail"]))
 
     # Temporal-fairness measures need a sequence of contests to look at. A single-stage game
@@ -1201,7 +1201,7 @@ def _run_bakeoff(n_agents: int, mpcr, best_genome, pretrain_rounds: int, eval_ro
 
     records = run_match(eval_game, roster, rounds=eval_rounds, seed=seed + 999)
     metrics = social.compute_all(records, eval_game.max_welfare_per_round())
-    metrics.update(information.compute_all(records, seed=seed + 999))
+    metrics.update(information.compute_all(records, seed=seed + 999, roster=roster))
     metrics.update(graph.compute_all(records, metrics["transfer_entropy_detail"]))
     leaderboard = sorted(zip(roster, metrics["cumulative_payoffs"]), key=lambda p: p[1], reverse=True)
     return {
@@ -1590,7 +1590,7 @@ def _run_cell(cell: dict[str, Any]) -> None:
         with EventLog(path=log_path) as log:
             records = run_match(game, roster, rounds=cell["rounds"], seed=seed, eventlog=log)
     metrics = social.compute_all(records, game.max_welfare_per_round())
-    metrics.update(information.compute_all(records, seed=seed))
+    metrics.update(information.compute_all(records, seed=seed, roster=roster))
     metrics.update(graph.compute_all(records, metrics["transfer_entropy_detail"]))
     record_experiment(_REPO_ROOT, game, roster, log_path, rounds=cell["rounds"], seed=seed,
                       metrics=metrics, code_version=DEFAULT_CODE_VERSION,

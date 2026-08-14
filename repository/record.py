@@ -103,10 +103,33 @@ def _feature_vector(game: Game, roster: list[Agent], rounds: int) -> list[float]
     return base + counts
 
 
-def _scalar_metrics_summary(metrics: dict[str, Any]) -> dict[str, float]:
+def _scalar_metrics_summary(metrics: dict[str, Any]) -> dict[str, Any]:
     """Drop non-scalar entries (per-round series, per-agent arrays) -- see docs/
-    repository-schema.md §3: `metrics_summary` is a small cache, not the full record."""
-    return {k: float(v) for k, v in metrics.items() if np.isscalar(v)}
+    repository-schema.md §3: `metrics_summary` is a small cache, not the full record.
+
+    Three kinds survive, and the second two are here for one reason. A metric that declined to
+    report itself (`metrics/information.py` withholds transfer entropy over a non-stationary
+    window) must reach the ledger as an explicit null carrying an explicit reason, because a field
+    that is simply missing is indistinguishable from a bug for anyone reading the record later.
+
+    Note that `np.isscalar` answers True for strings, so the previous one-line version would have
+    raised on the first diagnostic string it met rather than skipping it.
+    """
+    out: dict[str, Any] = {}
+    for key, value in metrics.items():
+        if value is None:
+            out[key] = None                                   # withheld, deliberately
+        elif isinstance(value, str):
+            if len(value) <= 300:                             # a reason, not a payload
+                out[key] = value
+        elif isinstance(value, (bool, np.bool_)):
+            out[key] = bool(value)
+        elif np.isscalar(value):
+            try:
+                out[key] = float(value)
+            except (TypeError, ValueError):
+                pass
+    return out
 
 
 def record_experiment(

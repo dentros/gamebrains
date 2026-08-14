@@ -5,8 +5,11 @@ the metrics, the event log, the repository, the web UI, works from that interfac
 which game it is talking to.
 
 This guide is the contract. If you follow it, every agent anyone has written will play your game
-correctly, or refuse it clearly. If you skip the declaration section, agents will still run, but
-some of them will act on numbers that mean something else in your game, and nothing will warn you.
+correctly, or refuse it clearly. If you skip the declaration section, role-aware agents will refuse
+your game rather than misread it, which is deliberate: a clear failure at setup beats a silent
+misinterpretation that quietly corrupts a whole experiment.
+
+Writing an agent instead? See `adding-an-agent.md`, which is the counterpart to this one.
 
 ## 1. The interface
 

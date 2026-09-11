@@ -1123,3 +1123,68 @@ not a distance-metric question. Tests: `tests/test_smart_filter.py` gained 4 cas
 
 22/22 modules green throughout. Platform LOC is now ~10,366 including tests, so **the paper's
 Appendix G table is stale and must be regenerated.**
+
+## 9j. The transfer-entropy guardrail was rebuilt on its own validation study (2026-09-12)
+
+The companion paper (§5) was submitted to IEEE Access, and its final method **contradicts what this
+platform had implemented from its earlier draft**. Section 9i's guardrail derived a burn-in, cut the
+transient, and refused to publish unless the remaining window passed ADF and KPSS. Measured against
+ground truth over 100 seeds in two games, that ordering is the wrong one. The paper's own closing
+rule: *"Do not begin by cutting the data. Permute the source within blocks of training time... Then
+test the remaining series for stationarity, and treat the result as a diagnostic rather than a
+gate."*
+
+**Why exclusion loses, in the paper's numbers:** it reaches 3.0% in a social dilemma but **11.8% in
+a coordination game**, which is this platform's own congestion family, so it is weakest exactly on
+our headline game. It discards roughly two thirds of every run to get there. Its apparent margin
+below nominal in the social dilemma is the estimator's floor, not a contribution of the procedure.
+Within-block permutation reaches 5.25% and 5.50% in the two games, leaves series, statistic and
+estimand untouched, and is the most sensitive remedy tested (89.0% of injected links detected in
+the coordination game, against 61.0% for conditioning on training time).
+
+**What changed in `metrics/information.py`:**
+
+- `transfer_entropy_pairwise` gained `surrogate=` with **`"blockwise"` as the default**. `"whole"`
+  keeps the unrestricted permutation so the two can be compared on one series. `_blocks` and
+  `_block_segments` are the discretisation; segments are built once per call, not per pair.
+- `compute_all` **no longer gates on stationarity**. It gates on the construction's own
+  precondition, `blockwise_precondition`, because a result produced outside a method's stated
+  precondition is unsupported rather than merely weak. Stationarity is computed and attached as a
+  diagnostic carrying its own reading rule: a null under a failed diagnostic is *inconclusive*,
+  not evidence of independence.
+- `suggested_burn_in` is unchanged and correct. It is off by default.
+
+**⚠️ The first precondition statistic was wrong, and the null control caught it in one run.**
+`within_block_marginal_shift` (the raw difference of two half-block means) against an invented 0.10
+cutoff. At the platform default a block holds 47 rounds, so a half-block is about twenty binary
+samples and that difference is dominated by sampling noise: it reads **0.40 on series the surrogate
+handles at the nominal rate**. That threshold would have refused every default run on this
+platform. `within_block_drift_z` divides by the binomial standard error of the difference, which
+also makes the number comparable across block and run lengths. The raw function is kept for
+reporting, with its own docstring saying what it does not buy.
+
+**`experiments/run_te_surrogate_null.py` (new) sets the threshold by measurement, not by choice.**
+Null control at platform defaults, 200 independent pairs per schedule, agents drawn from separate
+matches so every flag is a false positive by construction:
+
+      epsilon_decay 0.9995 (default)  drift z 3.7 max   whole 15.00%   blockwise  4.50%  nominal
+      epsilon_decay 0.95   (fast)     drift z 5.2 max   whole 44.50%   blockwise 10.50%  fails
+
+`MAX_WITHIN_BLOCK_DRIFT_Z = 4.5` sits between them. **Two calibration points is all that buys**: it
+separates the two schedules measured, it is not a general threshold, and a roster landing near it
+deserves the per-pair detail rather than trust in the constant. The fast schedule also reproduces
+the paper's structure at our scale, the construction degrading exactly where its precondition
+breaks.
+
+**A third cell was reported and should not have been.** `whole+burn_in` printed 100.00% on the
+first run, computed on an **empty** series: the derived burn-in is 7,823 and the run is 1,500, so
+the cut leaves nothing. That is a number naming a property nobody measured, which is the failure
+this whole module exists to stop. It now prints `n/a` with the reason. **The 1,500-round default
+being shorter than its own transient is why the old procedure reported nothing on a default run;
+the new one reports 4.50% on the same runs.**
+
+**Tests:** `test_information_guardrail.py` gained the blockwise-versus-whole comparison on its own
+null control (87.5% against 0.0% on the Public Goods control, the 0.0% being the estimator floor
+the paper describes) and a unit test asserting the standardised statistic separates drift from
+noise where the raw one cannot. `test_information.py`'s `compute_all` case was inverted: a roster
+no longer gates the headline. 23/23 green.

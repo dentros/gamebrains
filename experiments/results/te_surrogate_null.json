@@ -1,0 +1,42 @@
+[
+  {
+    "schedule": "default",
+    "epsilon_decay": 0.9995,
+    "rounds": 1500,
+    "seeds": 20,
+    "pairs_tested": 200,
+    "n_blocks": 32,
+    "rounds_per_block": 46.875,
+    "derived_burn_in": 7823,
+    "trimmed_cell_defined": false,
+    "drift_z_mean": 2.899758638350703,
+    "drift_z_max": 3.7098155589572763,
+    "raw_shift_mean": 0.40425724637681154,
+    "false_positive_rate_percent": {
+      "whole": 15.0,
+      "blockwise": 4.5,
+      "whole+burn_in": null
+    },
+    "nominal_percent": 5.0
+  },
+  {
+    "schedule": "fast",
+    "epsilon_decay": 0.95,
+    "rounds": 1500,
+    "seeds": 20,
+    "pairs_tested": 200,
+    "n_blocks": 32,
+    "rounds_per_block": 46.875,
+    "derived_burn_in": 77,
+    "trimmed_cell_defined": true,
+    "drift_z_mean": 3.4813546109299005,
+    "drift_z_max": 5.174243728690019,
+    "raw_shift_mean": 0.4661231884057971,
+    "false_positive_rate_percent": {
+      "whole": 44.5,
+      "blockwise": 10.5,
+      "whole+burn_in": 6.5
+    },
+    "nominal_percent": 5.0
+  }
+]

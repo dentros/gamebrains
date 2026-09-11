@@ -33,15 +33,21 @@ def _independent_run(seed: int) -> tuple[np.ndarray, list]:
     return run_match(game, roster, rounds=ROUNDS, seed=seed)["actions"], roster
 
 
-def _false_positive_rate(burn_in: int) -> float:
-    """Fraction of provably unconnected pairs the test flags at the given burn-in."""
+def _false_positive_rate(burn_in: int, surrogate: str = "whole") -> float:
+    """Fraction of provably unconnected pairs the test flags, under one construction.
+
+    `surrogate` is explicit and defaults to `"whole"` rather than to the module's own default,
+    because these tests compare constructions against each other. A helper that silently followed
+    the default would make the comparison drift the next time the default moves, and the reader of
+    a passing run would not be told.
+    """
     flagged = total = 0
     for seed in range(SEEDS):
         a, _ = _independent_run(seed)
         b, _ = _independent_run(seed + 500)
         spliced = {"actions": np.column_stack([a[:, 0], b[:, 0]])}
         out = information.transfer_entropy_pairwise(spliced, seed=seed, n_surrogates=200,
-                                                    burn_in=burn_in)
+                                                    burn_in=burn_in, surrogate=surrogate)
         for detail in out["by_pair"].values():
             total += 1
             flagged += detail["p_value"] < information.ALPHA
@@ -121,24 +127,84 @@ def test_the_guardrail_reduces_false_positives_on_a_null_control() -> None:
     print("OK: excluding the training transient substantially reduces false positives")
 
 
+def test_blockwise_beats_the_unrestricted_permutation_on_a_null_control() -> None:
+    """The finding that changed this module's default, reproduced here on its own null control.
+
+    Both constructions see the identical series, so the only difference is how the source is
+    permuted. If this ever stops holding, the default is wrong and not just the number.
+    """
+    whole = _false_positive_rate(burn_in=0, surrogate="whole")
+    blockwise = _false_positive_rate(burn_in=0, surrogate="blockwise")
+
+    print(f"     unrestricted permutation: {whole:.1%}")
+    print(f"     within-block permutation: {blockwise:.1%}")
+    assert whole > 0.5, (
+        f"expected the unrestricted permutation to fail loudly on a null control, got {whole:.1%}")
+    assert blockwise < whole / 2, (
+        f"the blockwise construction must substantially beat the unrestricted one, got "
+        f"{blockwise:.1%} against {whole:.1%}")
+    print("OK: permuting within blocks of training time cuts the false-positive rate")
+
+
+def test_drift_z_separates_a_drifting_series_from_a_steady_one() -> None:
+    """The precondition statistic must answer about drift, not about sampling noise.
+
+    This is the test the first implementation would have failed. That version measured the raw
+    difference of two half-block means, which at this block length reads about 0.4 on a series
+    with no drift at all, purely from twenty-odd binary samples per half.
+    """
+    rng = np.random.default_rng(7)
+    n = 1500
+    steady = (rng.random(n) < 0.5).astype(np.int64)
+    # A marginal sweeping the full range inside every block, which is the failure case.
+    within = np.tile(np.linspace(0.05, 0.95, n // information.N_BLOCKS), information.N_BLOCKS)
+    drifting = (rng.random(len(within)) < within).astype(np.int64)
+
+    z_steady = information.within_block_drift_z(steady)
+    z_drifting = information.within_block_drift_z(drifting)
+    raw_steady = information.within_block_marginal_shift(steady)
+
+    print(f"     steady series: drift {z_steady:.1f} SE, raw shift {raw_steady:.3f}")
+    print(f"     drifting series: drift {z_drifting:.1f} SE")
+    assert raw_steady > 0.15, (
+        "the raw shift is expected to be large even with no drift; if it is not, this block "
+        "length changed and the reason for preferring the standardised statistic needs rechecking")
+    assert z_drifting > z_steady * 1.5, (
+        f"the standardised statistic must separate the two, got {z_drifting:.1f} against "
+        f"{z_steady:.1f}")
+    print("OK: the standardised statistic separates drift from noise where the raw one cannot")
+
+
 def test_the_aggregate_is_withheld_with_a_reason_not_silently() -> None:
-    """The user-facing half of the guardrail: an absent number must never look like a bug."""
+    """The user-facing half of the guardrail: an absent number must never look like a bug.
+
+    What gates it changed. A roster is no longer required for a headline, because the blockwise
+    construction needs no burn-in and therefore needs nothing from the roster. What is required is
+    the construction's own precondition, so that is what this asserts.
+    """
     actions, roster = _independent_run(0)
     records = {"actions": actions, "cooperators": actions.sum(axis=1)}
 
-    no_roster = information.compute_all(records, seed=0, n_surrogates=50)
-    assert no_roster["transfer_entropy_bits"] is None
-    assert "no roster supplied" in no_roster["transfer_entropy_bits_status"]
-
-    with_roster = information.compute_all(records, seed=0, n_surrogates=50, roster=roster)
-    status = with_roster["transfer_entropy_bits_status"]
+    out = information.compute_all(records, seed=0, n_surrogates=50, roster=roster)
+    status = out["transfer_entropy_bits_status"]
     assert status, "a status must always be present, whether or not a number was"
-    if with_roster["transfer_entropy_bits"] is None:
-        assert "stationary" in status or "post-transient" in status, status
+
+    precondition = out["transfer_entropy_detail"]["precondition"]
+    if out["transfer_entropy_bits"] is None:
+        assert not precondition["ok"], "a withheld number must name a failed precondition"
+        assert precondition["reason"] in status
         print(f"OK: aggregate withheld, and says why ({status[:60]}...)")
     else:
-        assert "rounds discarded" in status
-        print(f"OK: aggregate reported, and says on what window ({status[:60]}...)")
+        assert precondition["ok"], "a published number must have passed the precondition"
+        assert "stationarity diagnostic" in status
+        print(f"OK: aggregate reported, with its diagnostic ({status[:60]}...)")
+
+    # Stationarity reports, and never decides.
+    assert "role" in out["transfer_entropy_detail"]["stationarity"]
+    no_roster = information.compute_all(records, seed=0, n_surrogates=50)
+    assert (no_roster["transfer_entropy_bits"] is None) == (out["transfer_entropy_bits"] is None), \
+        "the roster must not decide whether a number is published, only what burn-in would be"
+    print("OK: the roster no longer gates the headline, the precondition does")
 
 
 def test_a_withheld_number_survives_the_ledger_summary() -> None:
@@ -165,7 +231,9 @@ if __name__ == "__main__":
     test_missing_roster_is_reported_not_assumed()
     test_burn_in_longer_than_the_match_is_caught()
     test_stationarity_report_separates_the_three_cases()
+    test_drift_z_separates_a_drifting_series_from_a_steady_one()
     test_the_aggregate_is_withheld_with_a_reason_not_silently()
     test_a_withheld_number_survives_the_ledger_summary()
     test_the_guardrail_reduces_false_positives_on_a_null_control()
+    test_blockwise_beats_the_unrestricted_permutation_on_a_null_control()
     print("\nall transfer-entropy guardrail tests passed")

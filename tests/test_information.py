@@ -83,10 +83,11 @@ def test_compute_all_shape_and_headline_scalars():
 
     Mutual and predictive information are computed over whatever window they are handed, since
     neither is a significance test and neither is confounded by a shared training trend. Transfer
-    entropy is, so its headline number is only published when the window can be justified, and
-    without a roster there is no exploration schedule to derive a burn-in from. `None` there is the
-    designed answer rather than a missing value, and `transfer_entropy_bits_status` says so. See
-    tests/test_information_guardrail.py for the null control that motivates it.
+    entropy is, so its headline number is published only when the surrogate construction's own
+    precondition holds. These series are independent draws with no drift at all, so it holds and a
+    number is published. A roster is not required for that: the blockwise construction needs no
+    burn-in and therefore needs nothing the roster carries. See
+    tests/test_information_guardrail.py for the null control that motivates all of it.
     """
     rng = np.random.default_rng(2)
     rounds = 500
@@ -97,8 +98,11 @@ def test_compute_all_shape_and_headline_scalars():
 
     assert isinstance(result["mutual_information_bits"], float)
     assert isinstance(result["predictive_information_bits"], float)
-    assert result["transfer_entropy_bits"] is None
-    assert "no roster supplied" in result["transfer_entropy_bits_status"]
+    assert isinstance(result["transfer_entropy_bits"], float), (
+        "iid series carry no drift, so the precondition holds and a number is published: "
+        f"{result['transfer_entropy_bits_status']}")
+    assert result["transfer_entropy_detail"]["precondition"]["ok"]
+    assert result["transfer_entropy_detail"]["surrogate"] == "blockwise"
 
     assert len(result["mutual_information_detail"]["bits_by_agent"]) == 3
     assert len(result["predictive_information_detail"]["bits_by_agent"]) == 3

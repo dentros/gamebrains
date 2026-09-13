@@ -2,13 +2,32 @@
 The signed, append-only, hash-linked ledger -- GameBrains's "blockchain-lite" (see package
 docstring in `__init__.py` for what this deliberately is and is not).
 
-Each record is immutable once written. Tamper-evidence comes from two independent mechanisms:
+Each record is immutable once written. Tamper-evidence comes from two mechanisms:
   1. Every record is Ed25519-signed by its contributor's private key (`verify_record`), so its
      content cannot be altered without invalidating the signature.
   2. Every record's `parents` field names the hash of the record before it, so editing *any* past
      record breaks the hash chain from that point forward (`verify_chain`).
 No consensus mechanism is needed on top of this because records are purely additive (new
 experiments), not competing claims -- see the module docstring in `__init__.py`.
+
+## What the two mechanisms do not give you, which took us two tries to state
+
+An earlier version of this docstring called them *independent*. They are not. Mechanism 2 is worth
+nothing once an adversary can produce signatures, because re-signing the edited record and every
+record after it repairs the chain as well: the hash pointers are part of the signed content. The
+chain protects the sequence against someone who cannot sign, and against nobody else.
+
+Two separate things therefore have to hold, and only the first is in this file's control.
+
+**Key custody.** `_load_or_create_identity` writes the private key unencrypted next to the ledger,
+so write access to `ledger.jsonl` implies read access to the key signing it. That is a reasonable
+trade for a local single-user tool and the wrong one the moment a record travels.
+
+**Key distribution.** `verify_record` takes the public key from the `contributor` field of the
+record it is verifying, so used alone it asks only whether a record was signed by whoever it says
+signed it. Anyone can generate an identity in microseconds. Deciding *which* identity should have
+signed a given ledger cannot be answered from inside the file, and `verify_chain` takes
+`expected_contributor` for callers who know the answer from elsewhere.
 """
 
 from __future__ import annotations
@@ -158,17 +177,49 @@ class Ledger:
         except Exception:
             return False
 
-    def verify_chain(self) -> bool:
-        """Every record's signature is valid AND every record correctly names its predecessor."""
+    def verify_chain(self, expected_contributor: Optional[str] = None) -> bool:
+        """Every signature is valid, every record names its predecessor, and one identity signed.
+
+        **Pass `expected_contributor` whenever you have it.** Without it this answers a weaker
+        question than it appears to, and the gap is not subtle. `verify_record` reads the public
+        key out of the record it is checking, from the `contributor` field, so on its own it asks
+        whether a record was signed by whoever the record claims signed it. An adversary who never
+        had our key can generate a fresh one, write its public half into `contributor`, re-sign the
+        edited record and every record after it, and walk out with a ledger that verifies. We
+        demonstrated exactly that before adding this parameter, on a three-record ledger, changing
+        a reported metric from 0.42 to 0.99.
+
+        Three checks now run per record, and what each buys is worth separating:
+
+          1. the signature matches the content under the key the record names
+          2. the record names its predecessor's hash, so nothing was edited, reordered or removed
+          3. the contributor is the same across the whole chain, and equal to
+             `expected_contributor` when one is supplied
+
+        Check 3 without the argument catches a key substituted for *part* of a chain, which is
+        what an adversary editing one old record would otherwise do. It cannot catch a chain
+        rewritten end to end under a new identity, because nothing inside a file can establish
+        which identity ought to have written it. That is a key-distribution problem and it is why
+        federation needs one, not a defect this function can close.
+        """
         records = self.load_all()
         previous_hash: Optional[str] = None
+        contributor = expected_contributor
+
         for record in records:
             if not self.verify_record(record):
                 return False
+
+            if contributor is None:
+                contributor = record.get("contributor")      # first record sets the identity
+            elif record.get("contributor") != contributor:
+                return False
+
             expected_parents = [previous_hash] if previous_hash else []
             if record["parents"] != expected_parents:
                 return False
             previous_hash = _record_hash(record)
+
         return True
 
     # --- Smart Filter's exact-match lookup (the other half lives in metrics/filter later) ---

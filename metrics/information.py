@@ -538,7 +538,7 @@ def transfer_entropy_pairwise(
 
 def compute_all(records: dict[str, np.ndarray], seed: int = 0, n_surrogates: int = 200,
                 roster: list[Any] | None = None, surrogate: str = "blockwise",
-                n_blocks: int = N_BLOCKS) -> dict[str, Any]:
+                n_blocks: int = N_BLOCKS, override_precondition: bool = False) -> dict[str, Any]:
     """Entry point mirroring metrics/social.py's `compute_all`.
 
     The headline scalars are what `_METRIC_META` displays and what a ledger record stores;
@@ -569,6 +569,13 @@ def compute_all(records: dict[str, np.ndarray], seed: int = 0, n_surrogates: int
     One reading rule the companion study is explicit about and this docstring repeats because it
     governs how the output is used: **a null result under a failed stationarity diagnostic is
     inconclusive, not evidence of independence.**
+
+    `override_precondition=True` publishes the aggregate anyway. It exists because a refusal with
+    no sanctioned way past it does not stop anyone, it just moves them somewhere we cannot see:
+    a user who needs the number edits the threshold, forks the module, or copies the estimator
+    into a notebook, and the reason the number was doubtful stays behind. The override keeps that
+    user inside the instrument. It is recorded rather than silent, so the doubt travels with the
+    figure into the ledger and onto the results page instead of being lost at the call site.
     """
     mi = mutual_information_per_agent(records)
     pi = predictive_information_per_agent(records)
@@ -592,13 +599,24 @@ def compute_all(records: dict[str, np.ndarray], seed: int = 0, n_surrogates: int
     te["stationarity"] = stationarity
     te["burn_in_available"] = suggested_burn_in(roster, rounds)[1]
 
-    if not precondition["ok"]:
-        headline, status = None, precondition["reason"]
-    else:
+    overridden = False
+    if precondition["ok"]:
         headline = te["mean_significant_bits"]
-        status = f"{precondition['reason']}; stationarity diagnostic: {stationarity['reason']}"
+        status = f"{precondition['reason']}. Stationarity diagnostic: {stationarity['reason']}"
+    elif override_precondition:
+        overridden = True
+        headline = te["mean_significant_bits"]
+        # Kept short on purpose. `record._scalar_metrics_summary` drops a string over 300
+        # characters, so a longer sentence here would put the number in the ledger with its
+        # reason silently missing, which is worse than withholding it. Pinned by
+        # tests/test_information_guardrail.py, because the length that breaks it is invisible
+        # from this line.
+        status = f"REPORTED UNDER OVERRIDE, precondition not met: {precondition['reason']}"
+    else:
+        headline, status = None, precondition["reason"]
 
     return {
+        "transfer_entropy_precondition_overridden": overridden,
         "mutual_information_bits": mi["mean_bits"],
         "mutual_information_detail": mi,
         "transfer_entropy_bits": headline,

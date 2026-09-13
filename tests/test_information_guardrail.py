@@ -196,7 +196,10 @@ def test_the_aggregate_is_withheld_with_a_reason_not_silently() -> None:
         print(f"OK: aggregate withheld, and says why ({status[:60]}...)")
     else:
         assert precondition["ok"], "a published number must have passed the precondition"
-        assert "stationarity diagnostic" in status
+        # Case-insensitive: the separator before this phrase is punctuation the wording may
+        # change, and an assertion that breaks on capitalisation tests the sentence rather than
+        # the claim that the diagnostic travels with the number.
+        assert "stationarity diagnostic" in status.lower()
         print(f"OK: aggregate reported, with its diagnostic ({status[:60]}...)")
 
     # Stationarity reports, and never decides.
@@ -205,6 +208,49 @@ def test_the_aggregate_is_withheld_with_a_reason_not_silently() -> None:
     assert (no_roster["transfer_entropy_bits"] is None) == (out["transfer_entropy_bits"] is None), \
         "the roster must not decide whether a number is published, only what burn-in would be"
     print("OK: the roster no longer gates the headline, the precondition does")
+
+
+def test_the_override_publishes_the_number_with_its_doubt_attached() -> None:
+    """A refusal with no sanctioned way past it does not stop anyone, it moves them out of sight.
+
+    The override exists so a user who needs the number stays inside the instrument instead of
+    forking the module, and the whole value of it is that the doubt travels with the figure. The
+    length assertion is the point of this test rather than a detail: the first version wrote a
+    380-character status, `_scalar_metrics_summary` drops anything over 300, and the number would
+    have reached the ledger with its reason missing. That is worse than withholding it, and
+    nothing at the call site shows the length.
+    """
+    from ..repository.record import _scalar_metrics_summary
+
+    rng = np.random.default_rng(3)
+    within = np.tile(np.linspace(0.03, 0.97, 1500 // information.N_BLOCKS), information.N_BLOCKS)
+    actions = np.column_stack([(rng.random(len(within)) < within).astype(np.int64)
+                               for _ in range(3)])
+    records = {"actions": actions, "cooperators": actions.sum(axis=1)}
+
+    off = information.compute_all(records, seed=0, n_surrogates=30)
+    assert not off["transfer_entropy_detail"]["precondition"]["ok"], (
+        "this fixture is meant to violate the precondition; if it no longer does, the override "
+        "is being tested on a run that never needed it")
+    assert off["transfer_entropy_bits"] is None
+    assert off["transfer_entropy_precondition_overridden"] is False
+
+    on = information.compute_all(records, seed=0, n_surrogates=30, override_precondition=True)
+    assert isinstance(on["transfer_entropy_bits"], float)
+    assert on["transfer_entropy_precondition_overridden"] is True
+    assert "OVERRIDE" in on["transfer_entropy_bits_status"]
+
+    summary = _scalar_metrics_summary(on)
+    assert summary["transfer_entropy_precondition_overridden"] is True
+    assert "transfer_entropy_bits_status" in summary, (
+        f"the reason did not reach the ledger, so the number arrives looking clean. The status "
+        f"is {len(on['transfer_entropy_bits_status'])} characters and the cap is 300")
+    assert "OVERRIDE" in summary["transfer_entropy_bits_status"]
+
+    # The per-pair detail feeds the influence graph and must not depend on this flag.
+    assert (off["transfer_entropy_detail"]["by_pair"].keys()
+            == on["transfer_entropy_detail"]["by_pair"].keys())
+    print("OK: the override publishes the number and the doubt reaches the ledger with it")
 
 
 def test_a_withheld_number_survives_the_ledger_summary() -> None:
@@ -233,6 +279,7 @@ if __name__ == "__main__":
     test_stationarity_report_separates_the_three_cases()
     test_drift_z_separates_a_drifting_series_from_a_steady_one()
     test_the_aggregate_is_withheld_with_a_reason_not_silently()
+    test_the_override_publishes_the_number_with_its_doubt_attached()
     test_a_withheld_number_survives_the_ledger_summary()
     test_the_guardrail_reduces_false_positives_on_a_null_control()
     test_blockwise_beats_the_unrestricted_permutation_on_a_null_control()

@@ -4,7 +4,7 @@ The Game contract.
 Every game in GameBrains is n-player-native (n >= 2). A game is a *repeated* stage
 game: `reset()` starts a new match, and each `step(actions)` advances one round in which
 all agents move simultaneously. This keeps the engine agnostic to the specific game so
-that the N-player Prisoner's Dilemma (Public Goods), MBoE (Battle of the Exes), and future
+that the N-player Prisoner's Dilemma (Public Goods), the congestion family (Honey-Jar Game), and future
 games all plug into the same loop, metrics, and visualization.
 
 Observations are integers so that tabular agents (Q-learning) can index a Q-table directly;

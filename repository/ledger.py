@@ -25,9 +25,21 @@ trade for a local single-user tool and the wrong one the moment a record travels
 
 **Key distribution.** `verify_record` takes the public key from the `contributor` field of the
 record it is verifying, so used alone it asks only whether a record was signed by whoever it says
-signed it. Anyone can generate an identity in microseconds. Deciding *which* identity should have
-signed a given ledger cannot be answered from inside the file, and `verify_chain` takes
-`expected_contributor` for callers who know the answer from elsewhere.
+signed it. Anyone can generate an identity in microseconds. Deciding *which* identities a reader
+should accept cannot be answered from inside the file, so `verify_chain` takes the set of trusted
+public keys from its caller and defaults to this installation's own.
+
+A set rather than a single key, and this was once got wrong: an earlier version required one
+identity across the whole chain. That is the single-user case, and the repository schema exists
+for the other one, where a second researcher's record extends or replicates the first's. Requiring
+one identity would have refused exactly the exchange the design is for.
+
+**One thing the set does not settle.** If several installations appended to *one* shared chain,
+two could append at once naming the same parent, and the chain would fork. Choosing a branch is
+what a consensus mechanism is for. The claim that no consensus is needed holds for one chain per
+installation, with records referring across chains through lineage, and not for a chain shared by
+several writers. `_detect_lineage` currently reads only the local ledger, so that design choice
+has not been made yet.
 """
 
 from __future__ import annotations
@@ -35,7 +47,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import (
@@ -177,42 +189,48 @@ class Ledger:
         except Exception:
             return False
 
-    def verify_chain(self, expected_contributor: Optional[str] = None) -> bool:
-        """Every signature is valid, every record names its predecessor, and one identity signed.
+    def verify_chain(self, trusted_contributors: Optional[Iterable[str]] = None) -> bool:
+        """Every signature is valid, every signer is trusted, and every record names its predecessor.
 
-        **Pass `expected_contributor` whenever you have it.** Without it this answers a weaker
-        question than it appears to, and the gap is not subtle. `verify_record` reads the public
-        key out of the record it is checking, from the `contributor` field, so on its own it asks
-        whether a record was signed by whoever the record claims signed it. An adversary who never
-        had our key can generate a fresh one, write its public half into `contributor`, re-sign the
-        edited record and every record after it, and walk out with a ledger that verifies. We
-        demonstrated exactly that before adding this parameter, on a three-record ledger, changing
-        a reported metric from 0.42 to 0.99.
+        `verify_record` reads the public key out of the record it is checking, from the
+        `contributor` field, so on its own it asks whether a record was signed by whoever the
+        record claims signed it. Anyone can generate an identity in microseconds, so that question
+        has no useful answer: an adversary who never had our key generates one, writes its public
+        half into `contributor`, re-signs the edited record and every record after it, and the
+        chain verifies. We demonstrated exactly that on a three-record ledger, changing a reported
+        metric from 0.42 to 0.99, before this function compared signers against anything.
 
-        Three checks now run per record, and what each buys is worth separating:
+        Three checks run per record:
 
           1. the signature matches the content under the key the record names
-          2. the record names its predecessor's hash, so nothing was edited, reordered or removed
-          3. the contributor is the same across the whole chain, and equal to
-             `expected_contributor` when one is supplied
+          2. that key is one the caller trusts
+          3. the record names its predecessor's hash, so nothing was edited, reordered or removed
 
-        Check 3 without the argument catches a key substituted for *part* of a chain, which is
-        what an adversary editing one old record would otherwise do. It cannot catch a chain
-        rewritten end to end under a new identity, because nothing inside a file can establish
-        which identity ought to have written it. That is a key-distribution problem and it is why
-        federation needs one, not a defect this function can close.
+        **`trusted_contributors` defaults to this installation's own key**, which is right for the
+        only case the platform currently has: a local ledger verified by the machine that wrote it.
+        A reader of records written elsewhere must pass the set of keys they accept, because which
+        identities to accept cannot be read out of the file being checked. That is the key
+        distribution problem, and it is the reason federation needs it rather than inheriting it.
+
+        **A set, not one identity.** An earlier version of this check required the same contributor
+        across the whole chain. That refuses precisely what the repository schema is for: a second
+        researcher's record extending or replicating the first's. A set admits that case and is
+        also stricter than the single-identity version in the case that matters, since a chain
+        rewritten end to end under a fresh identity passed that check and fails this one.
+
+        What this still does not detect is an edit made with a trusted key. The local key is
+        stored unencrypted beside the ledger, so anyone who can write `ledger.jsonl` can also sign
+        as its owner. That is key custody, and it is stated in the module docstring.
         """
+        trusted = ({self.public_key_hex} if trusted_contributors is None
+                   else set(trusted_contributors))
         records = self.load_all()
         previous_hash: Optional[str] = None
-        contributor = expected_contributor
 
         for record in records:
             if not self.verify_record(record):
                 return False
-
-            if contributor is None:
-                contributor = record.get("contributor")      # first record sets the identity
-            elif record.get("contributor") != contributor:
+            if record.get("contributor") not in trusted:
                 return False
 
             expected_parents = [previous_hash] if previous_hash else []

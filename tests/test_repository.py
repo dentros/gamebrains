@@ -158,57 +158,125 @@ def test_a_resigned_record_is_caught_by_the_parent_link():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def _three_record_ledger(tmp):
+    ledger = Ledger(root_dir=tmp)
+    for i in range(3):
+        ledger.append(
+            game_desc={"name": "public_goods", "n_agents": 4},
+            roster_desc=[{"kind": "qlearning"}], code_version="git:test",
+            rounds=100, master_seed=i, content_cid=f"cid{i}",
+            metrics_summary={"coop_rate": 0.42}, feature_vector=[4],
+        )
+    return ledger
+
+
+def _resign_from(records, start, key):
+    """Re-sign every record from `start` onward under `key`, repairing the parent links."""
+    pub = key.public_key().public_bytes_raw().hex()
+    for i in range(start, len(records)):
+        if i > 0:
+            records[i]["parents"] = [_record_hash(records[i - 1])]
+        records[i]["contributor"] = pub
+        payload = {k: v for k, v in records[i].items() if k != "signature"}
+        records[i]["signature"] = key.sign(canonical_json(payload).encode("utf-8")).hex()
+    return pub
+
+
+def _write(ledger, records):
+    ledger.ledger_path.write_text(
+        "".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
+
+
 def test_a_substituted_identity_is_caught_without_knowing_the_real_one():
     """An adversary who never had the signing key can still produce a chain that verifies.
 
     They generate their own identity, write its public half into `contributor`, and re-sign the
     edited record and everything after it. Every signature is then valid, every parent link is
     correct, and the only thing wrong is who signed. We ran this against the platform before
-    `verify_chain` compared contributors, and it reported True on a ledger whose reported metric
-    had been changed from 0.42 to 0.99.
-
-    Note what the assertion does *not* claim. Requiring one identity across the chain catches a key
-    swapped for part of it. A chain rewritten end to end under a new identity still verifies, and
-    nothing inside a file could decide otherwise, which is why `expected_contributor` exists and
-    why federation needs key distribution.
+    `verify_chain` compared signers against anything, and it reported True on a ledger whose
+    reported metric had been changed from 0.42 to 0.99.
     """
     tmp = tempfile.mkdtemp()
     try:
-        ledger = Ledger(root_dir=tmp)
-        for i in range(3):
-            ledger.append(
-                game_desc={"name": "public_goods", "n_agents": 4},
-                roster_desc=[{"kind": "qlearning"}], code_version="git:test",
-                rounds=100, master_seed=i, content_cid=f"cid{i}",
-                metrics_summary={"coop_rate": 0.42}, feature_vector=[4],
-            )
-        honest_key = ledger.public_key_hex
+        ledger = _three_record_ledger(tmp)
         assert ledger.verify_chain() is True
-
-        adversary = Ed25519PrivateKey.generate()
-        adversary_pub = adversary.public_key().public_bytes_raw().hex()
 
         records = ledger.load_all()
         records[1]["metrics_summary"] = {"coop_rate": 0.99}
-        for i in range(1, len(records)):
-            if i > 1:
-                records[i]["parents"] = [_record_hash(records[i - 1])]
-            records[i]["contributor"] = adversary_pub
-            payload = {k: v for k, v in records[i].items() if k != "signature"}
-            records[i]["signature"] = adversary.sign(
-                canonical_json(payload).encode("utf-8")).hex()
-
-        ledger.ledger_path.write_text(
-            "".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
+        _resign_from(records, 1, Ed25519PrivateKey.generate())
+        _write(ledger, records)
         reopened = Ledger(root_dir=tmp)
 
         # Every individual record still carries a valid signature under the key it names.
         assert all(Ledger.verify_record(r) for r in reopened.load_all())
+        assert reopened.verify_chain() is False, "the adversary's key is not one this install trusts"
+        print("OK: a substituted signing identity is caught")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
+
+def test_a_chain_rewritten_end_to_end_under_a_new_identity_is_caught():
+    """The case the previous version of this check let through, and why it was replaced.
+
+    That version required one identity across the chain and trusted whichever identity signed the
+    first record. Rewrite every record under a single fresh key and the chain has one identity
+    throughout, so it passed. Checking signers against a trusted set rather than against each other
+    closes it, provided the reader knows which keys to trust.
+    """
+    tmp = tempfile.mkdtemp()
+    try:
+        ledger = _three_record_ledger(tmp)
+        records = ledger.load_all()
+        for r in records:
+            r["metrics_summary"] = {"coop_rate": 0.99}
+        adversary = Ed25519PrivateKey.generate()
+        adversary_pub = _resign_from(records, 0, adversary)
+        _write(ledger, records)
+        reopened = Ledger(root_dir=tmp)
+
+        contributors = {r["contributor"] for r in reopened.load_all()}
+        assert contributors == {adversary_pub}, "the rewrite must use one identity throughout"
         assert reopened.verify_chain() is False, (
-            "the chain changes identity midway, which is what the contributor check exists for")
-        assert reopened.verify_chain(expected_contributor=honest_key) is False
-        print("OK: a substituted signing identity is caught, with or without the expected key")
+            "one consistent identity is not a trusted one; this is what the old check accepted")
+
+        # And the check is only as good as the set it is given. Trusting the adversary accepts the
+        # rewrite, which is correct behaviour and the reason choosing that set matters.
+        assert reopened.verify_chain(trusted_contributors=[adversary_pub]) is True
+        print("OK: an end-to-end rewrite under one fresh identity is caught")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_records_from_several_trusted_researchers_verify_together():
+    """A second researcher extends the first's experiments, which is what the repository is for.
+
+    The earlier single-identity check would have refused this chain outright. Here researcher B
+    appends a record signed with B's own key onto A's chain. A reader trusting only A rejects it,
+    which is right, since nothing told that reader about B. A reader trusting both accepts it.
+    """
+    tmp = tempfile.mkdtemp()
+    try:
+        ledger = _three_record_ledger(tmp)
+        researcher_a = ledger.public_key_hex
+        records = ledger.load_all()
+
+        researcher_b = Ed25519PrivateKey.generate()
+        extension = {k: v for k, v in records[-1].items() if k != "signature"}
+        extension["horizon"] = {**extension["horizon"], "rounds": 200}
+        extension["content_cid"] = "cid-extended-by-b"
+        extension["lineage"] = {"extends": _record_hash(records[-1]),
+                                "replicates": None, "derives_from": None}
+        records.append(extension)
+        researcher_b_pub = _resign_from(records, len(records) - 1, researcher_b)
+        _write(ledger, records)
+        reopened = Ledger(root_dir=tmp)
+
+        assert len({r["contributor"] for r in reopened.load_all()}) == 2
+        assert reopened.verify_chain() is False, "B is not a key this installation was told about"
+        assert reopened.verify_chain(trusted_contributors=[researcher_a, researcher_b_pub]) is True
+        assert reopened.verify_chain(trusted_contributors=[researcher_b_pub]) is False, (
+            "trusting B alone must not vouch for A's records")
+        print("OK: two trusted researchers' records verify as one chain")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -289,6 +357,8 @@ if __name__ == "__main__":
     print("OK: tampering with an older record breaks the chain")
     test_a_resigned_record_is_caught_by_the_parent_link()
     test_a_substituted_identity_is_caught_without_knowing_the_real_one()
+    test_a_chain_rewritten_end_to_end_under_a_new_identity_is_caught()
+    test_records_from_several_trusted_researchers_verify_together()
     test_extends_and_replicates_lineage_detection()
     print("OK: extends/replicates lineage detection")
     test_extends_and_replicates_can_coexist_on_the_same_record()

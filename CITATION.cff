@@ -1,0 +1,74 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite the repository as below. When a paper
+  describing the platform is published, cite that instead, and see the "How to
+  Cite" section of README.md for which publication is the most specific one
+  available.
+title: GameBrains
+abstract: >-
+  A research platform where cognitive agents of different architectures play
+  repeated n-player games through one interface, with a signed, hash-chained
+  experiment ledger and tested adapters to the main multi-agent reinforcement
+  learning ecosystems.
+type: software
+authors:
+  - family-names: Papadopoulos
+    given-names: Nikolaos Al.
+    orcid: https://orcid.org/0000-0003-1842-8227
+    email: nikolaos.papadopoulos@uom.edu.gr
+    affiliation: >-
+      Department of Applied Informatics, University of Macedonia,
+      Thessaloniki, Greece
+repository-code: https://github.com/dentros/gamebrains
+url: https://github.com/dentros/gamebrains
+license: GPL-3.0-only
+keywords:
+  - multi-agent systems
+  - game theory
+  - reinforcement learning
+  - repeated games
+  - cognitive architectures
+  - reproducibility
+references:
+  - type: conference-paper
+    title: >-
+      Rotational Periodicity: a scalable metric for turn-taking evaluation in
+      multi-agent systems
+    authors:
+      - family-names: Papadopoulos
+        given-names: Nikolaos Al.
+      - family-names: Taratori
+        given-names: Rafaela
+      - family-names: Sanchez-Fibla
+        given-names: Marti
+      - family-names: Psannis
+        given-names: Konstantinos E.
+    collection-title: >-
+      Proceedings of the 22nd International Conference on Modelling Decisions
+      for Artificial Intelligence (MDAI 2025)
+    publisher:
+      name: Springer
+    year: 2025
+    doi: 10.1007/978-3-032-03711-4_16
+    notes: >-
+      The turn-taking measures reimplemented in metrics/social_alt.py. Cite this
+      when those measures are used.
+  - type: conference-paper
+    title: >-
+      Alternation measures for the evaluation of selfish agents' turn-taking
+    authors:
+      - family-names: Papadopoulos
+        given-names: Nikolaos Al.
+      - family-names: Sanchez-Fibla
+        given-names: Marti
+    collection-title: Artificial Intelligence Research and Development
+    publisher:
+      name: IOS Press
+    year: 2021
+    start: 278
+    end: 281
+    doi: 10.3233/FAIA210145
+    notes: >-
+      The alternation measures and the congestion game family in
+      games/congestion.py, including the Honey-Jar Game. Cite this when those
+      are used.

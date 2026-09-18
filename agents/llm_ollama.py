@@ -101,8 +101,15 @@ class OllamaBackend:
 
     def complete(self, prompt: str, schema: dict[str, Any],
                  max_attempts: int = DEFAULT_MAX_ATTEMPTS) -> Response:
+        # The repair loop builds the Attempt objects, so the per-request token counts are collected
+        # here in call order and matched up afterwards rather than threaded through a shared loop
+        # that has no business knowing about one server's response fields.
+        self._counts: list[dict[str, int]] = []
         data, attempts = run_with_repair(
             lambda text: self._generate(text, schema), prompt, schema, max_attempts)
+        for attempt, counts in zip(attempts, self._counts):
+            attempt.prompt_tokens = counts.get("prompt_eval_count")
+            attempt.eval_tokens = counts.get("eval_count")
         return Response(data=data, attempts=attempts, activations=None, model=self.model)
 
     # --- the one HTTP call --------------------------------------------------------------
@@ -133,4 +140,8 @@ class OllamaBackend:
         except (urllib.error.URLError, OSError) as exc:
             raise BackendUnavailable(f"could not reach Ollama at {self.host}: {exc}") from exc
 
+        counts = getattr(self, "_counts", None)
+        if counts is not None:
+            counts.append({k: payload[k] for k in ("prompt_eval_count", "eval_count")
+                           if isinstance(payload.get(k), int)})
         return payload.get("response", "")

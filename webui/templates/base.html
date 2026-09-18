@@ -13,7 +13,7 @@
     --panel: #1a1f33; --panel-edge: #3a3f5c; --ink: #eef0f7; --ink-soft: #9aa0c4;
     --gold: #f0a83d; --gold-deep: #c9822a;
     --piece-qlearning: #5a94c2; --piece-dqn: #a06bc2; --piece-fep: #8fb75a;
-    --piece-markov_brain: #e07b3d; --piece-classic: #8f8878;
+    --piece-markov_brain: #e07b3d; --piece-classic: #8f8878; --piece-llm: #4aa39a;
     --coop: #5cc26e; --defect: #e2554a;
     --font-display: "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
     --font-body: "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif;
@@ -30,7 +30,7 @@
     --panel: #ffffff; --panel-edge: #2b2440; --ink: #2b2440; --ink-soft: #7a7392;
     --gold: #ffce54; --gold-deep: #f0a83d;
     --piece-qlearning: #4fb0e8; --piece-dqn: #b26fe0; --piece-fep: #5ecb6b;
-    --piece-markov_brain: #ff9f43; --piece-classic: #a3a3b8;
+    --piece-markov_brain: #ff9f43; --piece-classic: #a3a3b8; --piece-llm: #38c1b4;
     --coop: #43c96b; --defect: #ff6b6b; --psy: #c77dff; --sun: #ffce54;
     --font-display: "Trebuchet MS", "Segoe UI", sans-serif;
   }
@@ -208,6 +208,12 @@
   }
   .meta { color: var(--ink-soft); font-size: 12px; margin: 6px 0 0; }
   .rule { font-size: 14px; }
+  /* The model's own words for its last move: a quote rather than a paragraph, because it is the
+     one thing on a creature card that the platform did not compute. The background is a
+     translucent grey rather than a literal dark hex, so it stays readable under both themes.
+     Several rules here learned that the hard way. */
+  .rationale { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--piece-llm);
+               background: rgba(127, 127, 127, .14); font-size: 14px; font-style: italic; }
   .beliefs .barrow { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
   .beliefs .lab { width: 90px; color: var(--ink-soft); text-align: right; font-family: var(--font-mono); }
   .beliefs .bar { flex: 1; background: #2a3050; border-radius: 3px; height: 12px; overflow: hidden; }
@@ -399,6 +405,11 @@
     <symbol id="glyph-classic" viewBox="0 0 24 24">
       <rect x="4" y="3" width="16" height="18" rx="1"/>
       <line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="14" y2="16"/>
+    </symbol>
+
+    <symbol id="glyph-llm" viewBox="0 0 24 24">
+      <path d="M4 5h16v11H9l-5 4z"/>
+      <line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12.5" x2="13" y2="12.5"/>
     </symbol>
 
     <!-- section-header glyphs (not tied to a specific agent kind) -->

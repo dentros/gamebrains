@@ -66,10 +66,25 @@ def _record_hash(record: dict[str, Any]) -> str:
 
 
 class Ledger:
-    def __init__(self, root_dir: str | Path) -> None:
+    """One append-only chain and the identity that writes it.
+
+    `read_only=True` opens somebody else's chain: no key is loaded, none is created, and nothing
+    can be appended. That matters more than it sounds. Opening an imported chain the ordinary way
+    would *generate a private key inside the folder holding another installation's records*, which
+    is both a key nobody asked for and a signing identity sitting in a directory of foreign data.
+    A reader needs to verify, not to sign.
+    """
+
+    def __init__(self, root_dir: str | Path, read_only: bool = False) -> None:
         self.root_dir = Path(root_dir)
-        self.root_dir.mkdir(parents=True, exist_ok=True)
+        self.read_only = read_only
+        if not read_only:
+            self.root_dir.mkdir(parents=True, exist_ok=True)
         self.ledger_path = self.root_dir / "ledger.jsonl"
+        if read_only:
+            self._private_key = None
+            self.public_key_hex = ""
+            return
         self._private_key = self._load_or_create_identity()
         self.public_key_hex = self._private_key.public_key().public_bytes(
             Encoding.Raw, PublicFormat.Raw
@@ -154,6 +169,11 @@ class Ledger:
         # Built through build_config rather than assembled here, so there is exactly one
         # definition of what a config_hash covers. These two used to be separate literals, which
         # is precisely how a new tier could get added in one place and silently missed in the other.
+        if self.read_only:
+            raise RuntimeError(
+                "this ledger was opened read-only. Appending would mean signing somebody else's "
+                "chain with a key generated inside their folder, which is not a thing a reader "
+                "should be able to do by accident.")
         config = build_config(game_desc, roster_desc, code_version, protocol)
         config_hash = hash_config(config)
         lineage = self._detect_lineage(config_hash, rounds, master_seed)
@@ -231,6 +251,11 @@ class Ledger:
         stored unencrypted beside the ledger, so anyone who can write `ledger.jsonl` can also sign
         as its owner. That is key custody, and it is stated in the module docstring.
         """
+        if trusted_contributors is None and self.read_only:
+            raise ValueError(
+                "this ledger was opened read-only, so it has no key of its own to default to. "
+                "Pass the set of contributor keys you accept: a reader of somebody else's records "
+                "has to obtain those by some route other than the records themselves.")
         trusted = ({self.public_key_hex} if trusted_contributors is None
                    else set(trusted_contributors))
         records = self.load_all()

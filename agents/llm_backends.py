@@ -73,6 +73,13 @@ class Attempt:
     error: str = ""
     seconds: float = 0.0
 
+    #: Tokens in and out, when the server reports them. Wall-clock on a contended laptop is not a
+    #: quantity that transfers between machines (see `experiments/run_benchmark.py`, where the same
+    #: native operation measured 56% apart within one run), while a token count is the same number
+    #: wherever the model runs. None where the backend does not report them.
+    prompt_tokens: Optional[int] = None
+    eval_tokens: Optional[int] = None
+
 
 @dataclass
 class Response:

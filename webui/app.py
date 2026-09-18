@@ -81,8 +81,9 @@ KIND_META = {
     "fep":          {"glyph": "glyph-fep",       "label": "FEP / Active Inference", "color": "#6b8a3d"},
     "markov_brain": {"glyph": "glyph-markov_brain", "label": "Markov-brain (evolutionary)", "color": "#b5541f"},
     "classic":      {"glyph": "glyph-classic",   "label": "Classic (fixed)",  "color": "#5c5346"},
+    "llm":          {"glyph": "glyph-llm",       "label": "LLM (Ollama)",     "color": "#4aa39a"},
 }
-_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic"]
+_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "llm"]
 
 _METRIC_META = [
     ("cooperation_rate", "Cooperation rate"),
@@ -251,6 +252,22 @@ def _make_agent(kind: str, i: int, game: PublicGoodsGame, seed: int, classic_str
         )
     if kind == "classic":
         return _classic_agent(classic_strategy, i, game.n_agents, seed, extra)
+    if kind == "llm":
+        from ..agents.llm import LLMAgent
+        from ..agents.llm_ollama import DEFAULT_MODEL, OllamaBackend
+        backend = OllamaBackend(
+            model=str(extra.get("llm_model") or DEFAULT_MODEL),
+            constrained=bool(extra.get("llm_constrained", True)),
+        )
+        # Checked here rather than at the first decision. A match that dies four hundred rounds
+        # in because a server was not running is a worse failure than one that never starts, and
+        # the message names the two commands that fix it.
+        if not backend.is_available():
+            raise ValueError(
+                f"the LLM seat needs Ollama running with {backend.model!r} pulled. Start it with "
+                f"`ollama serve`, then `ollama pull {backend.model}`.")
+        return LLMAgent(f"LLM {i}", backend=backend,
+                        history=int(extra.get("llm_history", 6)))
     raise ValueError(f"unknown kind {kind}")
 
 
@@ -259,7 +276,7 @@ def _make_agent(kind: str, i: int, game: PublicGoodsGame, seed: int, classic_str
 # tuple is (form-field suffix, default, help text) -- the default is shown as the input's value
 # and matches the underlying Agent class's own constructor default exactly, so leaving a field
 # untouched reproduces today's behaviour bit-for-bit.
-_ADVANCED_PARAMS: dict[str, list[tuple[str, float, str]]] = {
+_ADVANCED_PARAMS: dict[str, list[tuple[str, Any, str]]] = {
     "qlearning": [("alpha", 0.1, "learning rate"), ("gamma", 0.95, "discount factor")],
     "dqn": [("hidden", 64, "hidden layer size"), ("lr", 0.001, "learning rate"),
            ("gamma", 0.95, "discount factor"), ("buffer_size", 10000, "replay buffer size"),
@@ -269,6 +286,13 @@ _ADVANCED_PARAMS: dict[str, list[tuple[str, float, str]]] = {
            ("drift", 0.1, "belief drift toward uniform per round"),
            ("precision", 4.0, "softmax precision over expected value")],
     "classic": [("p_cooperate", 0.5, "P(Cooperate) for the Random strategy only")],
+    # The model tag and the constraint are design decisions rather than tuning, and both reach
+    # config_hash through record.py's _PARAM_ATTRS. `llm_constrained` is 1/0 rather than a
+    # checkbox because every field here is one text input cast by the type of its default, and a
+    # checkbox would need its own path through the roster form for one parameter.
+    "llm": [("llm_model", "llama3.2:1b", "Ollama model tag, exactly as pulled"),
+            ("llm_constrained", 1, "1 = the server enforces the schema, 0 = the prompt asks only"),
+            ("llm_history", 6, "past rounds included in each prompt")],
 }
 
 
@@ -523,6 +547,43 @@ def _classic_html(brain: dict) -> str:
     return f"<p class='rule'><b>{brain['strategy']}</b>{extra}: {brain['rule']}</p>"
 
 
+def _llm_html(brain: dict) -> str:
+    """The language model's card: its last decision in its own words, what that answer cost, and
+    what this backend cannot show.
+
+    The absences are stated rather than left blank. A panel that silently omits an activation plot
+    for a backend that has no activations teaches a reader that the model has none, which is a
+    claim about the model instead of about how it is being served.
+    """
+    confidence = brain.get("confidence")
+    confidence_text = f"{confidence:.2f}" if isinstance(confidence, (int, float)) else "n/a"
+    label = brain.get("role_labels", {}).get(brain.get("role", ""), "")
+    repaired = ("<span class='badge warn'>repaired</span>" if brain.get("repaired")
+                else "<span class='badge'>first attempt</span>")
+    constrained = ("schema enforced by the server" if brain.get("native_schema")
+                   else "schema requested in the prompt only")
+
+    activations = (
+        "<p class='meta'>Hidden activations are recorded for this backend.</p>"
+        if brain.get("activations_available") else
+        f"<p class='meta'><b>No activations.</b> {brain.get('note', '')}</p>"
+    )
+    reproducibility = "" if brain.get("deterministic") else (
+        "<p class='meta'><b>This run is not reproducible.</b> The record says so, and the Smart "
+        "Filter will not offer it as a finished answer for the same configuration.</p>"
+    )
+    return (
+        f"<p class='meta'>{brain.get('model', '?')} via {brain.get('backend', '?')} "
+        f"&middot; {constrained} &middot; {brain.get('decisions', 0)} decisions</p>"
+        f"<p class='rule'><b>Last move: {brain.get('role', '?')}</b>"
+        f"{f' ({label})' if label else ''} &middot; confidence {confidence_text} "
+        f"&middot; {brain.get('attempts', 0)} attempt(s) &middot; "
+        f"{brain.get('seconds', 0):.2f}s {repaired}</p>"
+        f"<blockquote class='rationale'>{brain.get('rationale', '')}</blockquote>"
+        f"{activations}{reproducibility}"
+    )
+
+
 def _policy_vs_behavior_html(brain: dict, coop_rate: float | None) -> str:
     """Explainability correlation for RL agents: what the learned greedy policy WOULD do (how many
     states it picks Cooperate in) next to what the agent ACTUALLY did this match. A large gap with
@@ -598,6 +659,8 @@ def render_creature(agent: Any, coop_rate: float | None = None) -> dict[str, Any
         body = _markov_brain_html(brain)
     elif kind == "classic":
         body = _classic_html(brain)
+    elif kind == "llm":
+        body = _llm_html(brain)
     else:
         body = f"<pre>{brain}</pre>"
     meta = KIND_META.get(kind, {"glyph": "glyph-classic", "label": kind, "color": "#5c5346"})
@@ -688,6 +751,20 @@ def _mascot_svg(kind: str) -> str:
             f"<path d='M10 81 L24 81 M17 74 L17 88' stroke='{e}' stroke-width='2' opacity='.6'/>"
             f"<path d='M76 81 L90 81 M83 74 L83 88' stroke='{e}' stroke-width='2' opacity='.6'/>"
             "<circle cx='50' cy='50' r='4' fill='var(--sun)'/>"
+            "</svg>"
+        )
+    if kind == "llm":
+        # A speech bubble, because this is the only architecture whose output is language. The
+        # tail matters: it is what says the thing talks rather than computes silently.
+        return (
+            "<svg viewBox='0 0 100 100'>"
+            f"<path d='M18,22 H82 Q90,22 90,30 V62 Q90,70 82,70 H46 L28,86 V70 H18 Q10,70 10,62 "
+            f"V30 Q10,22 18,22 Z' fill='var(--piece-llm)' stroke='{e}' stroke-width='5'/>"
+            f"<circle cx='38' cy='44' r='7' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='62' cy='44' r='7' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='40.5' cy='45' r='2.8' fill='{e}'/><circle cx='59.5' cy='45' r='2.8' fill='{e}'/>"
+            f"<path d='M40 58 Q50 64 60 58' fill='none' stroke='{e}' stroke-width='4' stroke-linecap='round'/>"
+            f"<path d='M26 32 H74' stroke='{e}' stroke-width='2.4' stroke-linecap='round' opacity='.55'/>"
             "</svg>"
         )
     return ""

@@ -86,3 +86,21 @@ class Agent(ABC):
     def on_match_end(self) -> None:
         """Hook called once when a match finishes (e.g. decay schedules, bookkeeping)."""
         return None
+
+    def is_deterministic(self) -> bool:
+        """Does a rerun of the same configuration reproduce this agent's actions exactly?
+
+        True by default, and true in fact for every agent that draws from a seeded generator, which
+        is what lets the platform promise that one `config_hash` implies one byte-identical event
+        log. An agent that cannot keep that promise (a language model behind a server, a component
+        reading an external clock) says so here, and `repository/record.py` withholds the
+        reproduction claim for the whole run rather than letting it quietly weaken for every run.
+
+        Declared rather than inferred, for the same reason as `semantics` above: a property nobody
+        states is a property nobody can check.
+        """
+        return True
+
+    def nondeterminism_reason(self) -> str:
+        """Why `is_deterministic` is False, in a sentence a stored record can carry."""
+        return ""

@@ -138,11 +138,18 @@ class Ledger:
         feature_vector: list[float],
         license: str = "TBD (code) / CC-BY (data)",
         protocol: dict[str, Any] | None = None,
+        reproducibility: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Append one immutable experiment record. Returns the full signed record.
 
         `protocol` carries the scoring conventions that change the reported numbers without
         changing the game or the roster (see normalize.build_config for the three-tier rule).
+
+        `reproducibility` says whether a rerun of this configuration would give this event log
+        back (see `record.reproducibility_of`). It is deliberately **not** part of `config_hash`:
+        it is a property of what the run could promise, not of the design, and two runs of one
+        design must keep sharing a hash so that lineage still works. It is signed with the rest of
+        the record, so the caveat cannot be stripped from a record that travels.
         """
         # Built through build_config rather than assembled here, so there is exactly one
         # definition of what a config_hash covers. These two used to be separate literals, which
@@ -163,6 +170,8 @@ class Ledger:
             "code_version": code_version,
             "metrics_summary": metrics_summary,
             "feature_vector": feature_vector,
+            "reproducibility": reproducibility or {"byte_identical_claimed": True,
+                                                   "nondeterministic_agents": []},
             "contributor": self.public_key_hex,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "license": license,
@@ -249,11 +258,19 @@ class Ledger:
 
         Must hash the same way `append` does, or the Smart Filter reports a reuse hit for a run
         that was actually scored under a different convention.
+
+        A record that declined the byte-identical claim (see `record.reproducibility_of`) is never
+        returned, however exactly its configuration matches. The whole value of an exact hit is
+        that rerunning would produce the same thing, so offering one here would hand the caller a
+        single sample of a random process in place of the run they asked for, and nothing
+        downstream would mark the substitution. Such a record is still found by the similarity
+        lookup, where it is presented as prior work rather than as a finished answer.
         """
         config_hash = hash_config(build_config(game_desc, roster_desc, code_version, protocol))
         for record in self.load_all():
             if (record["config_hash"] == config_hash
                     and record["seeds"]["master"] == master_seed
-                    and record["horizon"]["rounds"] >= rounds):
+                    and record["horizon"]["rounds"] >= rounds
+                    and record.get("reproducibility", {}).get("byte_identical_claimed", True)):
                 return record
         return None

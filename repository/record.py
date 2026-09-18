@@ -21,7 +21,13 @@ from .cas import ContentStore
 from .ledger import Ledger
 
 # Fixed kind order for the feature_vector's per-kind counts (see docs/repository-schema.md §3).
-_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic"]
+#
+# `llm` was appended on 2026-09-18, which lengthens the vector from 9 to 10. Records written before
+# that keep their 9-element vectors and `smart_filter.nearest` skips them as incomparable, which is
+# its documented behaviour for a schema change and is the honest one: a shorter vector does not
+# state that no language model played, it states that the question was not asked. Append here
+# rather than insert, so at least the positions of the existing dimensions never move.
+_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "llm"]
 
 
 def _git_code_version() -> str:
@@ -53,12 +59,41 @@ _PARAM_ATTRS: dict[str, tuple[str, ...]] = {
     "fep": ("reciprocity", "obs_noise", "drift", "precision"),
     "markov_brain": ("n_hidden",),
     "classic": ("strategy", "p"),
+    # For an LLM seat the model tag and whether the server constrained decoding to the schema are
+    # design decisions, not runtime detail: the same prompt answered by a different model, or by
+    # the same model without the constraint, is a different experiment and must not share a
+    # config_hash. `persona` is here for the same reason, since it is an experimental manipulation.
+    "llm": ("backend_name", "model", "native_schema", "history", "persona"),
 }
 
 
 def _agent_params(a: Agent) -> dict[str, Any]:
     attrs = _PARAM_ATTRS.get(getattr(a, "kind", None), ())
     return {attr: getattr(a, attr) for attr in attrs if hasattr(a, attr)}
+
+
+def reproducibility_of(roster: list[Agent]) -> dict[str, Any]:
+    """Whether this roster can support the platform's byte-identical reproduction claim.
+
+    The fourth place this codebase declines to proceed as though nothing were wrong (see the
+    paper's refusals section, and `metrics/information.py` for the third). The claim is that one
+    `config_hash` plus one seed implies one event log, and it holds because every agent draws from
+    a generator the runner seeded. An agent that says `is_deterministic() is False` breaks it for
+    the run it takes part in, and the useful move is neither to drop the claim everywhere nor to
+    keep making it: it is to record, on the run itself, that the claim does not cover this one and
+    why.
+
+    Downstream that matters twice. A reader of the record knows what a rerun would and would not
+    give them, and `Ledger.find_exact` refuses to offer such a record as a finished answer for the
+    same configuration, because reusing it would silently substitute one sample of a random
+    process for another.
+    """
+    offenders = [
+        {"name": getattr(a, "name", "?"), "kind": getattr(a, "kind", "?"),
+         "reason": a.nondeterminism_reason()}
+        for a in roster if not a.is_deterministic()
+    ]
+    return {"byte_identical_claimed": not offenders, "nondeterministic_agents": offenders}
 
 
 def _roster_description(roster: list[Agent]) -> list[dict[str, Any]]:
@@ -167,5 +202,6 @@ def record_experiment(
         content_cid=content_cid,
         metrics_summary=_scalar_metrics_summary(metrics),
         feature_vector=_feature_vector(game, roster, rounds),
+        reproducibility=reproducibility_of(roster),
         protocol=protocol,
     )

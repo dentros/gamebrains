@@ -103,6 +103,33 @@ def test_empty_and_incomparable_pools_return_empty():
     assert nearest([{"feature_vector": [1, 2, 3]}], [4, 0.5, 1.0, 1000, 4, 0, 0, 0, 0], k=5) == []
 
 
+def test_a_ledger_written_before_a_kind_was_added_still_ranks():
+    """Regression, 2026-09-18. Adding `llm` to `_KIND_ORDER` lengthened the feature vector from 9
+    to 10, and the first query against a ledger of 9-element vectors raised an IndexError from a
+    boolean mask of the wrong length. A crash is not the documented outcome for an older schema:
+    the dimensions that exist still mean what they meant, so they are still comparable to each
+    other, and only records of *differing* length are skipped.
+
+    The other direction is deliberately an error. A vector longer than the weights carries a
+    dimension nobody has assigned a weight to, and ranking it by silently ignoring that dimension
+    would answer a question the caller did not ask.
+    """
+    legacy = [
+        {"feature_vector": [4, 0.5, 1.0, 1000, 4, 0, 0, 0, 0]},
+        {"feature_vector": [8, 0.9, 1.0, 5000, 0, 8, 0, 0, 0]},
+    ]
+    ranked = nearest(legacy, [4, 0.5, 1.0, 1000, 4, 0, 0, 0, 0], k=2)
+    assert len(ranked) == 2 and ranked[0][1] == 0.0
+
+    try:
+        nearest([{"feature_vector": [0] * 11}], [0] * 11, k=1)
+    except ValueError as exc:
+        assert "FEATURE_WEIGHTS" in str(exc) and "_KIND_ORDER" in str(exc), (
+            "the refusal has to say where the missing weight goes")
+    else:
+        raise AssertionError("a vector longer than the weights must be refused")
+
+
 if __name__ == "__main__":
     test_nearest_ranks_by_distance_and_skips_shape_mismatch()
     print("OK: nearest ranks by distance and skips shape mismatches")
@@ -116,3 +143,5 @@ if __name__ == "__main__":
     print("OK: an all-identical ledger yields no invented ranking")
     test_empty_and_incomparable_pools_return_empty()
     print("OK: empty and incomparable pools return empty")
+    test_a_ledger_written_before_a_kind_was_added_still_ranks()
+    print("OK: a shorter, older feature vector still ranks; a longer one is refused")

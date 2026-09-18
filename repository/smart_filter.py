@@ -4,8 +4,13 @@ Smart Filter: the two lookups over the ledger described in docs/repository-schem
   1. Exact  -> `Ledger.find_exact` (in ledger.py) -- hash the normalized config, look up
      `config_hash` + seed + rounds. A hit means "skip the rerun".
   2. Similar -> `nearest` below -- k-NN over the record's `feature_vector`
-     ([n, mpcr, cost, rounds, #qlearning, #dqn, #fep, #markov_brain, #classic], see
+     ([n, mpcr, cost, rounds, #qlearning, #dqn, #fep, #markov_brain, #classic, #llm], see
      repository/record.py's `_feature_vector`), ranked by closeness.
+
+A run that declined the byte-identical claim is excluded from the exact lookup by `find_exact`
+itself, and still appears here. The two answer different questions: exact reuse says "you do not
+need to run this", similarity says "here is related prior work", and only the first is a promise
+about what a rerun would produce.
 
 ## Why the distance is not plain Euclidean
 
@@ -64,6 +69,7 @@ FEATURE_WEIGHTS = np.array([
     0.75,   # #fep
     0.75,   # #markov_brain
     0.75,   # #classic
+    0.75,   # #llm            appended 2026-09-18, see record.py's _KIND_ORDER
 ], dtype=float)
 
 
@@ -99,6 +105,22 @@ def nearest(records: list[dict[str, Any]], feature_vector: Sequence[float],
     if not usable:
         return []
 
+    # The weights are aligned to the query rather than assumed to match it. `_KIND_ORDER` gains a
+    # kind occasionally and only ever by appending, so a ledger written before that still holds
+    # shorter vectors whose dimensions mean exactly what they meant then. Truncating lets such a
+    # ledger keep being ranked correctly; without this the first query against one raised an
+    # IndexError from a boolean mask of the wrong length, which is a crash rather than the
+    # documented "incomparable" outcome. A vector longer than the weights is a different matter:
+    # it carries a dimension this code has no judgement about, so it is refused rather than
+    # silently ignored.
+    all_weights = np.asarray(FEATURE_WEIGHTS if weights is None else weights, dtype=float)
+    if query.shape[0] > all_weights.shape[0]:
+        raise ValueError(
+            f"feature vectors have {query.shape[0]} dimensions but only {all_weights.shape[0]} "
+            f"weights are defined. Add the new dimension to FEATURE_WEIGHTS in the same commit "
+            f"that adds it to record.py's _KIND_ORDER.")
+    all_weights = all_weights[:query.shape[0]]
+
     matrix = np.array([r["feature_vector"] for r in usable], dtype=float)
     mean, std = _standardiser(matrix)
 
@@ -108,7 +130,7 @@ def nearest(records: list[dict[str, Any]], feature_vector: Sequence[float],
         # arbitrary order would imply a similarity judgement that was never made.
         return [(r, 0.0) for r in usable[:k]]
 
-    w = np.asarray(FEATURE_WEIGHTS if weights is None else weights, dtype=float)[live]
+    w = all_weights[live]
     z_matrix = (matrix[:, live] - mean[live]) / std[live]
     z_query = (query[live] - mean[live]) / std[live]
 

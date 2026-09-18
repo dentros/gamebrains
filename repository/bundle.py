@@ -262,6 +262,23 @@ def list_sources(repo_root: str | Path) -> list[dict[str, Any]]:
     return sources
 
 
+#: The key `load_records` adds to each record to say which chain it came from. It is the reader's
+#: own bookkeeping and is **not** part of what was signed.
+SOURCE_KEY = "source"
+
+
+def untag(record: dict[str, Any]) -> dict[str, Any]:
+    """The record as it was signed, without the reader's source annotation.
+
+    Anything that verifies a signature has to go through this. `Ledger.verify_record` rebuilds the
+    payload from every key except `signature`, so a tagged record fails verification for a reason
+    that has nothing to do with its integrity, and a caller who did not know that would read the
+    failure as tampering. Found exactly that way, by a preview page reporting a valid record as
+    unsigned.
+    """
+    return {k: v for k, v in record.items() if k != SOURCE_KEY}
+
+
 def load_records(repo_root: str | Path, include_imports: bool = True) -> list[dict[str, Any]]:
     """Every record this installation can read, each tagged with the source it came from.
 
@@ -280,8 +297,8 @@ def load_records(repo_root: str | Path, include_imports: bool = True) -> list[di
             continue
         ledger = Ledger(folder, read_only=not source.get("local"))
         for record in ledger.load_all():
-            tagged.append({**record, "source": {"key": source.get("key", ""),
-                                                "label": source.get("label", ""),
-                                                "local": bool(source.get("local")),
-                                                "verified": bool(source.get("verified"))}})
+            tagged.append({**record, SOURCE_KEY: {"key": source.get("key", ""),
+                                                  "label": source.get("label", ""),
+                                                  "local": bool(source.get("local")),
+                                                  "verified": bool(source.get("verified"))}})
     return tagged

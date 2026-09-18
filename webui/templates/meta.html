@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if message %}<div class="panel"><p>{{ message }}</p></div>{% endif %}
+{% if error %}<div class="panel"><p><span class="badge warn">refused</span></p>
+  <p class="meta" style="white-space:pre-line">{{ error }}</p></div>{% endif %}
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Sources</h2>
+  <p class="meta">One chain per installation. An imported chain is kept beside the local one and
+    never merged into it, so two installations writing at the same time cannot fork a shared
+    chain, and nothing has to choose between branches.</p>
+  <table>
+    <tr><th>Source</th><th>Records</th><th>Key</th><th>Status</th></tr>
+    {% for s in sources %}
+    <tr>
+      <td>{{ s.label }}{% if s.local %} <span class="badge">local</span>{% endif %}</td>
+      <td>{{ s.records if s.records is defined else "?" }}</td>
+      <td><code>{{ s.key[:16] }}...</code></td>
+      <td>{% if s.verified %}<span class="badge ok">verified</span>
+          {% else %}<span class="badge warn">not verified</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <div class="grid" style="margin-top:16px">
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="action" value="import">
+      <label>Import a bundle</label>
+      <input type="file" name="bundle" accept=".zip">
+      <label>Their public key, as they gave it to you</label>
+      <input type="text" name="trusted_key" placeholder="64 hex characters">
+      <label>Label</label>
+      <input type="text" name="label" placeholder="e.g. Lab A">
+      <button type="submit">Verify and import</button>
+      <p class="meta">The key has to reach you some other way than inside the file. A bundle that
+        vouches for itself proves only that whoever built it was consistent.</p>
+    </form>
+
+    <form method="post">
+      <input type="hidden" name="action" value="export">
+      <label>Export this installation's chain</label>
+      <input type="text" name="title" placeholder="title, e.g. September runs">
+      <label>DOI, if the results have one</label>
+      <input type="text" name="doi" placeholder="10.5281/zenodo....">
+      <button type="submit" class="secondary">Export bundle</button>
+      <p class="meta">Carries the chain, the objects its records point at and the public key.
+        Never the private key.</p>
+    </form>
+  </div>
+</div>
+
+<form method="get" class="panel">
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Pool across runs</h2>
+  <div class="grid">
+    <div>
+      <label>Measure</label>
+      <select name="metric">
+        {% for key, label in metric_options %}
+        <option value="{{ key }}" {% if key == metric %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="checkrow" style="margin-top:22px">
+        <input type="checkbox" name="only_local" {% if not include_imports %}checked{% endif %}>
+        <span>this installation only</span>
+      </label>
+    </div>
+  </div>
+  <button type="submit">Pool</button>
+  <p class="meta">{{ total_records }} records readable. Runs are grouped by design, which is the
+    configuration hash together with the scoring protocol, so seeds pool and differently scored
+    runs do not.</p>
+</form>
+
+{% if chart_svg %}
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>{{ metric_label }} by design</h2>
+  {{ chart_svg | safe }}
+  <p class="meta">Each row is one design: the dot is the mean, the bar is the 95% interval, and
+    the small dots are the individual runs. The runs are drawn because a mean can sit where no run
+    did, which has already happened on this platform when seeds split into two regimes.</p>
+  <p class="meta"><a href="{{ chart_download }}" download="gamebrains_meta_forest.svg">Download SVG</a>
+    &middot; <a href="{{ csv_href }}" download="gamebrains_meta.csv">Download CSV</a></p>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Designs</h2>
+  {% if rows %}
+  <table>
+    <tr><th>Game</th><th>Roster</th><th>n</th><th>Runs</th><th>Mean</th><th>SD</th>
+      <th>95% interval</th><th>Sources</th><th></th></tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.game }}</td>
+      <td>{{ row.roster }}</td>
+      <td>{{ row.n_agents }}</td>
+      <td>{{ row.summary.n }}</td>
+      <td>{{ "%.4f"|format(row.summary.mean) }}</td>
+      <td>{% if row.summary.sd is not none %}{{ "%.4f"|format(row.summary.sd) }}
+          {% else %}&mdash;{% endif %}</td>
+      <td>{% if row.summary.ci95 %}{{ "%.4f"|format(row.summary.low) }} to
+            {{ "%.4f"|format(row.summary.high) }}
+          {% else %}<span class="meta">one run</span>{% endif %}</td>
+      <td>{{ row.sources | join(", ") }}</td>
+      <td>{% if not row.reproducible %}<span class="badge warn">not reproducible</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="meta">A design with one run reports its mean and no interval. Reporting a zero there
+    would be a claim about variation from data that could not have seen any.</p>
+  {% else %}
+  <p class="meta">No recorded run reports this measure yet.</p>
+  {% endif %}
+</div>
+
+{% if shared %}
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Designs more than one installation ran</h2>
+  <p class="meta">This is the question the repository exists for: does the same declared
+    experiment give the same answer somewhere else?</p>
+  <table>
+    <tr><th>Design</th><th>Sources</th><th>Per source</th><th>Q</th><th>I&sup2;</th>
+      <th>Pooled</th></tr>
+    {% for row in shared %}
+    <tr>
+      <td>{{ row.game }} &middot; {{ row.roster }}</td>
+      <td>{{ row.sources | join(", ") }}</td>
+      <td>{% for label, s in row.by_source.items() %}
+          {{ label }}: {{ "%.4f"|format(s.mean) }} (n={{ s.n }}){% if not loop.last %}<br>{% endif %}
+          {% endfor %}</td>
+      <td>{% if row.heterogeneity.q is not none %}{{ "%.2f"|format(row.heterogeneity.q) }}
+          {% else %}&mdash;{% endif %}</td>
+      <td>{% if row.heterogeneity.i2 is not none %}{{ "%.0f"|format(row.heterogeneity.i2) }}%
+          {% else %}&mdash;{% endif %}</td>
+      <td>{% if row.heterogeneity.pooled is not none %}
+          {{ "%.4f"|format(row.heterogeneity.pooled) }}{% else %}&mdash;{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="meta">Sources whose mean rests on a single run stay in the table and are excluded from
+    Q and I&sup2;, since a point estimate with no spread cannot be weighted against one that has
+    it. With a handful of sources, I&sup2; is noisy enough to read beside the per-source intervals
+    rather than as a threshold.</p>
+</div>
+{% endif %}
+
+{% endblock %}

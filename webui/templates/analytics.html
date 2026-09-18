@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block content %}
 
 <form action="/analytics" method="post">
@@ -92,13 +92,16 @@
 <div class="panel">
   <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Matching runs</h2>
   {% if rows %}
+  <form action="/compare" method="get">
   <table>
     <tr>
+      <th></th>
       <th>Timestamp</th><th>Roster</th><th>n</th><th>MPCR</th><th>Rounds</th>
-      <th>Cooperation rate</th><th>Efficiency</th><th>config_hash</th>
+      <th>Cooperation rate</th><th>Efficiency</th><th>config_hash</th><th></th>
     </tr>
     {% for r in rows %}
     <tr>
+      <td><input type="checkbox" name="rid" value="{{ r.record_hash }}"></td>
       <td>{{ r.timestamp[:19] }}</td>
       <td>{{ r.kind_summary }}</td>
       <td>{{ r.n_agents }}</td>
@@ -107,9 +110,13 @@
       <td>{{ "%.4f"|format(r.metrics.cooperation_rate) if r.metrics.cooperation_rate is not none else "-" }}</td>
       <td>{{ "%.4f"|format(r.metrics.efficiency) if r.metrics.efficiency is not none else "-" }}</td>
       <td><code>{{ r.config_hash[:12] }}...</code></td>
+      <td><a href="/run/{{ r.record_hash }}">open</a></td>
     </tr>
     {% endfor %}
   </table>
+  <button type="submit" class="secondary" style="margin-top:12px">Compare selected</button>
+  <span class="meta">Tick two or more, or open one to see the run as it was stored.</span>
+  </form>
   {% else %}
   <p class="meta">No recorded runs match these filters yet.</p>
   {% endif %}

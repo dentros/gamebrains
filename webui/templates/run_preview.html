@@ -1,0 +1,128 @@
+﻿{% extends "base.html" %}
+{% block content %}
+
+<p><a href="/analytics">&larr; back to analytics</a></p>
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Stored experiment</h2>
+  <p class="meta">
+    <b>{{ row.kind_summary }}</b> &middot; {{ record.game.name }} &middot; n={{ row.n_agents }}
+    &middot; {{ row.rounds }} rounds &middot; seed {{ row.seed }}
+    &middot; recorded {{ record.timestamp[:19] }}
+    {% if source and not source.local %}&middot; from <b>{{ source.label }}</b>{% endif %}
+  </p>
+  <p class="meta">
+    <code>{{ record.content_cid[:20] }}...</code> &middot;
+    config <code>{{ record.config_hash[:16] }}...</code> &middot;
+    signed by <code>{{ record.contributor[:16] }}...</code>
+  </p>
+
+  <p>
+    {% if signature_ok %}<span class="badge ok">signature valid</span>
+    {% else %}<span class="badge warn">signature does not verify</span>{% endif %}
+    {% if source and source.verified %}<span class="badge ok">chain verified</span>
+    {% else %}<span class="badge warn">chain not verified</span>{% endif %}
+    {% if record.reproducibility and not record.reproducibility.byte_identical_claimed %}
+    <span class="badge warn">not reproducible</span>
+    {% endif %}
+  </p>
+
+  {% if record.reproducibility and not record.reproducibility.byte_identical_claimed %}
+  <p class="meta">This run does not claim a byte-identical rerun, because of
+    {% for a in record.reproducibility.nondeterministic_agents %}<b>{{ a.name }}</b>
+    ({{ a.kind }}){% if not loop.last %}, {% endif %}{% endfor %}.
+    {% if record.reproducibility.nondeterministic_agents %}
+    {{ record.reproducibility.nondeterministic_agents[0].reason }}{% endif %}</p>
+  {% endif %}
+
+  {% if record.lineage and (record.lineage.extends or record.lineage.replicates) %}
+  <p class="meta">Lineage:
+    {% if record.lineage.extends %}extends <code>{{ record.lineage.extends[:16] }}...</code>{% endif %}
+    {% if record.lineage.replicates %}&middot; replicates
+      <code>{{ record.lineage.replicates[:16] }}...</code>{% endif %}
+  </p>
+  {% endif %}
+</div>
+
+{% if not has_package %}
+<div class="panel">
+  <p class="meta">The record is here but its event log is not. That happens when a bundle was
+    imported without the objects its records point at: the chain still verifies, and the per-round
+    detail simply is not present to show.</p>
+</div>
+{% endif %}
+
+{% if chart_svg %}
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Cooperation rate by round</h2>
+  {{ chart_svg | safe }}
+  <p class="meta">Read back from the stored event log, {{ series.rounds }} rounds
+    {% if series.episodes %}across {{ series.episodes | length }} episodes{% endif %}.
+    Nothing here was recomputed or rerun.</p>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Metrics as recorded</h2>
+  <table>
+    <tr><th>Measure</th><th>Value</th></tr>
+    {% for key, label in metric_meta %}
+      {% set value = record.metrics_summary.get(key) %}
+      {% if value is not none %}
+      <tr>
+        <td>{{ label }}</td>
+        <td>{% if value is number %}{{ "%.4f"|format(value) }}{% else %}{{ value }}{% endif %}</td>
+      </tr>
+      {% endif %}
+    {% endfor %}
+  </table>
+  <p class="meta">A measure that declined to report itself appears here in words rather than as a
+    number, which is how it was stored.</p>
+</div>
+
+{% if brains %}
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-roster"/></svg>Brains, as last recorded</h2>
+  <div class="creatures">
+    {% for card in brains %}
+    <div class="creature" style="--piece-color: {{ card.color }}">
+      <h3><svg class="glyph"><use href="#{{ card.glyph }}"/></svg>{{ card.name }}
+        <span class="badge">{{ card.kind }}</span>
+        <span class="meta">round {{ card.round }}</span></h3>
+      {{ card.body | safe }}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="panel">
+  <p class="meta">No brain snapshots in this log. They are written only when a run asks for them,
+    so their absence is a property of that run rather than of this page.</p>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Nearest recorded experiments</h2>
+  {% if neighbours %}
+  <table>
+    <tr><th>Distance</th><th>Roster</th><th>n</th><th>Rounds</th><th>Source</th><th></th></tr>
+    {% for hit in neighbours %}
+    <tr>
+      <td>{{ "%.3f"|format(hit.distance) }}</td>
+      <td>{{ hit.row.kind_summary }}</td>
+      <td>{{ hit.row.n_agents }}</td>
+      <td>{{ hit.row.rounds }}</td>
+      <td>{{ hit.source }}</td>
+      <td><a href="/run/{{ hit.row.record_hash }}">open</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="meta">Distance is in standardised units over the feature vector, weighted so design
+    counts for more than length. Comparable within this list, not across repositories.</p>
+  {% else %}
+  <p class="meta">Nothing comparable yet. Runs recorded before a new agent kind was added carry a
+    shorter feature vector and are skipped rather than compared on mismatched dimensions.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

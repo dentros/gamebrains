@@ -1,0 +1,54 @@
+﻿{% extends "base.html" %}
+{% block content %}
+
+<p><a href="/analytics">&larr; back to analytics</a></p>
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Comparing {{ chosen | length }} runs</h2>
+  {% if chosen %}
+  <table>
+    <tr><th></th>{% for c in chosen %}<th>run {{ loop.index }}</th>{% endfor %}</tr>
+    <tr><td>roster</td>{% for c in chosen %}<td>{{ c.row.kind_summary }}</td>{% endfor %}</tr>
+    <tr><td>game</td>{% for c in chosen %}<td>{{ c.record.game.name }}</td>{% endfor %}</tr>
+    <tr><td>n</td>{% for c in chosen %}<td>{{ c.row.n_agents }}</td>{% endfor %}</tr>
+    <tr><td>rounds</td>{% for c in chosen %}<td>{{ c.row.rounds }}</td>{% endfor %}</tr>
+    <tr><td>seed</td>{% for c in chosen %}<td>{{ c.row.seed }}</td>{% endfor %}</tr>
+    <tr><td>source</td>{% for c in chosen %}<td>{{ c.source }}</td>{% endfor %}</tr>
+    <tr><td>design</td>{% for c in chosen %}
+      <td><code>{{ c.record.config_hash[:10] }}</code></td>{% endfor %}</tr>
+    <tr><td></td>{% for c in chosen %}
+      <td><a href="/run/{{ c.row.record_hash }}">open</a></td>{% endfor %}</tr>
+  </table>
+  <p class="meta">Runs sharing a design hash differ only in length or seed. Runs whose hashes
+    differ are different experiments, and the gap between their numbers includes that difference.</p>
+  {% else %}
+  <p class="meta">Nothing selected. Tick two or more runs on the analytics page and choose
+    "compare".</p>
+  {% endif %}
+</div>
+
+{% if table %}
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Measures</h2>
+  <table>
+    <tr><th>Measure</th>{% for c in chosen %}<th>run {{ loop.index }}</th>{% endfor %}
+      <th>spread</th></tr>
+    {% for row in table %}
+    <tr>
+      <td>{{ row.label }}</td>
+      {# row['values'], never row.values: on a dict that attribute is the built-in method #}
+      {% for value in row['values'] %}
+      <td>{% if value is none %}&mdash;
+          {% elif value is number %}{{ "%.4f"|format(value) }}
+          {% else %}<span class="meta">{{ value }}</span>{% endif %}</td>
+      {% endfor %}
+      <td>{% if row.spread is not none %}{{ "%.4f"|format(row.spread) }}{% else %}&mdash;{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="meta">A measure that some runs withheld shows its reason rather than a number, and the
+    spread ignores those rather than treating an absence as a value.</p>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -25,7 +25,7 @@ import os
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import quote
 
 import numpy as np
@@ -42,13 +42,17 @@ from ..engine.runner import run_match
 from ..games.congestion import from_preset as congestion_from_preset
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import equilibrium, graph, information, social, social_alt
+from ..repository import meta_analysis
+from ..repository.bundle import (
+    BundleRejected, export_bundle, import_bundle, list_sources, load_records, untag,
+)
 from ..repository.cas import ContentStore
-from ..repository.ledger import Ledger
+from ..repository.ledger import Ledger, _record_hash
 from ..repository.record import (
     DEFAULT_CODE_VERSION, _config_game_desc, _feature_vector, _PARAM_ATTRS, _roster_description,
     protocol_from_run, record_experiment,
 )
-from ..repository.smart_filter import lookup as smart_filter_lookup
+from ..repository.smart_filter import lookup as smart_filter_lookup, nearest as smart_filter_nearest
 
 app = Flask(__name__)
 
@@ -61,6 +65,10 @@ def _inject_active_tab():
         return {"active_tab": "analytics"}
     if request.path.startswith("/spacemap"):
         return {"active_tab": "spacemap"}
+    if request.path.startswith("/meta") or request.path.startswith("/sources"):
+        return {"active_tab": "meta"}
+    if request.path.startswith("/run/") or request.path.startswith("/compare"):
+        return {"active_tab": "analytics"}
     return {"active_tab": "match"}
 
 
@@ -1374,6 +1382,11 @@ def _analytics_field_options() -> list[tuple[str, str]]:
 
 
 def _analytics_row(record: dict[str, Any]) -> dict[str, Any]:
+    # `record_hash` rather than `content_cid` is what identifies a row. Content addressing means
+    # two records can legitimately share a CID: the same match package rerun at another seed
+    # produces identical bytes and therefore one object. The chain already keys records by their
+    # own hash, and so does every link this interface draws.
+    record = untag(record)
     game = record.get("game", {})
     roster = record.get("roster", [])
     metrics = record.get("metrics_summary", {})
@@ -1382,6 +1395,7 @@ def _analytics_row(record: dict[str, Any]) -> dict[str, Any]:
         kind_counts[a["kind"]] = kind_counts.get(a["kind"], 0) + 1
     return {
         "config_hash": record["config_hash"], "content_cid": record["content_cid"],
+        "record_hash": _record_hash(record),
         "timestamp": record.get("timestamp", ""),
         "n_agents": game.get("n_agents"), "mpcr": game.get("mpcr"), "cost": game.get("cost"),
         "rounds": record.get("horizon", {}).get("rounds"),
@@ -1573,6 +1587,275 @@ def analytics():
         include_kinds=include_kinds, chart_download=chart_download,
         active_filters=list(zip(filter_fields, filter_ops, filter_values)),
         chart_x=chart_x, chart_y=chart_y, chart_svg=chart_svg, correlation=correlation,
+    )
+
+
+# --- Opening a stored experiment ----------------------------------------------------------------
+#
+# Until now the interface could only show the match it had just run. Everything needed to show an
+# older one was already on disk: the ledger record carries the configuration and the metrics, and
+# the content store holds the whole event log under the record's `content_cid`. So these three
+# views recompute nothing and rerun nothing. They read.
+
+
+def _find_record(record_id: str) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+    """The record with this hash and the source it came from, imported chains included.
+
+    Identified by the hash of the record itself, not by `content_cid`. Two records genuinely can
+    share a CID, since content addressing stores one object for identical bytes, and keying a view
+    on the CID showed one run's numbers under another run's link.
+    """
+    for record in load_records(_REPO_ROOT):
+        if _record_hash(untag(record)) == record_id:
+            return record, record.get("source")
+    return None, None
+
+
+def _series_from_log(event_log: list[dict[str, Any]]) -> dict[str, Any]:
+    """Per-round series a stored log can answer for, and nothing derived beyond them.
+
+    Cooperation is read from the game's own per-round `cooperators` count rather than recomputed
+    from actions, because what counts as cooperating is the game's declaration and not this
+    function's opinion (see engine/game.py's role vocabulary).
+    """
+    rounds = [e for e in event_log if e.get("type") == "round"]
+    coop, rewards = [], []
+    n_agents = 0
+    for event in rounds:
+        n_agents = max(n_agents, len(event.get("actions", []) or []))
+        if isinstance(event.get("cooperators"), (int, float)):
+            coop.append(float(event["cooperators"]))
+        if event.get("rewards"):
+            rewards.append(float(np.mean(event["rewards"])))
+    fraction = [c / n_agents for c in coop] if n_agents else []
+    return {"rounds": len(rounds), "coop_fraction": fraction, "mean_reward": rewards,
+            "episodes": [e for e in event_log if e.get("type") == "episode"]}
+
+
+def _final_brains(event_log: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The last recorded snapshot per agent, rendered with the same card bodies a live match uses.
+
+    Snapshots are only present when the run was recorded with `snapshot_every` set, so an absence
+    here is a property of that run rather than of this page, and the template says which.
+    """
+    latest: dict[int, dict[str, Any]] = {}
+    for event in event_log:
+        if event.get("type") == "brain_snapshot":
+            latest[event.get("agent", 0)] = event
+    cards = []
+    for index in sorted(latest):
+        event = latest[index]
+        brain = event.get("brain", {})
+        kind = brain.get("kind", "?")
+        if kind == "qlearning":
+            body = _qtable_html(brain, "q_table")
+        elif kind == "dqn":
+            body = _qtable_html(brain, "q_values")
+        elif kind == "fep":
+            body = _fep_html(brain)
+        elif kind == "markov_brain":
+            body = _markov_brain_html(brain)
+        elif kind == "classic":
+            body = _classic_html(brain)
+        elif kind == "llm":
+            body = _llm_html(brain)
+        else:
+            body = ""
+        meta = KIND_META.get(kind, {"glyph": "glyph-classic", "label": kind, "color": "#5c5346"})
+        cards.append({"name": event.get("name", f"agent {index}"), "kind": kind, "body": body,
+                      "glyph": meta["glyph"], "color": meta["color"], "round": event.get("round")})
+    return cards
+
+
+@app.route("/run/<record_id>", methods=["GET"])
+def run_preview(record_id: str):
+    record, source = _find_record(record_id)
+    if record is None:
+        return render_template("error.html", message=(
+            f"No record {record_id[:16]}... in this repository or in any imported chain.")), 404
+
+    root = _REPO_ROOT if (source or {}).get("local", True) else _REPO_ROOT / source["path"]
+    try:
+        package = ContentStore(root).get(record["content_cid"])
+    except (FileNotFoundError, OSError, KeyError):
+        package = None
+
+    series = _series_from_log(package.get("event_log", [])) if package else None
+    brains = _final_brains(package.get("event_log", [])) if package else []
+    chart = cooperation_svg(np.array(series["coop_fraction"])) if series and series["coop_fraction"] else ""
+
+    # A record's own signature is checkable on its own, which is worth showing separately from the
+    # chain: a valid signature under an untrusted key is exactly the case the trusted-set check
+    # exists for, and collapsing the two into one tick would hide it.
+    signature_ok = Ledger.verify_record(untag(record))
+
+    neighbours = []
+    for other, distance in smart_filter_nearest(
+            [r for r in load_records(_REPO_ROOT) if _record_hash(untag(r)) != record_id],
+            record.get("feature_vector", []), k=5):
+        neighbours.append({"row": _analytics_row(other), "distance": distance,
+                           "source": (other.get("source") or {}).get("label", "")})
+
+    return render_template(
+        "run_preview.html", record=record, source=source, series=series, brains=brains,
+        chart_svg=chart, signature_ok=signature_ok, neighbours=neighbours,
+        metric_meta=_METRIC_META, kind_meta=KIND_META, row=_analytics_row(record),
+        has_package=package is not None,
+    )
+
+
+@app.route("/compare", methods=["GET"])
+def compare():
+    """Two or more stored runs side by side, on the metrics they both report."""
+    ids = [r for r in request.args.getlist("rid") if r]
+    chosen = []
+    for record_id in ids[:6]:
+        record, source = _find_record(record_id)
+        if record is None:
+            continue
+        chosen.append({"record": record, "row": _analytics_row(record),
+                       "source": (source or {}).get("label", "this installation")})
+
+    keys = [k for k, _ in _METRIC_META]
+    table = []
+    for key, label in _METRIC_META:
+        values = [(r["record"].get("metrics_summary") or {}).get(key) for r in chosen]
+        if all(v is None for v in values):
+            continue
+        numeric = [v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool)]
+        spread = (max(numeric) - min(numeric)) if len(numeric) > 1 else None
+        table.append({"key": key, "label": label, "values": values, "spread": spread})
+
+    return render_template("compare.html", chosen=chosen, table=table, metric_keys=keys)
+
+
+# --- Meta-analysis across seeds and across installations -----------------------------------------
+
+
+def _forest_svg(rows: list[dict[str, Any]], label: str, width: int = 760,
+                row_height: int = 26) -> tuple[str, str]:
+    """A forest plot of the design means with their intervals, and the runs behind each one.
+
+    The individual runs are drawn as small dots beside every interval, deliberately. This
+    platform's own bake-off produced a mean that no single run exhibited, because the seeds split
+    into two regimes, and an interval alone would have drawn that as a tidy central estimate.
+    """
+    drawable = [r for r in rows if r["summary"]["mean"] is not None]
+    if not drawable:
+        return "", ""
+
+    values = [v for r in drawable for v in r["values"]]
+    lo, hi = min(values), max(values)
+    span = (hi - lo) or 1.0
+    lo, hi = lo - span * 0.08, hi + span * 0.08
+    span = hi - lo
+
+    pad_left, pad_right, pad_top = 250, 30, 34
+    height = pad_top + row_height * len(drawable) + 46
+    plot_w = width - pad_left - pad_right
+
+    def sx(value: float) -> float:
+        return pad_left + (value - lo) / span * plot_w
+
+    ticks = [lo + i * span / 4 for i in range(5)]
+    grid = "".join(
+        f"<line x1='{sx(t):.1f}' y1='{pad_top - 8}' x2='{sx(t):.1f}' "
+        f"y2='{pad_top + row_height * len(drawable)}' stroke='#8884' stroke-dasharray='2,3'/>"
+        f"<text x='{sx(t):.1f}' y='{pad_top + row_height * len(drawable) + 16}' "
+        f"text-anchor='middle' font-size='10' fill='currentColor'>{_format_tick(t)}</text>"
+        for t in ticks)
+
+    body = [f"<text x='{width / 2}' y='16' text-anchor='middle' font-size='13' font-weight='700' "
+            f"fill='currentColor'>{label} by design</text>", grid]
+    for i, row in enumerate(drawable):
+        y = pad_top + i * row_height + row_height / 2
+        summary = row["summary"]
+        name = f"{row['game']} n={row['n_agents']} · {row['roster']}"[:44]
+        body.append(f"<text x='8' y='{y + 3:.1f}' font-size='10' fill='currentColor'>{name}</text>")
+        for value in row["values"]:
+            body.append(f"<circle cx='{sx(value):.1f}' cy='{y:.1f}' r='2.4' fill='#8ab' "
+                        f"fill-opacity='0.55'/>")
+        if summary.get("ci95"):
+            body.append(
+                f"<line x1='{sx(summary['low']):.1f}' y1='{y:.1f}' x2='{sx(summary['high']):.1f}' "
+                f"y2='{y:.1f}' stroke='#e0a33d' stroke-width='2'/>"
+                f"<line x1='{sx(summary['low']):.1f}' y1='{y - 4:.1f}' "
+                f"x2='{sx(summary['low']):.1f}' y2='{y + 4:.1f}' stroke='#e0a33d' stroke-width='2'/>"
+                f"<line x1='{sx(summary['high']):.1f}' y1='{y - 4:.1f}' "
+                f"x2='{sx(summary['high']):.1f}' y2='{y + 4:.1f}' stroke='#e0a33d' stroke-width='2'/>")
+        body.append(f"<circle cx='{sx(summary['mean']):.1f}' cy='{y:.1f}' r='4.2' fill='#e0a33d'/>")
+        body.append(f"<text x='{width - 6}' y='{y + 3:.1f}' text-anchor='end' font-size='9.5' "
+                    f"fill='currentColor' opacity='.7'>n={summary['n']}</text>")
+
+    inner = "".join(body)
+    inline = (f"<svg viewBox='0 0 {width} {height}' class='scatterchart' "
+              f"style='color:#c7cbe6'>{inner}</svg>")
+    standalone = (f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}' "
+                  f"width='{width}' height='{height}' "
+                  f"style='background:#fff;color:#222;font-family:sans-serif'>{inner}</svg>")
+    return inline, "data:image/svg+xml;charset=utf-8," + quote(standalone)
+
+
+def _meta_csv(rows: list[dict[str, Any]], metric: str) -> str:
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\n")
+    writer.writerow(["config_hash", "protocol", "game", "n_agents", "roster", "sources",
+                     "n", f"{metric}_mean", "sd", "ci95_low", "ci95_high", "reproducible"])
+    for row in rows:
+        s = row["summary"]
+        writer.writerow([row["config_hash"], row["protocol"], row["game"], row["n_agents"],
+                         row["roster"], "|".join(row["sources"]), s["n"], s["mean"], s["sd"],
+                         s["low"], s["high"], row["reproducible"]])
+    return out.getvalue()
+
+
+@app.route("/meta", methods=["GET", "POST"])
+def meta():
+    """Across runs, across seeds and across installations: the question the ledger was for."""
+    message, error = "", ""
+
+    if request.method == "POST" and request.form.get("action") == "export":
+        target = _RESULTS_DIR / f"gamebrains_bundle_{datetime.now():%Y%m%d_%H%M%S}.zip"
+        manifest = export_bundle(_REPO_ROOT, target, title=request.form.get("title", ""),
+                                 doi=request.form.get("doi", ""))
+        message = (f"Exported {manifest['records']} records to {target}. Send that file together "
+                   f"with your public key, by some route the file itself cannot forge.")
+
+    if request.method == "POST" and request.form.get("action") == "import":
+        upload = request.files.get("bundle")
+        key = (request.form.get("trusted_key") or "").strip()
+        if upload is None or not upload.filename:
+            error = "Choose a bundle file to import."
+        else:
+            staged = _RESULTS_DIR / f"incoming_{datetime.now():%Y%m%d_%H%M%S}.zip"
+            staged.parent.mkdir(parents=True, exist_ok=True)
+            upload.save(staged)
+            try:
+                source = import_bundle(staged, _REPO_ROOT, trusted_key=key,
+                                       label=request.form.get("label", ""))
+                message = (f"Imported {source['records']} records from {source['label']}, "
+                           f"verified against the key you supplied.")
+            except BundleRejected as exc:
+                error = str(exc)
+            finally:
+                staged.unlink(missing_ok=True)
+
+    metric = request.values.get("metric", "cooperation_rate")
+    include_imports = request.values.get("only_local") != "on"
+    records = load_records(_REPO_ROOT, include_imports=include_imports)
+
+    rows = meta_analysis.group_by_design(records, metric)
+    shared = meta_analysis.compare_sources(rows)
+    label = dict(_METRIC_META).get(metric, metric)
+    chart_svg, chart_download = _forest_svg(rows, label)
+
+    return render_template(
+        "meta.html", rows=rows, shared=shared, sources=list_sources(_REPO_ROOT),
+        metric=metric, metric_label=label, metric_options=_METRIC_META,
+        chart_svg=chart_svg, chart_download=chart_download,
+        csv_href=_text_download_href(_meta_csv(rows, metric), "text/csv"),
+        include_imports=include_imports, message=message, error=error,
+        total_records=len(records),
     )
 
 

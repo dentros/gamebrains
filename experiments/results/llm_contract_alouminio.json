@@ -1,0 +1,209 @@
+{
+  "host": "alouminio",
+  "platform": "Windows AMD64",
+  "python": "3.11.9",
+  "started": "2026-09-18T20:06:04",
+  "settings": {
+    "decisions": 60,
+    "repeats": 4,
+    "determinism_prompts": 30,
+    "games": [
+      "public_goods",
+      "congestion"
+    ]
+  },
+  "role_binding": {
+    "claim_in_public_goods": 0,
+    "claim_in_congestion": 1,
+    "indices_differ": true,
+    "coordination_game_refused": true,
+    "refusal_names_declared_roles": true
+  },
+  "schema": [
+    {
+      "model": "llama3.2:1b",
+      "constrained": true,
+      "prompts": 60,
+      "answered": 60,
+      "gave_up": 0,
+      "first_attempt_ok": 60,
+      "first_attempt_rate": 1.0,
+      "mean_attempts": 1.0,
+      "median_seconds": 3.563,
+      "mean_eval_tokens": 47.4,
+      "mean_prompt_tokens": 217.1,
+      "errors": {},
+      "actions": {
+        "concede": 23,
+        "claim": 37
+      },
+      "game": "public_goods"
+    },
+    {
+      "model": "llama3.2:1b",
+      "constrained": false,
+      "prompts": 60,
+      "answered": 60,
+      "gave_up": 0,
+      "first_attempt_ok": 60,
+      "first_attempt_rate": 1.0,
+      "mean_attempts": 1.0,
+      "median_seconds": 3.375,
+      "mean_eval_tokens": 47.3,
+      "mean_prompt_tokens": 217.1,
+      "errors": {},
+      "actions": {
+        "concede": 23,
+        "claim": 37
+      },
+      "game": "public_goods"
+    },
+    {
+      "model": "llama3.2:1b",
+      "constrained": true,
+      "prompts": 60,
+      "answered": 60,
+      "gave_up": 0,
+      "first_attempt_ok": 60,
+      "first_attempt_rate": 1.0,
+      "mean_attempts": 1.0,
+      "median_seconds": 4.301,
+      "mean_eval_tokens": 48.4,
+      "mean_prompt_tokens": 200.1,
+      "errors": {},
+      "actions": {
+        "claim": 57,
+        "concede": 3
+      },
+      "game": "congestion"
+    },
+    {
+      "model": "llama3.2:1b",
+      "constrained": false,
+      "prompts": 60,
+      "answered": 60,
+      "gave_up": 0,
+      "first_attempt_ok": 60,
+      "first_attempt_rate": 1.0,
+      "mean_attempts": 1.0,
+      "median_seconds": 3.926,
+      "mean_eval_tokens": 48.4,
+      "mean_prompt_tokens": 200.1,
+      "errors": {},
+      "actions": {
+        "claim": 57,
+        "concede": 3
+      },
+      "game": "congestion"
+    },
+    {
+      "model": "qwen2.5:1.5b",
+      "constrained": true,
+      "prompts": 60,
+      "answered": 60,
+      "gave_up": 0,
+      "first_attempt_ok": 60,
+      "first_attempt_rate": 1.0,
+      "mean_attempts": 1.0,
+      "median_seconds": 3.047,
+      "mean_eval_tokens": 51.5,
+      "mean_prompt_tokens": 226.8,
+      "errors": {},
+      "actions": {
+        "concede": 60
+      },
+      "game": "public_goods"
+    },
+    {
+      "model": "qwen2.5:1.5b",
+      "constrained": false,
+      "prompts": 60,
+      "answered": 60,
+      "gave_up": 0,
+      "first_attempt_ok": 60,
+      "first_attempt_rate": 1.0,
+      "mean_attempts": 1.0,
+      "median_seconds": 3.448,
+      "mean_eval_tokens": 56.0,
+      "mean_prompt_tokens": 226.8,
+      "errors": {},
+      "actions": {
+        "concede": 60
+      },
+      "game": "public_goods"
+    },
+    {
+      "model": "qwen2.5:1.5b",
+      "constrained": true,
+      "prompts": 60,
+      "answered": 60,
+      "gave_up": 0,
+      "first_attempt_ok": 60,
+      "first_attempt_rate": 1.0,
+      "mean_attempts": 1.0,
+      "median_seconds": 3.352,
+      "mean_eval_tokens": 50.4,
+      "mean_prompt_tokens": 211.2,
+      "errors": {},
+      "actions": {
+        "concede": 58,
+        "claim": 2
+      },
+      "game": "congestion"
+    },
+    {
+      "model": "qwen2.5:1.5b",
+      "constrained": false,
+      "prompts": 60,
+      "answered": 60,
+      "gave_up": 0,
+      "first_attempt_ok": 60,
+      "first_attempt_rate": 1.0,
+      "mean_attempts": 1.0,
+      "median_seconds": 3.466,
+      "mean_eval_tokens": 56.1,
+      "mean_prompt_tokens": 211.2,
+      "errors": {},
+      "actions": {
+        "concede": 58,
+        "claim": 2
+      },
+      "game": "congestion"
+    }
+  ],
+  "determinism": [
+    {
+      "model": "llama3.2:1b",
+      "prompts": 30,
+      "repeats": 4,
+      "byte_identical_rate": 0.5,
+      "same_decision_rate": 1.0,
+      "game": "public_goods"
+    },
+    {
+      "model": "llama3.2:1b",
+      "prompts": 30,
+      "repeats": 4,
+      "byte_identical_rate": 0.5333,
+      "same_decision_rate": 1.0,
+      "game": "congestion"
+    },
+    {
+      "model": "qwen2.5:1.5b",
+      "prompts": 30,
+      "repeats": 4,
+      "byte_identical_rate": 0.0667,
+      "same_decision_rate": 1.0,
+      "game": "public_goods"
+    },
+    {
+      "model": "qwen2.5:1.5b",
+      "prompts": 30,
+      "repeats": 4,
+      "byte_identical_rate": 0.1333,
+      "same_decision_rate": 0.9667,
+      "game": "congestion"
+    }
+  ],
+  "elapsed_seconds": 2769.8
+}

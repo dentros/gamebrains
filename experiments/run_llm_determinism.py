@@ -108,6 +108,37 @@ def _rate(backend, prompts, repeats, **kwargs) -> dict[str, Any]:
     }
 
 
+def paired_cache_test(backend, prompts, repeats: int, other: str) -> dict[str, Any]:
+    """Does evicting the server's cached prefix between repeats change how often it repeats itself?
+
+    The one control that moved the rate was the interleaved arm, 70% against a baseline of 100% in
+    the same session, and that would explain every measurement taken so far: the contract run swept
+    thirty different prompts, so the prefix was evicted constantly and it reported 50%, while the
+    re-checks repeated one prompt back to back with the prefix warm and reported 90% and 100%.
+
+    Ten prompts cannot separate 70% from 100%, so this measures both arms **on the same prompt,
+    back to back**, which removes the session drift that makes unpaired arms hard to read. The
+    answer is the count of prompts where one arm repeated itself and the other did not.
+    """
+    both, warm_only, evicted_only, neither = 0, 0, 0, 0
+    for prompt in prompts:
+        warm = len(set(_repeat(backend, prompt, repeats))) == 1
+        evicted = len(set(_repeat(backend, prompt, repeats, between=other))) == 1
+        both += int(warm and evicted)
+        warm_only += int(warm and not evicted)
+        evicted_only += int(evicted and not warm)
+        neither += int(not warm and not evicted)
+    return {
+        "prompts": len(prompts), "repeats": repeats,
+        "warm_stable": round((both + warm_only) / len(prompts), 4),
+        "evicted_stable": round((both + evicted_only) / len(prompts), 4),
+        "stable_only_when_warm": warm_only,
+        "stable_only_when_evicted": evicted_only,
+        "stable_in_both": both,
+        "stable_in_neither": neither,
+    }
+
+
 def _save(out: Path, results: dict[str, Any]) -> None:
     """Write, merging with whatever is on disk rather than replacing it.
 
@@ -127,6 +158,8 @@ def _save(out: Path, results: dict[str, Any]) -> None:
         controls = dict(disk.get("controls", {}))
         controls.update(results.get("controls", {}))
         merged["sessions"], merged["controls"] = sessions, controls
+        if "cache_pairs" not in merged and "cache_pairs" in disk:
+            merged["cache_pairs"] = disk["cache_pairs"]
     out.write_text(json.dumps(merged, indent=2), encoding="utf-8")
 
 
@@ -139,6 +172,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--game", default="public_goods")
     parser.add_argument("--controls", action="store_true",
                         help="also run the four negative controls, on the first model only")
+    parser.add_argument("--cache-pairs", type=int, default=0,
+                        help="paired warm-against-evicted test on this many prompts, which is the "
+                             "one comparison the unpaired controls could not settle")
     args = parser.parse_args(argv)
 
     pool = [p for p in collect_prompts(args.game, args.prompts + 8) if len(p) > 700][:args.prompts]
@@ -220,6 +256,21 @@ def main(argv: list[str] | None = None) -> int:
         results["controls"]["load"] = measured
         print(f"control {'load':12} byte-identical {measured['byte_identical']:.0%} "
               f"with {workers} cores busy")
+
+    if args.cache_pairs:
+        model = args.models[0]
+        backend = OllamaBackend(model=model, constrained=True)
+        wide = [p for p in collect_prompts(args.game, args.cache_pairs + 10)
+                if len(p) > 700][:args.cache_pairs]
+        backend.complete(wide[0], SCHEMA)
+        paired = paired_cache_test(backend, wide, args.repeats, other)
+        paired["model"] = model
+        results["cache_pairs"] = paired
+        print(f"\npaired cache test on {paired['prompts']} prompts, {args.repeats} repeats each:")
+        print(f"  warm prefix    {paired['warm_stable']:.0%} repeated identically")
+        print(f"  evicted prefix {paired['evicted_stable']:.0%} repeated identically")
+        print(f"  disagreed on {paired['stable_only_when_warm']} prompts one way and "
+              f"{paired['stable_only_when_evicted']} the other")
 
     _save(out, results)
     print(f"\nwrote {out}")

@@ -98,5 +98,88 @@
       }
     ]
   },
-  "controls": {}
+  "controls": {
+    "baseline": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 1.0,
+      "same_decision": 1.0,
+      "splits": []
+    },
+    "seed": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 0.9,
+      "same_decision": 1.0,
+      "splits": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    "reload": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 1.0,
+      "same_decision": 1.0,
+      "splits": []
+    },
+    "interleaved": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 0.7,
+      "same_decision": 1.0,
+      "splits": [
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    "load": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 0.6,
+      "same_decision": 1.0,
+      "splits": [
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "busy_cores": 11
+    }
+  },
+  "cache_pairs": {
+    "prompts": 16,
+    "repeats": 3,
+    "warm_stable": 0.75,
+    "evicted_stable": 1.0,
+    "stable_only_when_warm": 0,
+    "stable_only_when_evicted": 4,
+    "stable_in_both": 12,
+    "stable_in_neither": 0,
+    "model": "llama3.2:1b"
+  }
 }

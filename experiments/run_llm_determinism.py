@@ -108,6 +108,28 @@ def _rate(backend, prompts, repeats, **kwargs) -> dict[str, Any]:
     }
 
 
+def _save(out: Path, results: dict[str, Any]) -> None:
+    """Write, merging with whatever is on disk rather than replacing it.
+
+    Two runs of this script can be in flight at once, which happened here: a run that was thought
+    to be stopped kept going and the two processes took turns overwriting each other's cells with
+    their own in-memory state. Re-reading before every write does not make concurrent runs safe in
+    general, and it does make the common case, one model measured while another finishes, keep both.
+    """
+    merged = dict(results)
+    if out.exists():
+        try:
+            disk = json.loads(out.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            disk = {}
+        sessions = dict(disk.get("sessions", {}))
+        sessions.update(results.get("sessions", {}))
+        controls = dict(disk.get("controls", {}))
+        controls.update(results.get("controls", {}))
+        merged["sessions"], merged["controls"] = sessions, controls
+    out.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--models", nargs="*", default=["llama3.2:1b", "qwen2.5:1.5b"])
@@ -161,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
                   f"{measured['byte_identical']:.0%}, same decision "
                   f"{measured['same_decision']:.0%}")
             results["sessions"][model] = runs
-            out.write_text(json.dumps(results, indent=2), encoding="utf-8")
+            _save(out, results)
 
         rates = [r["byte_identical"] for r in runs]
         print(f"{model}: {min(rates):.0%} to {max(rates):.0%} across {len(rates)} sessions\n")
@@ -179,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
             measured = _rate(backend, pool, args.repeats, **kwargs)
             results["controls"][name] = measured
             print(f"control {name:12} byte-identical {measured['byte_identical']:.0%}")
-            out.write_text(json.dumps(results, indent=2), encoding="utf-8")
+            _save(out, results)
 
         workers = max(1, multiprocessing.cpu_count() - 1)
         processes = [multiprocessing.Process(target=_burn, args=(time.time() + 1800,))
@@ -199,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"control {'load':12} byte-identical {measured['byte_identical']:.0%} "
               f"with {workers} cores busy")
 
-    out.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    _save(out, results)
     print(f"\nwrote {out}")
     return 0
 

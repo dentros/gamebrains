@@ -43,7 +43,8 @@ def _classic_agent(strategy: str, i: int, n: int, seed: int):
 
 def build_roster(game: PublicGoodsGame, seed: int, all_kind: str | None = None,
                  dqn_count: int = 0, fep_count: int = 0, reciprocity: float = 0.0,
-                 classic_strategy: str = "MajorityTFT"):
+                 classic_strategy: str = "MajorityTFT", llm_count: int = 0,
+                 llm_model: str = ""):
     n = game.n_agents
     labels = game.state_labels()
     actions = game.action_names
@@ -70,6 +71,18 @@ def build_roster(game: PublicGoodsGame, seed: int, all_kind: str | None = None,
             reciprocity=reciprocity, seed=seed + 300 + i, start_state=game.start_state,
         )
 
+    def llm(i: int, name: str):
+        """A language model in a seat. Slow by a factor of about a million per decision, so this is
+        for short matches: at three to four seconds a move, a thousand rounds is an afternoon."""
+        from ..agents.llm import LLMAgent
+        from ..agents.llm_ollama import DEFAULT_MODEL, OllamaBackend
+        backend = OllamaBackend(model=llm_model or DEFAULT_MODEL)
+        if not backend.is_available():
+            raise SystemExit(
+                f"the LLM seat needs Ollama running with {backend.model!r} pulled: "
+                f"`ollama serve`, then `ollama pull {backend.model}`")
+        return LLMAgent(name, backend=backend)
+
     if all_kind == "qlearning":
         return [ql(i, f"Q-learner {i}") for i in range(n)]
     if all_kind == "dqn":
@@ -86,6 +99,8 @@ def build_roster(game: PublicGoodsGame, seed: int, all_kind: str | None = None,
         roster[idx] = dqn(idx, f"DeepQ {idx}"); idx += 1
     for _ in range(min(fep_count, n - idx)):
         roster[idx] = fep(idx, f"FEP {idx}"); idx += 1
+    for _ in range(min(llm_count, n - idx)):
+        roster[idx] = llm(idx, f"LLM {idx}"); idx += 1
     specialists = idx
     if n - specialists >= 1:
         roster[-1] = AllD("Defector")
@@ -112,6 +127,11 @@ def main() -> None:
                     help="number of FEP / active-inference agents in the mixed roster")
     ap.add_argument("--reciprocity", type=float, default=0.0,
                     help="FEP prosocial preference (>0 -> belief-driven conditional cooperator)")
+    ap.add_argument("--llm", type=int, default=0,
+                    help="number of language-model seats (needs Ollama running; seconds per move, "
+                         "so keep --rounds small)")
+    ap.add_argument("--llm-model", type=str, default="",
+                    help="Ollama model tag for those seats, e.g. qwen2.5:1.5b")
     ap.add_argument("--log-every", type=int, default=200)
     ap.add_argument("--repo", type=str, default=None,
                     help="repository-lite root dir to record this run into (default: gamebrains/repo_store; "
@@ -121,7 +141,8 @@ def main() -> None:
     game = PublicGoodsGame(n_agents=args.agents, rounds=args.rounds, mpcr=args.mpcr)
     roster = build_roster(game, seed=args.seed, all_kind=args.all,
                           dqn_count=args.dqn, fep_count=args.fep,
-                          reciprocity=args.reciprocity, classic_strategy=args.classic_strategy)
+                          reciprocity=args.reciprocity, classic_strategy=args.classic_strategy,
+                          llm_count=args.llm, llm_model=args.llm_model)
 
     results_dir = Path(__file__).resolve().parents[1] / "results"
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")

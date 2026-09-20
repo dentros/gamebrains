@@ -822,6 +822,84 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
     render, each with the right letter marker (Q/D/M/F, drone has none), and the three webui-facing
     test modules still pass.
 
+## 9k. The sixth architecture, the fourth refusal, and reading another installation's chain (2026-09-18/20)
+
+### `agents/llm.py`, and why it is role-bound by necessity
+
+A language model in a seat is asked to `concede` or to `claim`, never for an action index, because
+an index means nothing without the game that defines it and a model asked for "0 or 1" answers
+plausibly and wrongly. The words come from `game.action_roles`, so one unchanged agent plays both
+families, and a game declaring neither role is refused. Decisions are requested as JSON against a
+schema (action, rationale, confidence) through the existing repair loop.
+
+**Exhausting the repair budget stops the match.** There is no fallback action on purpose: a
+substituted move enters the event log indistinguishable from a decision the model made.
+
+### The fourth refusal: the recorder withholds the reproduction claim
+
+`Agent.is_deterministic()` is new, defaults True, and is False only for the LLM (read from the
+backend's declared capabilities, so a backend that could genuinely promise determinism would be
+believed). `record.reproducibility_of(roster)` writes that into the record, and `find_exact` will
+not offer such a record as reuse, since handing back one sample of a random process in place of the
+run someone asked for is exactly the substitution the Smart Filter exists to prevent. The record
+still appears in the similarity lookup, which answers a different question.
+
+### What the measurements actually said, including the one that changed
+
+`experiments/run_llm_contract.py`, 960 decisions on prompts taken from real matches:
+
+- **Constrained decoding bought nothing measurable.** All eight cells answered in schema on the
+  first attempt, with and without the server enforcing it, and a hand-run six-field schema did too.
+  The repair loop is insurance, not a measured rescue. Do not quote a repair rate from this.
+- **Determinism is the interesting one, and the first number was wrong to report as a property.**
+  The contract run measured 50.0/53.3% byte-identical repeats for `llama3.2:1b` and 6.7/13.3% for
+  `qwen2.5:1.5b`. Re-measured later the same day the same cell gave 70/90/90%. So the rate moves
+  between sessions and must be reported as a range, which is what the paper now does.
+- **Every difference inspected was inside the free-text rationale, never the action.** Same-decision
+  rates are 96.7% to 100%.
+
+`experiments/run_llm_determinism.py` exists for that second point. It runs sessions and one negative
+control per candidate cause: a fixed `options.seed`, `keep_alive: 0` to force a reload between
+calls, every core but one busy, and a different prompt interleaved to defeat the prompt cache.
+**None of them moved the rate**, and in the session where the controls ran the baseline itself was
+100%, so they say no manipulation induces or removes the variation rather than identifying its
+cause. Suspicion, unproven: thread-level reduction order inside the CPU kernels.
+
+**⚠️ Two traps found here, both worth keeping.** The first spot check used a short prompt, which
+turns out to be the stable class, so it "proved" determinism by testing the wrong thing. And the
+first version of the study script replaced the results file per invocation, which nearly deleted
+three sessions of one model to store two of another; sessions accumulate now.
+
+### `repository/bundle.py`: one chain per installation
+
+Export writes the chain, the CAS objects its records point at and the public key. Import verifies
+against a key **the reader supplies** and refuses otherwise, keeping the chain under `imports/`
+rather than merging it, which is why no consensus protocol is needed: two installations never
+append to one chain. `Ledger(root, read_only=True)` neither creates a key inside somebody else's
+folder nor guesses whose keys to trust.
+
+**Two real defects found by writing the tests**, both the kind that look fine:
+
+1. `load_records` tags each record with its source, and `verify_record` rebuilds the payload from
+   every key it finds, so a tagged record failed verification and a valid record was reported as
+   unsigned. Anything verifying a tagged record goes through `bundle.untag` now.
+2. **`content_cid` does not identify a record.** Two runs whose packages are byte-identical share
+   one object, which is the point of content addressing, so the preview page keyed on it showed one
+   run's numbers under another run's link. Views key on the record hash.
+
+### `repository/meta_analysis.py` and three new webui views
+
+`/run/<record hash>` opens a stored experiment from the ledger and the event log with nothing
+recomputed, `/compare` puts runs side by side, and `/meta` groups by `(config_hash, protocol)`,
+reports mean, spread and a $t$ interval with the individual runs drawn beside it, and compares
+sources that ran the same design (Cochran's $Q$, $I^2$). A group of one run reports no dispersion
+rather than a zero interval.
+
+**The Smart Filter crashed on any ledger written before an agent kind was added.** Appending `llm`
+to `_KIND_ORDER` lengthened the feature vector, and `nearest` indexed a 10-long weight array with a
+9-long mask. Weights are aligned to the query now, so an older ledger still ranks within itself, and
+a vector longer than the weights is refused by name.
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see

@@ -1,0 +1,102 @@
+{
+  "host": "alouminio",
+  "platform": "Windows AMD64",
+  "game": "public_goods",
+  "prompts": 10,
+  "repeats": 3,
+  "sessions": {
+    "llama3.2:1b": [
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.7,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.9,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.9,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ]
+        ]
+      }
+    ],
+    "qwen2.5:1.5b": [
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.1,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ]
+      }
+    ]
+  },
+  "controls": {}
+}

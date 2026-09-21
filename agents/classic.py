@@ -40,6 +40,9 @@ class _Classic(Agent):
     # so each one resolves its role against the game before play. This is the family
     # the original defect lived in.
     semantics = "role-bound"
+    # Constant strategies read nothing; Majority-TFT overrides this, since counting what the
+    # others did is the whole strategy.
+    information = "none"
     strategy = "classic"
     rule = ""
 
@@ -126,6 +129,9 @@ class MajorityTFT(_Classic):
     number that means something else.
     """
 
+    #: Unlike its siblings it reads the observation, which is also why it refuses a game whose
+    #: observation it cannot interpret.
+    information = "observation"
     strategy = "Majority-TFT"
 
     def __init__(self, name: str, n_agents: int) -> None:

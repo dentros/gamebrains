@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from ..agents.llm import LLMAgent, decision_schema
+from ..agents.llm_replay import NotRecorded, ReplayBackend
 from ..agents.llm_backends import (
     Attempt, Capabilities, Response, SchemaViolation, run_with_repair,
 )
@@ -200,17 +201,91 @@ def test_a_roster_with_a_model_withholds_the_reproduction_claim() -> None:
     q = QLearningAgent("Q0", n_states=game.n_states, n_actions=game.n_actions)
     llm = LLMAgent("LLM 1", ScriptedBackend(_answer("concede")))
 
-    assert reproducibility_of([q])["byte_identical_claimed"] is True
+    assert reproducibility_of([q]) == {"tier": "byte", "byte_identical_claimed": True,
+                                       "nondeterministic_agents": []}
     mixed = reproducibility_of([q, llm])
-    assert mixed["byte_identical_claimed"] is False
+    assert mixed["tier"] == "none" and mixed["byte_identical_claimed"] is False
     assert mixed["nondeterministic_agents"][0]["name"] == "LLM 1"
     assert mixed["nondeterministic_agents"][0]["reason"], "the caveat must carry its reason"
 
     honest = LLMAgent("LLM det", ScriptedBackend(_answer("concede"), deterministic=True))
-    assert reproducibility_of([honest])["byte_identical_claimed"] is True, (
-        "the claim is read from the backend, so a backend that could genuinely promise it would "
+    assert reproducibility_of([honest])["tier"] == "byte", (
+        "the tier is read from the backend, so a backend that could genuinely promise it would "
         "be believed rather than refused for being an LLM")
-    print("OK: the run records that it is not reproducible, and names which agent made it so")
+    print("OK: the run records the weakest tier in its roster, and names the agent that set it")
+
+
+def test_a_replayed_decision_is_the_recorded_one_and_says_so() -> None:
+    """The exactness a served model cannot offer, bought from the recording instead.
+
+    The tier matters as much as the decisions: a replayed run reproduces, and what reproduces is
+    the recording rather than the model, so it is `replay` and not `byte`.
+    """
+    game = PublicGoodsGame(n_agents=3, rounds=10)
+    live = LLMAgent("LLM 0", ScriptedBackend(
+        _answer("claim", "first"), _answer("concede", "second"), _answer("claim", "third")))
+    live.on_match_start(game)
+    # Interleaved exactly as a match drives it, because the prompt carries the history and a
+    # recording made in a different order would describe a different sequence of questions.
+    actions = []
+    for obs in (4, 2, 1):
+        actions.append(live.act(obs))
+        live.update(obs, actions[-1], 1.0, obs, False)
+
+    journal = live.journal()
+    assert len(journal) == 3 and journal[0]["data"]["rationale"] == "first"
+
+    replayed = LLMAgent("LLM 0", ReplayBackend(journal))
+    replayed.on_match_start(game)
+    again = []
+    for obs, action in zip((4, 2, 1), actions):
+        again.append(replayed.act(obs))
+        replayed.update(obs, again[-1], 1.0, obs, False)
+
+    assert again == actions, "a replay has to give the decisions the recording holds"
+    assert replayed.render_brain()["rationale"] == "third"
+    assert replayed.reproducibility() == "replay"
+    assert reproducibility_of([replayed])["tier"] == "replay"
+    assert reproducibility_of([replayed])["byte_identical_claimed"] is False, (
+        "a replayed run is exact and is still not a substitute for running the thing")
+    print("OK: replay returns the recorded decisions and calls itself a replay")
+
+
+def test_a_replay_that_wanders_off_the_recording_stops() -> None:
+    """The alternative is a replay that fills the gap, which would be a different experiment
+    wearing the recorded one's identity."""
+    game = PublicGoodsGame(n_agents=3, rounds=10)
+    live = LLMAgent("LLM 0", ScriptedBackend(_answer("claim")))
+    live.on_match_start(game)
+    live.act(4)
+
+    replayed = LLMAgent("LLM 0", ReplayBackend(live.journal()))
+    replayed.on_match_start(game)
+    assert replayed.act(4) == PublicGoodsGame.action_roles["claim"]
+
+    try:
+        replayed.act(1)                      # a state the recorded run never reached
+    except NotRecorded as exc:
+        assert "diverged" in str(exc) and "1 replayed decision" in str(exc)
+    else:
+        raise AssertionError("a prompt the recording does not hold must stop the replay")
+    print("OK: a divergent replay stops and says where")
+
+
+def test_a_repeated_prompt_replays_in_order() -> None:
+    """The same board state recurs in a long match, and two decisions taken at the same prompt need
+    not agree, so lookups consume entries rather than reading them."""
+    game = PublicGoodsGame(n_agents=3, rounds=10)
+    live = LLMAgent("LLM 0", ScriptedBackend(_answer("claim"), _answer("concede")))
+    live.on_match_start(game)
+    first, second = live.act(4), live.act(4)      # identical prompts, no history recorded between
+    assert first != second
+
+    replayed = LLMAgent("LLM 0", ReplayBackend(live.journal()))
+    replayed.on_match_start(game)
+    assert [replayed.act(4), replayed.act(4)] == [first, second]
+    assert ReplayBackend(live.journal()).remaining() == 2
+    print("OK: repeated prompts replay in the order they were recorded")
 
 
 def test_the_smart_filter_stops_offering_an_unreproducible_run_as_a_finished_answer() -> None:
@@ -275,6 +350,9 @@ if __name__ == "__main__":
     test_exhausting_the_budget_stops_the_match_instead_of_substituting_a_move()
     test_the_prompt_carries_the_roles_the_observation_gloss_and_the_history()
     test_a_roster_with_a_model_withholds_the_reproduction_claim()
+    test_a_replayed_decision_is_the_recorded_one_and_says_so()
+    test_a_replay_that_wanders_off_the_recording_stops()
+    test_a_repeated_prompt_replays_in_order()
     test_the_smart_filter_stops_offering_an_unreproducible_run_as_a_finished_answer()
     test_the_schema_asks_for_more_than_an_enum()
     test_a_response_without_attempts_is_not_reported_as_repaired()

@@ -51,17 +51,17 @@ def _burn(stop_at: float) -> None:
 
 def _repeat(backend: OllamaBackend, prompt: str, repeats: int,
             keep_alive: Optional[int] = None, seed: Optional[int] = None,
-            between: Optional[str] = None) -> list[str]:
+            between: Optional[str] = None, threads: Optional[int] = None) -> list[str]:
     answers = []
     for _ in range(repeats):
         if between is not None:
             backend.complete(between, SCHEMA)            # evict the cached prefix
-        answers.append(_ask(backend, prompt, keep_alive, seed))
+        answers.append(_ask(backend, prompt, keep_alive, seed, threads))
     return answers
 
 
 def _ask(backend: OllamaBackend, prompt: str, keep_alive: Optional[int],
-         seed: Optional[int]) -> str:
+         seed: Optional[int], threads: Optional[int] = None) -> str:
     """One request, with the two fields the ordinary backend never sets.
 
     Sent here rather than added to `OllamaBackend`, because neither belongs in the shipped agent:
@@ -76,6 +76,8 @@ def _ask(backend: OllamaBackend, prompt: str, keep_alive: Optional[int],
     }
     if seed is not None:
         body["options"]["seed"] = seed
+    if threads is not None:
+        body["options"]["num_thread"] = threads
     if keep_alive is not None:
         body["keep_alive"] = keep_alive
     request = urllib.request.Request(
@@ -86,13 +88,21 @@ def _ask(backend: OllamaBackend, prompt: str, keep_alive: Optional[int],
 
 
 def _rate(backend, prompts, repeats, **kwargs) -> dict[str, Any]:
+    """The share of prompts whose repeats agree, and **which** prompts they were.
+
+    The index list is the useful part. Two independent passes over the same pool disagreed on the
+    same four prompts of ten, which says the variation sits at particular decisions rather than
+    arriving at random, and a rate alone would have hidden that.
+    """
     stable, shapes, action_stable = 0, [], 0
-    for prompt in prompts:
+    unstable: list[int] = []
+    for position, prompt in enumerate(prompts):
         answers = _repeat(backend, prompt, repeats, **kwargs)
         counts = Counter(answers)
         stable += int(len(counts) == 1)
         if len(counts) > 1:
             shapes.append(sorted(counts.values(), reverse=True))
+            unstable.append(position)
         actions = set()
         for answer in answers:
             try:
@@ -105,6 +115,7 @@ def _rate(backend, prompts, repeats, **kwargs) -> dict[str, Any]:
         "byte_identical": round(stable / len(prompts), 4),
         "same_decision": round(action_stable / len(prompts), 4),
         "splits": shapes,
+        "unstable_prompts": unstable,
     }
 
 
@@ -229,8 +240,11 @@ def main(argv: list[str] | None = None) -> int:
         backend = OllamaBackend(model=model, constrained=True)
         controls = {
             "baseline": {},
+            "baseline_again": {},          # the same arm twice, so a difference has a scale to
+                                           # be read against before any other arm is believed
             "seed": {"seed": 7},
             "reload": {"keep_alive": 0},
+            "one_thread": {"threads": 1},
             "interleaved": {"between": other},
         }
         for name, kwargs in controls.items():

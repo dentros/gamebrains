@@ -96,6 +96,10 @@ class LLMAgent(Agent):
     #: reciprocating classic strategy's does, and neither is learning.
     training_mode = "fixed"
     semantics = "role-bound"
+    #: The prompt carries the last history rounds verbatim, which is a different thing from the
+    #: others: raw past rather than a summary, and its own past only, since nothing in the prompt
+    #: says what the other players did beyond the observation itself.
+    information = "observation+history"
 
     def __init__(self, name: str, backend: Backend, roles: Sequence[str] = DEFAULT_ROLES,
                  history: int = DEFAULT_HISTORY, max_attempts: int = DEFAULT_MAX_ATTEMPTS,
@@ -111,6 +115,7 @@ class LLMAgent(Agent):
         self._action_roles: dict[int, str] = {}
         self._game_context: dict[str, Any] = {}
         self._log: list[dict[str, Any]] = []
+        self._journal: list[dict[str, Any]] = []
         self._last: Optional[Response] = None
         self._last_decision: dict[str, Any] = {}
         self._pending_action: Optional[int] = None
@@ -135,6 +140,7 @@ class LLMAgent(Agent):
                              if index < len(getattr(game, "action_names", []))},
         }
         self._log = []
+        self._journal = []
         self._last = None
         self._last_decision = {}
 
@@ -159,14 +165,27 @@ class LLMAgent(Agent):
         experiments, so it belongs in what `config_hash` covers."""
         return self.backend.capabilities().native_schema
 
-    def is_deterministic(self) -> bool:
-        """Never true in practice, and read from the backend rather than assumed, so a future
-        backend that could genuinely promise it would be believed."""
-        return self.backend.capabilities().deterministic
-
-    def nondeterminism_reason(self) -> str:
+    def reproducibility(self) -> str:
+        """Read from the backend rather than assumed, so a backend that can genuinely promise
+        something is believed. The replay backend of `agents/llm_replay.py` is the one that can."""
         caps = self.backend.capabilities()
-        return caps.note if not caps.deterministic else ""
+        if not caps.deterministic:
+            return "none"
+        return "replay" if caps.name == "replay" else "byte"
+
+    def reproducibility_note(self) -> str:
+        caps = self.backend.capabilities()
+        return caps.note if self.reproducibility() != "byte" else ""
+
+    def journal(self) -> list[dict[str, Any]]:
+        """Every decision this agent made, in order, with the prompt that produced it.
+
+        Recorded into the run's stored package so the run can be replayed exactly
+        (`agents/llm_replay.py`). The prompt is kept in full rather than hashed alone, because a
+        replay that cannot show what was asked is not evidence of anything, and because the hash is
+        what the lookup uses while the text is what a reader checks it against.
+        """
+        return list(self._journal)
 
     # --- the prompt -------------------------------------------------------------------
 
@@ -237,6 +256,12 @@ class LLMAgent(Agent):
             "repaired": response.repaired,
             "seconds": round(response.seconds, 3),
         }
+        self._journal.append({
+            "prompt": prompt,
+            "data": dict(response.data),
+            "attempts": response.n_attempts,
+            "model": response.model,
+        })
         self._pending_action = self._role_actions[role]
         return self._pending_action
 

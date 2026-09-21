@@ -45,6 +45,9 @@ class DQNAgent(Agent):
     # Same as the tabular learner: the network's output head is indexed by action and
     # carries no interpretation of what the index means.
     semantics = "index-agnostic"
+    #: One observation in, action values out. The network has no recurrence, so like the tabular
+    #: agent it conditions on the current state alone.
+    information = "observation"
 
     def __init__(
         self,

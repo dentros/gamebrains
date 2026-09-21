@@ -37,6 +37,9 @@ class MarkovBrainAgent(Agent):
     # Motor nodes map to action indices positionally. Selection, not the genome, decides
     # which index is worth taking, so the animat interprets nothing.
     semantics = "index-agnostic"
+    #: Hidden nodes carry state between rounds, so the past reaches the decision through whatever
+    #: the genome learned to keep, bounded by how few nodes there are.
+    information = "observation+memory"
 
     def __init__(
         self,

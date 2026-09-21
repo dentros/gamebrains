@@ -62,6 +62,9 @@ class FEPAgent(Agent):
     # so it needs both a readable observation and a resolved concede/claim pair. It is
     # the agent that was left behind when the mechanism was introduced.
     semantics = "role-bound"
+    #: The belief over how many others concede is updated recursively, so every past round is in
+    #: the decision as a summary and none of it as raw history.
+    information = "observation+memory"
 
     def __init__(
         self,

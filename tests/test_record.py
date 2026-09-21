@@ -105,6 +105,56 @@ def test_config_hash_separates_runs_scored_under_different_protocols():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_every_shipped_agent_declares_what_it_conditions_on():
+    """`information` is the other half of the declaration idea: `semantics` says how an agent
+    relates to what actions mean, this says what it is allowed to see. Comparing architectures
+    without holding it fixed compares who was shown what as much as how they decide."""
+    from gamebrains.agents.classic import AllC, MajorityTFT, RandomAgent
+    from gamebrains.agents.fep import FEPAgent
+    from gamebrains.agents.llm import LLMAgent
+    from gamebrains.agents.markov_brain import MarkovBrainAgent
+    from gamebrains.agents.qlearning import QLearningAgent
+
+    vocabulary = {"none", "observation", "observation+memory", "observation+history"}
+    declared = {
+        "AllC": AllC.information, "Random": RandomAgent.information,
+        "Majority-TFT": MajorityTFT.information, "Q-learning": QLearningAgent.information,
+        "FEP": FEPAgent.information, "Markov brain": MarkovBrainAgent.information,
+        "LLM": LLMAgent.information,
+    }
+    for name, value in declared.items():
+        assert value in vocabulary, f"{name} declares {value!r}, which is not in the vocabulary"
+
+    # The distinctions that matter: a constant strategy reads nothing, a tabular learner reads the
+    # current state only, and the two that carry the past apart are apart for different reasons.
+    assert declared["AllC"] == "none" and declared["Majority-TFT"] == "observation"
+    assert declared["Q-learning"] == "observation"
+    assert declared["FEP"] == "observation+memory" != declared["LLM"]
+
+
+def test_config_hash_separates_rosters_that_see_different_things():
+    """Two agents of one kind conditioning on different things are not the same agent, whatever
+    their hyperparameters say, so a run built from them is a different experiment."""
+    tmp = _tmp_dir()
+    try:
+        log_path = tmp / "log.jsonl"
+        _write_minimal_log(log_path)
+        game = PublicGoodsGame(n_agents=2, rounds=20)
+
+        class Myopic(AllD):
+            information = "observation"
+
+        plain = record_experiment(tmp, game, [AllD("a"), AllD("b")], log_path, rounds=20, seed=0,
+                                  metrics={})
+        seeing = record_experiment(tmp, game, [Myopic("a"), Myopic("b")], log_path, rounds=20,
+                                   seed=0, metrics={})
+        assert plain["roster"][0]["information"] == "none"
+        assert seeing["roster"][0]["information"] == "observation"
+        assert plain["config_hash"] != seeing["config_hash"]
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_protocol_is_read_back_off_the_run_not_restated():
     """`protocol_from_run` exists so the recorded conventions cannot drift from the ones that
     actually produced the numbers."""
@@ -120,5 +170,9 @@ if __name__ == "__main__":
     print("OK: config_hash changes when agent hyperparameters change")
     test_config_hash_separates_runs_scored_under_different_protocols()
     print("OK: config_hash separates runs scored under different protocols")
+    test_every_shipped_agent_declares_what_it_conditions_on()
+    print("OK: every agent declares what it conditions on, from the vocabulary")
+    test_config_hash_separates_rosters_that_see_different_things()
+    print("OK: rosters that see different things hash differently")
     test_protocol_is_read_back_off_the_run_not_restated()
     print("OK: protocol is read back off the run rather than restated")

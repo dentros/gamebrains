@@ -25,6 +25,9 @@ class QLearningAgent(Agent):
     # it learns whichever column pays. Reversing a game's action meanings would change
     # what it learns, not whether it is correct.
     semantics = "index-agnostic"
+    #: The Q-table is indexed by the current observation alone, so the agent is Markov in
+    #: whatever state the game publishes and sees nothing of the rounds before it.
+    information = "observation"
 
     def __init__(
         self,

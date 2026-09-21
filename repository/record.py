@@ -72,28 +72,43 @@ def _agent_params(a: Agent) -> dict[str, Any]:
     return {attr: getattr(a, attr) for attr in attrs if hasattr(a, attr)}
 
 
+#: Weakest first. A run's tier is the weakest tier any of its agents declares, because a promise
+#: the whole run makes cannot be stronger than the component least able to keep it.
+_TIER_ORDER = ("none", "replay", "byte")
+
+
 def reproducibility_of(roster: list[Agent]) -> dict[str, Any]:
-    """Whether this roster can support the platform's byte-identical reproduction claim.
+    """What a rerun of this roster would give back, as the weakest tier any of its agents declares.
 
     The fourth place this codebase declines to proceed as though nothing were wrong (see the
     paper's refusals section, and `metrics/information.py` for the third). The claim is that one
     `config_hash` plus one seed implies one event log, and it holds because every agent draws from
-    a generator the runner seeded. An agent that says `is_deterministic() is False` breaks it for
-    the run it takes part in, and the useful move is neither to drop the claim everywhere nor to
-    keep making it: it is to record, on the run itself, that the claim does not cover this one and
-    why.
+    a generator the runner seeded. An agent that declares a weaker tier (`Agent.reproducibility`)
+    breaks it for the run it takes part in, and the useful move is neither to drop the claim
+    everywhere nor to keep making it: it is to record, on the run itself, what the claim covers
+    here and why.
 
     Downstream that matters twice. A reader of the record knows what a rerun would and would not
     give them, and `Ledger.find_exact` refuses to offer such a record as a finished answer for the
     same configuration, because reusing it would silently substitute one sample of a random
     process for another.
     """
+    declared = [(a, a.reproducibility()) for a in roster]
+    tier = min((t for _, t in declared), key=_TIER_ORDER.index, default="byte")
     offenders = [
         {"name": getattr(a, "name", "?"), "kind": getattr(a, "kind", "?"),
-         "reason": a.nondeterminism_reason()}
-        for a in roster if not a.is_deterministic()
+         "tier": t, "reason": a.reproducibility_note()}
+        for a, t in declared if t != "byte"
     ]
-    return {"byte_identical_claimed": not offenders, "nondeterministic_agents": offenders}
+    return {
+        "tier": tier,
+        # Kept alongside the tier because records written before tiers existed carry it, and
+        # `Ledger.find_exact` reads it to decide what may be offered as finished work. A replayed
+        # run is byte-identical and still not a substitute for running the thing, which is why it
+        # is false here and the tier says why.
+        "byte_identical_claimed": tier == "byte",
+        "nondeterministic_agents": offenders,
+    }
 
 
 def _roster_description(roster: list[Agent]) -> list[dict[str, Any]]:
@@ -102,8 +117,13 @@ def _roster_description(roster: list[Agent]) -> list[dict[str, Any]]:
     descriptions here, not just different "kind" labels, or they would silently collide onto the
     same config_hash. Bug found 2026-07-16: this previously returned only {kind, training_mode},
     so hyperparameter changes were invisible to the ledger entirely."""
+    # `information` joins the identity of a run because two agents of the same kind that condition
+    # on different things are not the same agent, whatever their hyperparameters say. It is
+    # constant per class today, so this changes every hash exactly once and never again, which is
+    # the cheapest moment to do it: the alternative is doing it after records are shared.
     return [
-        {"kind": a.kind, "training_mode": getattr(a, "training_mode", "?"), "params": _agent_params(a)}
+        {"kind": a.kind, "training_mode": getattr(a, "training_mode", "?"),
+         "information": getattr(a, "information", "observation"), "params": _agent_params(a)}
         for a in roster
     ]
 
@@ -189,7 +209,14 @@ def record_experiment(
     with open(log_path, encoding="utf-8") as f:
         event_log = [json.loads(line) for line in f if line.strip()]
 
+    # Any agent that journals its decisions has them stored with the run, which is what makes an
+    # exact rerun possible for a component that cannot promise one on its own
+    # (see agents/llm_replay.py). Keyed by agent name, since a match may seat more than one.
+    decisions = {a.name: a.journal() for a in roster
+                 if callable(getattr(a, "journal", None)) and a.journal()}
     package = {"manifest": game.describe(), "event_log": event_log}
+    if decisions:
+        package["llm_decisions"] = decisions
     content_cid = ContentStore(repo_root).put(package)
 
     ledger = Ledger(repo_root)

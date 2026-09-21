@@ -43,6 +43,23 @@ class Agent(ABC):
     #: the code, a contract catches it before the first round is played.
     semantics: str | None = None
 
+    #: What this agent conditions on when it acts, which is not the same question as how it learns
+    #: and is easy to confuse with it. Agents in one match can differ here by more than they differ
+    #: in architecture, and a comparison that does not hold it fixed is partly a comparison of who
+    #: was allowed to see what:
+    #:
+    #:   "none"                  ignores the observation entirely (a constant strategy)
+    #:   "observation"           the game's current declared observation and nothing else, so the
+    #:                           agent is Markov in the state the game publishes
+    #:   "observation+memory"    plus internal state summarising everything before it, as a belief
+    #:                           or a recurrent hidden state, never the raw past
+    #:   "observation+history"   plus a window of past rounds verbatim; the window length is a
+    #:                           parameter and belongs in the record
+    #:
+    #: Declared rather than inferred, for the reason `semantics` is: the platform can then record
+    #: it, and an experiment can hold it constant on purpose rather than by accident.
+    information: str = "observation"
+
     @abstractmethod
     def act(self, observation: int) -> int:
         """Choose an action given the current observation index."""
@@ -87,20 +104,28 @@ class Agent(ABC):
         """Hook called once when a match finishes (e.g. decay schedules, bookkeeping)."""
         return None
 
-    def is_deterministic(self) -> bool:
-        """Does a rerun of the same configuration reproduce this agent's actions exactly?
-
-        True by default, and true in fact for every agent that draws from a seeded generator, which
-        is what lets the platform promise that one `config_hash` implies one byte-identical event
-        log. An agent that cannot keep that promise (a language model behind a server, a component
-        reading an external clock) says so here, and `repository/record.py` withholds the
-        reproduction claim for the whole run rather than letting it quietly weaken for every run.
+    def reproducibility(self) -> str:
+        """What a rerun of the same configuration would give back, as one of three words.
 
         Declared rather than inferred, for the same reason as `semantics` above: a property nobody
-        states is a property nobody can check.
-        """
-        return True
+        states is a property nobody can check. Naming a tier rather than answering yes or no is
+        what lets the platform say something true about a component whose output is nearly, but
+        not exactly, the same every time.
 
-    def nondeterminism_reason(self) -> str:
-        """Why `is_deterministic` is False, in a sentence a stored record can carry."""
+          ``byte``      the same event log down to the byte, given the seed. The default, and true
+                        in fact for every agent that draws from a generator the runner seeded.
+          ``replay``    the same event log, because the decisions are read back from a recording
+                        rather than recomputed. The promise is about the recording, not the
+                        component, and a rerun that wanders off the recording fails loudly.
+          ``none``      neither. A language model behind a server is the case this exists for:
+                        temperature zero, a pinned seed, a reload and a single thread all leave
+                        repeated requests returning different text some of the time.
+
+        `repository/record.py` records the weakest tier in the roster on the run itself, so the
+        claim is withheld for that run instead of quietly weakening for every run.
+        """
+        return "byte"
+
+    def reproducibility_note(self) -> str:
+        """Why the tier is not `byte`, in a sentence a stored record can carry."""
         return ""

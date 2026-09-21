@@ -63,7 +63,12 @@ _PARAM_ATTRS: dict[str, tuple[str, ...]] = {
     # design decisions, not runtime detail: the same prompt answered by a different model, or by
     # the same model without the constraint, is a different experiment and must not share a
     # config_hash. `persona` is here for the same reason, since it is an experimental manipulation.
-    "llm": ("backend_name", "model", "native_schema", "history", "persona"),
+    # `profile` names what the model was told (agents/llm_prompt.py). It belongs here above all the
+    # others: two models compared under different profiles were not given the same board, and a
+    # repository that let those two runs share a config_hash would be offering one as the other's
+    # answer. Adding it lengthens the parameter set for llm seats only, so llm records written
+    # before this line carry a different config_hash from equivalent ones written after it.
+    "llm": ("backend_name", "model", "profile", "native_schema", "history", "persona"),
 }
 
 

@@ -30,6 +30,7 @@ import numpy as np
 
 from ..agents.llm import LLMAgent
 from ..agents.llm_ollama import DEFAULT_MODEL, OllamaBackend
+from ..agents.llm_prompt import DEFAULT_PROFILE, PROFILES
 from ..engine.runner import run_match
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import social
@@ -50,6 +51,10 @@ def main(argv: list[str] | None = None) -> int:
                              "minutes rather than the thousands the other architectures train for")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--profile", default=DEFAULT_PROFILE,
+                        help="what the model is told, by name: "
+                             f"{', '.join(sorted(PROFILES))}. Two profiles are two experiments, "
+                             f"so the name is written into the results file and the record")
     parser.add_argument("--opponents", nargs="*", default=OPPONENTS)
     args = parser.parse_args(argv)
 
@@ -69,11 +74,12 @@ def main(argv: list[str] | None = None) -> int:
           f"at the {seats} seats they will be evaluated in")
     started = time.time()
     roster: list[Any] = [pretrain(kind, args.seed, quiet=True) for kind in args.opponents]
-    roster.append(LLMAgent(f"LLM ({args.model})", backend=backend))
+    roster.append(LLMAgent(f"LLM ({args.model})", backend=backend, profile=args.profile))
     print(f"  done in {time.time() - started:.0f}s\n")
 
     game = PublicGoodsGame(n_agents=seats, rounds=args.rounds, mpcr=MPCR)
-    print(f"evaluation match: {len(roster)} seats, {args.rounds} rounds, every round one model call")
+    print(f"evaluation match: {len(roster)} seats, {args.rounds} rounds, every round one model "
+          f"call, prompt profile {args.profile!r}")
     started = time.time()
     result = run_match(game, roster, rounds=args.rounds, seed=args.seed)
     elapsed = time.time() - started
@@ -118,10 +124,15 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  round {index + 1:3}  {data.get('action', '?'):8} "
                   f"confidence {data.get('confidence')}  {str(data.get('rationale'))[:88]}")
 
-    out = RESULTS_DIR / f"llm_bakeoff_{socket.gethostname().lower()}.json"
+    # Keyed by model and profile, not by host alone. The first version was not, and running the
+    # second model overwrote the first model's numbers with numbers that happened to be identical,
+    # which is the kind of loss that is only obvious when the two disagree.
+    tag = f"{args.model}_{args.profile}".replace(":", "-").replace("/", "-")
+    out = RESULTS_DIR / f"llm_bakeoff_{socket.gethostname().lower()}_{tag}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({
-        "model": args.model, "rounds": args.rounds, "seed": args.seed,
+        "model": args.model, "profile": args.profile,
+        "rounds": args.rounds, "seed": args.seed,
         "pretrain_rounds": PRETRAIN_ROUNDS, "mpcr": MPCR, "seconds": round(elapsed, 1),
         "agents": rows,
         "match": {k: v for k, v in metrics.items() if isinstance(v, (int, float))},

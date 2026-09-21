@@ -1,10 +1,10 @@
 {
-  "model": "llama3.2:1b",
+  "model": "qwen2.5:1.5b",
   "rounds": 40,
   "seed": 0,
   "pretrain_rounds": 3000,
   "mpcr": 0.5,
-  "seconds": 150.3,
+  "seconds": 112.2,
   "agents": [
     {
       "name": "D0",
@@ -35,7 +35,7 @@
       "cooperation": 0.125
     },
     {
-      "name": "LLM (llama3.2:1b)",
+      "name": "LLM (qwen2.5:1.5b)",
       "kind": "llm",
       "information": "observation+history",
       "payoff": -17.0,
@@ -52,20 +52,21 @@
     {
       "round": 1,
       "action": "concede",
-      "rationale": "Given the observation of 6, it is likely that the other players are more cooperative than I am, so I will concede to avoid being the one to defect.",
-      "confidence": 0.7
+      "rationale": "Based on the previous round's action, it seems that the majority of players chose to cooperate.",
+      "confidence": 0.9
     },
     {
       "round": 21,
       "action": "concede",
-      "rationale": "Given the observation of 1, it is likely that the other players have also decided to concede, as it is the most rational action given the current state of the game.",
-      "confidence": 0.8
+      "rationale": "Previous rounds showed that conceding results in a lower payoff, so it's rational to continue this pattern.",
+      "confidence": 0.9
     },
     {
       "round": 40,
       "action": "concede",
-      "rationale": "Given the observation of 1, it is likely that the other players have also decided to concede, as it is the most rational action given the current state of the game.",
-      "confidence": 0.8
+      "rationale": "Previous rounds showed that conceding results in a lower payoff, so it's rational to continue this pattern.",
+      "confidence": 0.9
     }
-  ]
+  ],
+  "profile": "minimal-v1"
 }

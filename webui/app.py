@@ -32,6 +32,9 @@ import numpy as np
 from flask import Flask, render_template, request
 
 from ..agents.classic import AllC, AllD, MajorityTFT, RandomAgent
+# The prompt profiles, not the LLM agent: this module is imported at start-up and the
+# agent pulls in the Ollama client, which is why that import stays inside _make_agent.
+from ..agents import llm_prompt
 from ..agents.qlearning import QLearningAgent
 from ..engine.agent import Agent
 from ..engine.console import LiveConsole
@@ -275,7 +278,7 @@ def _make_agent(kind: str, i: int, game: PublicGoodsGame, seed: int, classic_str
                 f"the LLM seat needs Ollama running with {backend.model!r} pulled. Start it with "
                 f"`ollama serve`, then `ollama pull {backend.model}`.")
         return LLMAgent(f"LLM {i}", backend=backend,
-                        history=int(extra.get("llm_history", 6)))
+                        profile=str(extra.get("llm_profile") or llm_prompt.DEFAULT_PROFILE))
     raise ValueError(f"unknown kind {kind}")
 
 
@@ -298,9 +301,13 @@ _ADVANCED_PARAMS: dict[str, list[tuple[str, Any, str]]] = {
     # config_hash through record.py's _PARAM_ATTRS. `llm_constrained` is 1/0 rather than a
     # checkbox because every field here is one text input cast by the type of its default, and a
     # checkbox would need its own path through the roster form for one parameter.
+    # `llm_profile` is a name from agents/llm_prompt.py and not a prompt. A text box here would
+    # let two runs differ by a sentence nobody recorded, which is the one difference that makes an
+    # LLM comparison meaningless. The help text lists the names that exist.
     "llm": [("llm_model", "llama3.2:1b", "Ollama model tag, exactly as pulled"),
             ("llm_constrained", 1, "1 = the server enforces the schema, 0 = the prompt asks only"),
-            ("llm_history", 6, "past rounds included in each prompt")],
+            ("llm_profile", llm_prompt.DEFAULT_PROFILE,
+             "what the model is told, by name: " + ", ".join(sorted(llm_prompt.PROFILES)))],
 }
 
 

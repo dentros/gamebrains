@@ -41,7 +41,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from ..agents.llm import LLMAgent, decision_schema
+from ..agents.llm import LLMAgent
+from ..agents.llm_prompt import DEFAULT_PROFILE, decision_schema
 from ..agents.llm_backends import BackendUnavailable, SchemaViolation
 from ..agents.llm_ollama import OllamaBackend
 from ..agents.qlearning import QLearningAgent
@@ -63,18 +64,23 @@ def _make_game(kind: str) -> Game:
     raise ValueError(f"unknown game {kind!r}")
 
 
-def collect_prompts(kind: str, n_prompts: int, seed: int = 0) -> list[str]:
+def collect_prompts(kind: str, n_prompts: int, seed: int = 0,
+                    profile: str = DEFAULT_PROFILE) -> list[str]:
     """Play the game with cheap agents and keep the prompts an LLM seat would have been sent.
 
     No model is involved, so this is deterministic and free. One seat is a bound `LLMAgent` whose
     action is supplied by a Q-learner rather than by a backend: it never decides anything, it only
     accumulates the history that shapes the prompt.
+
+    The profile is an argument because the prompts are the study's material: a reliability rate
+    measured on one profile's prompts says nothing about another's, and the measurements already
+    published were taken on `minimal-v1`, which is why it stays the default.
     """
     game = _make_game(kind)
     n = game.n_agents
     learners = [QLearningAgent(f"Q{i}", n_states=game.n_states, n_actions=game.n_actions,
                                seed=seed + i) for i in range(n)]
-    watcher = LLMAgent("prompt source", backend=None)     # type: ignore[arg-type]
+    watcher = LLMAgent("prompt source", backend=None, profile=profile)  # type: ignore[arg-type]
     watcher.on_match_start(game)
 
     observations = game.reset()

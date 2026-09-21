@@ -44,7 +44,7 @@ def _classic_agent(strategy: str, i: int, n: int, seed: int):
 def build_roster(game: PublicGoodsGame, seed: int, all_kind: str | None = None,
                  dqn_count: int = 0, fep_count: int = 0, reciprocity: float = 0.0,
                  classic_strategy: str = "MajorityTFT", llm_count: int = 0,
-                 llm_model: str = ""):
+                 llm_model: str = "", llm_profile: str = ""):
     n = game.n_agents
     labels = game.state_labels()
     actions = game.action_names
@@ -81,7 +81,8 @@ def build_roster(game: PublicGoodsGame, seed: int, all_kind: str | None = None,
             raise SystemExit(
                 f"the LLM seat needs Ollama running with {backend.model!r} pulled: "
                 f"`ollama serve`, then `ollama pull {backend.model}`")
-        return LLMAgent(name, backend=backend)
+        from ..agents.llm_prompt import DEFAULT_PROFILE
+        return LLMAgent(name, backend=backend, profile=llm_profile or DEFAULT_PROFILE)
 
     if all_kind == "qlearning":
         return [ql(i, f"Q-learner {i}") for i in range(n)]
@@ -132,6 +133,10 @@ def main() -> None:
                          "so keep --rounds small)")
     ap.add_argument("--llm-model", type=str, default="",
                     help="Ollama model tag for those seats, e.g. qwen2.5:1.5b")
+    ap.add_argument("--llm-profile", type=str, default="",
+                    help="what those seats are told, by name (agents/llm_prompt.py): "
+                         "minimal-v1 is the observation and the agent's own past, informed-v1 "
+                         "adds the payoff rule and what the others did")
     ap.add_argument("--log-every", type=int, default=200)
     ap.add_argument("--repo", type=str, default=None,
                     help="repository-lite root dir to record this run into (default: gamebrains/repo_store; "
@@ -142,7 +147,8 @@ def main() -> None:
     roster = build_roster(game, seed=args.seed, all_kind=args.all,
                           dqn_count=args.dqn, fep_count=args.fep,
                           reciprocity=args.reciprocity, classic_strategy=args.classic_strategy,
-                          llm_count=args.llm, llm_model=args.llm_model)
+                          llm_count=args.llm, llm_model=args.llm_model,
+                          llm_profile=args.llm_profile)
 
     results_dir = Path(__file__).resolve().parents[1] / "results"
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -319,6 +319,22 @@ class CongestionGame(Game):
             labels.append(label)
         return labels
 
+    def state_label_legend(self) -> str:
+        """How to read a `state_labels` entry, in words, for a reader who was not given the code.
+
+        The Q-table view can show the labels beside the table and let a human infer the convention.
+        A language model is shown one label and nothing else, so the convention has to be said. It
+        is said here rather than in the agent because it is a fact about this game's encoding, and
+        an agent that hardcoded it would be wrong the moment the encoding changed.
+        """
+        terminal = self.num_positions - 1
+        legend = (f"Each digit is one player's cell in the corridor, in seat order, from 0 at the "
+                  f"start to {terminal} at the far end where the reward is.")
+        if self.memory_episodes:
+            legend += (f" After the bar are the arrival flags of the last {self.memory_episodes} "
+                       f"episodes, one bit per player per episode, oldest first.")
+        return legend
+
     def max_welfare_per_round(self) -> float:
         """Best total welfare a single round can be worth, for the generic efficiency metric.
 

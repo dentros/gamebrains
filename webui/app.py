@@ -26,6 +26,7 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
+from html import escape
 from urllib.parse import quote
 
 import numpy as np
@@ -45,7 +46,7 @@ from ..engine.runner import run_match
 from ..games.congestion import from_preset as congestion_from_preset
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import equilibrium, graph, information, social, social_alt
-from ..repository import meta_analysis
+from ..repository import coverage, meta_analysis
 from ..repository.bundle import (
     BundleRejected, export_bundle, import_bundle, list_sources, load_records, untag,
 )
@@ -1404,6 +1405,14 @@ def _analytics_row(record: dict[str, Any]) -> dict[str, Any]:
         "config_hash": record["config_hash"], "content_cid": record["content_cid"],
         "record_hash": _record_hash(record),
         "timestamp": record.get("timestamp", ""),
+        # The game's own name and the scoring protocol, both needed a level up: the coverage board
+        # is indexed by game, and a correlation over runs that differ only by seed would measure
+        # seed noise, so `repository/coverage.py` groups on (config_hash, protocol) as the
+        # meta-analysis does. Rendered here the way `meta_analysis.design_key` renders it, so the
+        # two views group identically rather than nearly identically.
+        "game_name": record.get("game", {}).get("name", "?"),
+        "protocol": ",".join(f"{k}={(record.get('protocol') or {})[k]}"
+                             for k in sorted(record.get("protocol") or {})),
         "n_agents": game.get("n_agents"), "mpcr": game.get("mpcr"), "cost": game.get("cost"),
         "rounds": record.get("horizon", {}).get("rounds"),
         "seed": record.get("seeds", {}).get("master"),
@@ -1962,6 +1971,136 @@ def _run_cell(cell: dict[str, Any]) -> None:
     record_experiment(_REPO_ROOT, game, roster, log_path, rounds=cell["rounds"], seed=seed,
                       metrics=metrics, code_version=DEFAULT_CODE_VERSION,
                       protocol=protocol_from_run(records))
+
+
+# --- The whole field, rather than one run -------------------------------------------------------
+#
+# Two questions only exist once a repository holds many experiments: which squares of the board
+# have been played at all, and which quantities move together across everything recorded. Both are
+# answered by `repository/coverage.py` from the ledger as it stands, so a metric, an agent kind or
+# a game added later appears in these views without a line being changed here.
+
+
+#: How many fields the matrix offers at once. The cost is quadratic in this and linear in the
+#: permutations, so the cap is what keeps the page a page. Fields are offered most-populated first,
+#: which is also most-informative first, and the control below raises it for a deliberate look.
+_MATRIX_MAX_FIELDS = 24
+
+
+def _field_label(name: str) -> str:
+    """The analytics label where there is one, since the same field should not be called two
+    different things in two views, and the raw name otherwise: a metric added later has no entry
+    in `_METRIC_META` and showing its key is better than hiding the column."""
+    labels = dict(_analytics_field_options())
+    return labels.get(name, name.split(":", 1)[-1] if ":" in name else name)
+
+
+def _matrix_svg(matrix: Any, labels: dict[str, str], cell_px: int = 26) -> tuple[str, str]:
+    """The correlation matrix as a heat map, with the cells that survive the correction marked.
+
+    Colour carries the sign and the magnitude, and a ring carries significance. A cell with no
+    coefficient is drawn as an explicit hatch rather than left blank, because "not computed" and
+    "computed and near zero" are different answers and a blank would read as the second.
+    """
+    fields = matrix.fields
+    if not fields:
+        return "", ""
+    pad_left, pad_top, pad_right, pad_bottom = 230, 230, 14, 14
+    size = len(fields) * cell_px
+    width, height = pad_left + size + pad_right, pad_top + size + pad_bottom
+
+    parts = []
+    for i, y in enumerate(fields):
+        for j, x in enumerate(fields):
+            cx, cy = pad_left + j * cell_px, pad_top + i * cell_px
+            if i == j:
+                parts.append(f"<rect x='{cx}' y='{cy}' width='{cell_px}' height='{cell_px}' "
+                             f"fill='#8883'/>")
+                continue
+            cell = matrix.get(x, y)
+            if cell is None or cell.r is None:
+                note = cell.note if cell is not None else "not computed"
+                parts.append(
+                    f"<rect x='{cx}' y='{cy}' width='{cell_px}' height='{cell_px}' "
+                    f"fill='none' stroke='#8886' stroke-width='0.5'/>"
+                    f"<line x1='{cx}' y1='{cy + cell_px}' x2='{cx + cell_px}' y2='{cy}' "
+                    f"stroke='#8886' stroke-width='0.7'/>"
+                    f"<title>{labels.get(x, x)} vs {labels.get(y, y)}: {note}</title>")
+                continue
+            r = cell.r
+            colour = "#b4553f" if r < 0 else "#3d6b8a"
+            parts.append(
+                f"<rect x='{cx}' y='{cy}' width='{cell_px}' height='{cell_px}' fill='{colour}' "
+                f"fill-opacity='{abs(r):.2f}'/>"
+                + (f"<rect x='{cx + 1.5}' y='{cy + 1.5}' width='{cell_px - 3}' "
+                   f"height='{cell_px - 3}' fill='none' stroke='#d9a441' stroke-width='1.6'/>"
+                   if cell.significant else "")
+                + f"<title>{labels.get(x, x)} vs {labels.get(y, y)}: r = {r:.2f}, "
+                  f"n = {cell.n}, p = {cell.p:.4f}"
+                  f"{' (survives)' if cell.significant else ''}</title>")
+
+    for i, name in enumerate(fields):
+        label = labels.get(name, name)[:34]
+        y = pad_top + i * cell_px + cell_px / 2
+        parts.append(f"<text x='{pad_left - 8}' y='{y}' text-anchor='end' "
+                     f"dominant-baseline='middle' font-size='10' fill='currentColor'>"
+                     f"{escape(label)}</text>")
+        x = pad_left + i * cell_px + cell_px / 2
+        parts.append(f"<text x='{x}' y='{pad_top - 8}' font-size='10' fill='currentColor' "
+                     f"transform='rotate(-90 {x} {pad_top - 8})'>{escape(label)}</text>")
+
+    body = "".join(parts)
+    inline = (f"<svg viewBox='0 0 {width} {height}' style='width:100%;height:auto;color:#c7cbe6' "
+              f"class='matrixchart'>{body}</svg>")
+    standalone = (f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}' "
+                  f"width='{width}' height='{height}' "
+                  f"style='background:#fff;color:#222;font-family:sans-serif'>{body}</svg>")
+    return inline, "data:image/svg+xml;charset=utf-8," + quote(standalone)
+
+
+@app.route("/coverage", methods=["GET"])
+def coverage_view():
+    rows = [_analytics_row(r) for r in Ledger(_REPO_ROOT).load_all()]
+    populated = coverage.numeric_fields(rows)
+
+    unit = request.values.get("unit", "design")
+    unit = unit if unit in ("design", "run") else "design"
+    family = request.values.get("family", "metric")
+    try:
+        limit = max(2, min(60, int(request.values.get("limit", _MATRIX_MAX_FIELDS))))
+    except ValueError:
+        limit = _MATRIX_MAX_FIELDS
+
+    def in_family(name: str) -> bool:
+        if family == "metric":
+            return name.startswith("metric:")
+        if family == "design":
+            return not name.startswith("metric:")
+        return True
+
+    chosen = [name for name, _ in populated if in_family(name)][:limit]
+    matrix = coverage.correlation_matrix(rows, chosen, unit=unit)
+    labels = {name: _field_label(name) for name in chosen}
+    chart, download = _matrix_svg(matrix, labels)
+
+    # The pairs worth reading first: strongest surviving relationships, in words, since a heat map
+    # answers "where do I look" and a reader still has to be told what they are looking at.
+    surviving = sorted(
+        (c for c in matrix.cells.values() if c.significant and c.r is not None),
+        key=lambda c: -abs(c.r))
+    highlights = [{
+        "x": labels.get(c.x, c.x), "y": labels.get(c.y, c.y),
+        "x_field": c.x, "y_field": c.y,
+        "r": round(c.r, 3), "n": c.n, "p": c.p,
+    } for c in surviving[:12]]
+
+    return render_template(
+        "coverage.html", active_tab="coverage", grid=coverage.coverage_grid(rows),
+        kind_meta=KIND_META, matrix=matrix, chart=chart, download=download,
+        highlights=highlights, unit=unit, family=family, limit=limit,
+        populated=populated, chosen=chosen, labels=labels, n_records=len(rows),
+        min_points=coverage.MIN_POINTS, permutations=coverage.PERMUTATIONS,
+    )
 
 
 @app.route("/spacemap", methods=["GET", "POST"])

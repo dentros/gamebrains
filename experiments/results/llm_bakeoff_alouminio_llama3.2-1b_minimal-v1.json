@@ -1,0 +1,72 @@
+{
+  "model": "llama3.2:1b",
+  "profile": "minimal-v1",
+  "rounds": 40,
+  "seed": 0,
+  "pretrain_rounds": 3000,
+  "mpcr": 0.5,
+  "seconds": 186.8,
+  "agents": [
+    {
+      "name": "D0",
+      "kind": "dqn",
+      "information": "observation",
+      "payoff": 23.0,
+      "cooperation": 0.0
+    },
+    {
+      "name": "MarkovBrain",
+      "kind": "markov_brain",
+      "information": "observation",
+      "payoff": 23.0,
+      "cooperation": 0.0
+    },
+    {
+      "name": "Q0",
+      "kind": "qlearning",
+      "information": "observation",
+      "payoff": 22.0,
+      "cooperation": 0.025
+    },
+    {
+      "name": "FEP",
+      "kind": "fep",
+      "information": "observation",
+      "payoff": 18.0,
+      "cooperation": 0.125
+    },
+    {
+      "name": "LLM (llama3.2:1b)",
+      "kind": "llm",
+      "information": "observation+history",
+      "payoff": -17.0,
+      "cooperation": 1.0
+    }
+  ],
+  "match": {
+    "cooperation_rate": 0.23,
+    "efficiency": 0.23,
+    "payoff_gini": 0.22077922077922074,
+    "action_entropy_bits": 0.7592814698224581
+  },
+  "rationales": [
+    {
+      "round": 1,
+      "action": "concede",
+      "rationale": "Given the observation of 6, it is likely that the other players are more likely to defect than cooperate, making it a rational strategy for me to concede.",
+      "confidence": 0.7
+    },
+    {
+      "round": 21,
+      "action": "concede",
+      "rationale": "Given the observation of 1, it is likely that the other players have also decided to concede, as it is the most rational action given the current state of the game.",
+      "confidence": 0.8
+    },
+    {
+      "round": 40,
+      "action": "concede",
+      "rationale": "Given the observation of 1, it is likely that the other players have also decided to concede, as it is the most rational action given the current state of the game.",
+      "confidence": 0.8
+    }
+  ]
+}

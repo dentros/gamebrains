@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>The board so far</h2>
+  <p class="meta">Every game and agent kind the ledger has a record for, and the squares that are
+    still empty. Nothing here is a list written by hand: a game, an agent kind or a metric added
+    later appears in this table the first time it is recorded, and disappears from it if it is
+    never used again. {{ grid.filled }} of {{ grid.total }} squares have been played, over
+    {{ n_records }} records.</p>
+
+  {% if grid.games %}
+  <table>
+    <tr><th></th>{% for k in grid.kinds %}
+      <th>{{ kind_meta[k].label if k in kind_meta else k }}</th>{% endfor %}</tr>
+    {% for g in grid.games %}
+    <tr>
+      <th style="text-align:left">{{ g }}</th>
+      {% for k in grid.kinds %}
+      {% set cell = grid.cells.get((g, k)) %}
+      <td style="text-align:center">
+        {% if cell %}
+          <span class="badge ok">{{ cell.runs }}</span>
+          <span class="meta">{{ cell.designs }} design{{ '' if cell.designs == 1 else 's' }}</span>
+        {% else %}
+          <span class="meta">&mdash;</span>
+        {% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="meta">A count is runs, and the line under it is how many distinct designs those runs
+    are. Ten runs of one design is one point repeated ten times, which is why the number below the
+    count is the one that matters for anything computed across experiments.</p>
+  {% else %}
+  <p class="meta">The ledger is empty. Run a match and it will appear here.</p>
+  {% endif %}
+
+  {% if grid.metrics %}
+  <p class="meta" style="margin-top:14px"><strong>{{ grid.metrics|length }} measures recorded:</strong>
+    {% for m in grid.metrics %}<code>{{ m }}</code>{{ ", " if not loop.last }}{% endfor %}</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>What moves with what</h2>
+  <p class="meta">Every pair of the fields below, over everything recorded. This is a view for
+    deciding where to look next, not a place to read a finding from: the coefficients are computed
+    on whatever has been run, which is not a designed sample, and a relationship here is a reason to
+    design an experiment rather than the result of one.</p>
+
+  <form method="get" action="/coverage">
+    <div class="grid">
+      <div>
+        <label>One point per</label>
+        <select name="unit">
+          <option value="design" {{ 'selected' if unit == 'design' }}>design (config hash and protocol)</option>
+          <option value="run" {{ 'selected' if unit == 'run' }}>run</option>
+        </select>
+      </div>
+      <div>
+        <label>Fields</label>
+        <select name="family">
+          <option value="metric" {{ 'selected' if family == 'metric' }}>measures only</option>
+          <option value="design" {{ 'selected' if family == 'design' }}>design and agent parameters</option>
+          <option value="all" {{ 'selected' if family == 'all' }}>everything</option>
+        </select>
+      </div>
+      <div>
+        <label>At most this many fields</label>
+        <input type="number" name="limit" value="{{ limit }}" min="2" max="60">
+      </div>
+    </div>
+    <button type="submit">Update</button>
+  </form>
+
+  <p class="meta" style="margin-top:12px">
+    {{ matrix.n_points }} point{{ '' if matrix.n_points == 1 else 's' }} at the
+    <strong>{{ unit }}</strong> level, {{ matrix.n_tested }} pair{{ '' if matrix.n_tested == 1 else 's' }}
+    testable, <strong>{{ matrix.n_significant }}</strong> surviving Benjamini-Hochberg at
+    q = {{ matrix.fdr_q }}. A pair needs {{ min_points }} points before a coefficient is reported at
+    all, and significance is a permutation null of {{ permutations }} shuffles, so the smallest
+    p-value reachable is {{ (1.0 / (permutations + 1))|round(5) }}.
+  </p>
+
+  {% if chart %}
+  {{ chart|safe }}
+  <p class="meta">Blue is positive, red negative, and the depth of the colour is the size. A gold
+    ring is a pair that survives the correction over the whole matrix. A crossed square is a pair
+    with no coefficient, and hovering says which reason: too few points, or no variation in one of
+    the two. Nothing is left blank, because a blank reads as a zero.
+    <a href="{{ download }}" download="correlations.svg">Download SVG</a></p>
+  {% else %}
+  <p class="meta">Nothing to draw yet.</p>
+  {% endif %}
+
+  {% if highlights %}
+  <h3>Worth looking at first</h3>
+  <table>
+    <tr><th>Pair</th><th>r</th><th>n</th><th>p</th><th></th></tr>
+    {% for h in highlights %}
+    <tr>
+      <td>{{ h.x }} <span class="meta">and</span> {{ h.y }}</td>
+      <td>{{ '%+.2f'|format(h.r) }}</td>
+      <td>{{ h.n }}</td>
+      <td>{{ '%.4f'|format(h.p) }}</td>
+      <td><a href="/analytics?chart_x={{ h.x_field }}&chart_y={{ h.y_field }}">See the points</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% elif matrix.n_tested %}
+  <p class="meta">No pair survives the correction. With {{ matrix.n_points }} points that is the
+    expected outcome rather than a negative result, and the way to change it is more designs, not a
+    looser threshold.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

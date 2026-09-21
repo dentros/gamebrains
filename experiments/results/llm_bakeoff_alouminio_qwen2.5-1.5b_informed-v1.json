@@ -1,0 +1,72 @@
+{
+  "model": "qwen2.5:1.5b",
+  "profile": "informed-v1",
+  "rounds": 40,
+  "seed": 0,
+  "pretrain_rounds": 3000,
+  "mpcr": 0.5,
+  "seconds": 231.2,
+  "agents": [
+    {
+      "name": "D0",
+      "kind": "dqn",
+      "information": "observation",
+      "payoff": 20.5,
+      "cooperation": 0.0
+    },
+    {
+      "name": "MarkovBrain",
+      "kind": "markov_brain",
+      "information": "observation",
+      "payoff": 20.5,
+      "cooperation": 0.0
+    },
+    {
+      "name": "Q0",
+      "kind": "qlearning",
+      "information": "observation",
+      "payoff": 19.5,
+      "cooperation": 0.025
+    },
+    {
+      "name": "FEP",
+      "kind": "fep",
+      "information": "observation",
+      "payoff": 15.5,
+      "cooperation": 0.125
+    },
+    {
+      "name": "LLM (qwen2.5:1.5b)",
+      "kind": "llm",
+      "information": "observation+history+others",
+      "payoff": -14.5,
+      "cooperation": 0.875
+    }
+  ],
+  "match": {
+    "cooperation_rate": 0.205,
+    "efficiency": 0.205,
+    "payoff_gini": 0.22388059701492535,
+    "action_entropy_bits": 0.6926857377275407
+  },
+  "rationales": [
+    {
+      "round": 1,
+      "action": "concede",
+      "rationale": "I concede because I want to ensure I don't lose any points from the previous round's concession.",
+      "confidence": 1
+    },
+    {
+      "round": 21,
+      "action": "claim",
+      "rationale": "I have already experienced negative outcomes from conceding, and the previous round's action did not change the pattern. It's best to defect to avoid further negative consequences.",
+      "confidence": 0.95
+    },
+    {
+      "round": 40,
+      "action": "concede",
+      "rationale": "Previous rounds showed that conceding results in a lower reward, and I want to avoid negative outcomes.",
+      "confidence": 0.95
+    }
+  ]
+}

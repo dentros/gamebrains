@@ -41,8 +41,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from ..agents.llm import LLMAgent
-from ..agents.llm_prompt import DEFAULT_PROFILE, decision_schema
+from ..agents.llm import LLMAgent, decision_schema
+from ..agents.llm_prompt import DEFAULT_PROFILE
 from ..agents.llm_backends import BackendUnavailable, SchemaViolation
 from ..agents.llm_ollama import OllamaBackend
 from ..agents.qlearning import QLearningAgent

@@ -945,6 +945,47 @@ to `_KIND_ORDER` lengthened the feature vector, and `nearest` indexed a 10-long 
 9-long mask. Weights are aligned to the query now, so an older ledger still ranks within itself, and
 a vector longer than the weights is refused by name.
 
+## 9l. What the model is told, as a recorded choice (2026-09-21)
+
+### `agents/llm_prompt.py`: profiles, not a prompt box
+
+The prompt **is** the LLM seat's information set. A free-text prompt argument would let two runs
+differ by a sentence nothing recorded, which is the one difference that makes a comparison between
+models meaningless. So the content is a named, versioned profile, resolved at construction (an
+unknown name fails when the roster is built, not forty rounds in), and the name is recorded.
+
+* `minimal-v1` is exactly what every measurement in the paper was taken under. **Frozen**, and a
+  test asserts the lines it does not contain, because editing it to be "better" would silently
+  redefine results already recorded under the name.
+* `informed-v1` says the same board without the arithmetic: payoff rule in a sentence, round index,
+  running total, the decoded board where the game can decode it, and how many of the **other**
+  players conceded.
+* A new version is a new name. Never an edit.
+
+`profile` sits in `_PARAM_ATTRS["llm"]`, so it reaches `config_hash`, the Smart Filter and the
+meta-analysis grouping like a learning rate does. This lengthens the llm parameter set once: llm
+records written before it carry a different `config_hash` from equivalent ones written after.
+
+### Why this exists: two models made two different versions of one mistake
+
+Same board, same opponents, 40 rounds. `llama3.2:1b` and `qwen2.5:1.5b` both conceded 100% of the
+time for -17 while four trained architectures took 18 to 23. Their rationales differ and both are
+arithmetic about the published count: llama read an observation of 1 out of 5 as evidence that the
+others had cooperated (the count includes the agent itself), and qwen stated that conceding had
+produced a lower payoff and concluded that conceding was therefore rational. A prompt is a variable,
+and it was the one variable the platform was not recording.
+
+### Two smaller things found on the way
+
+1. **A decoded state label is a number with more digits unless its convention comes with it.** The
+   congestion family renders state 1 as `001`; `CongestionGame.state_label_legend()` now says what
+   the digits mean, because that is a fact about the game's encoding and an agent that hardcoded it
+   would be wrong the moment the encoding changed. The Public Goods Game renders its state as `k=1`,
+   which says *less* than the gloss, so a count-publishing game is deliberately not decoded.
+2. **The bake-off wrote one results file per host.** Running the second model overwrote the first
+   model's numbers with numbers that happened to be identical, which is the kind of loss that is
+   only visible when the two disagree. Keyed by model and profile now.
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see

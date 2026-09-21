@@ -870,6 +870,51 @@ turns out to be the stable class, so it "proved" determinism by testing the wron
 first version of the study script replaced the results file per invocation, which nearly deleted
 three sessions of one model to store two of another; sessions accumulate now.
 
+### Replay: the run reproduces, the model does not (`agents/llm_replay.py`)
+
+Since no setting makes a served model repeat itself, the exactness is bought from the recording
+instead. `LLMAgent.journal()` keeps every decision with the prompt that produced it,
+`record_experiment` stores that under `llm_decisions` in the run's package, and `ReplayBackend`
+answers from it under the same `Backend` contract, so the agent does not change at all.
+
+Two behaviours are deliberate, and both would be tempting to soften:
+
+- **A prompt the journal does not hold raises `NotRecorded`.** A replay that filled the gap would
+  be a different experiment wearing the recorded one's identity. The error names how many decisions
+  had already been replayed, which is where the divergence began.
+- **A repeated prompt replays in order**, because the same board state recurs and two decisions
+  taken at it need not agree.
+
+**Reproducibility is a tier now, not a boolean.** `Agent.reproducibility()` returns `byte`
+(everything else), `replay` (decisions read back) or `none` (a live model), and a run records the
+weakest tier in its roster. A boolean forced a nearly-but-not-exactly repeatable component into an
+answer that was false either way.
+
+### `Agent.information`: what an agent is allowed to see
+
+The declaration idea applied to the other half of the problem. `semantics` says how an agent relates
+to what actions mean; `information` says what it conditions on: `none`, `observation`,
+`observation+memory`, `observation+history`. The zoo differs here more than the names suggest:
+
+| Agent | Sees |
+|---|---|
+| Q-learning, DQN | the current observation only, so Markov in the game's published state |
+| FEP | a recursively updated belief, so all of the past as a summary and none of it raw |
+| Markov brain | hidden state, so as much past as the genome learned to keep |
+| AllC, AllD, Random | nothing |
+| Majority-TFT | the current observation |
+| LLM | the observation plus its own last `history` rounds verbatim, never what others did |
+
+It joins `_roster_description`, so it enters `config_hash`: two rosters differing only in what their
+agents may condition on are two experiments. **That changed every config hash once.** Done now
+deliberately, on the same reasoning as the protocol tier in §9e: the alternative is doing it after
+records are shared.
+
+**Known and deliberate gap:** in the congestion family the LLM is handed a board index the prompt
+truthfully calls "not a count", so it is close to blind there while `CongestionGame.state_labels()`
+could render the corridor. Widening the prompt is a change to the information set, so it invalidates
+the measured tables and is future work rather than a quiet fix.
+
 ### `repository/bundle.py`: one chain per installation
 
 Export writes the chain, the CAS objects its records point at and the public key. Import verifies

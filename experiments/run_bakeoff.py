@@ -28,7 +28,6 @@ from typing import Any, Optional
 import numpy as np
 
 from ..agents.classic import AllD
-from ..agents.dqn import DQNAgent
 from ..agents.fep import FEPAgent
 from ..agents.qlearning import QLearningAgent
 from ..agents.markov_brain import crossover as mb_crossover, spawn as mb_spawn
@@ -109,7 +108,14 @@ def pretrain(kind: str, seed: int, quiet: bool = False) -> Frozen:
         best = result.population[int(np.argmax(result.fitness))]
         return Frozen(best, "MarkovBrain")
 
-    make = QLearningAgent if kind == "qlearning" else DQNAgent
+    if kind == "qlearning":
+        make = QLearningAgent
+    else:
+        # Imported here rather than at the top, as everywhere else in the platform that can reach
+        # a DQN without needing one. A bake-off whose opponents are all tabular should not require
+        # torch to be installed, which matters on a machine chosen for its cores and short of disk.
+        from ..agents.dqn import DQNAgent
+        make = DQNAgent
     prefix = "Q" if kind == "qlearning" else "D"
     roster = [make(f"{prefix}{i}", n_states=game.n_states, n_actions=game.n_actions,
                    seed=seed * 100 + i, epsilon_decay=EPS_DECAY, epsilon_min=EPS_MIN)

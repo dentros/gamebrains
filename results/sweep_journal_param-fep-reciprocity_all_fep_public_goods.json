@@ -1,0 +1,17 @@
+[
+"public_goods n4 mpcr0.5 r500 s0 all_fep fep:reciprocity=0",
+"public_goods n4 mpcr0.5 r500 s0 all_fep fep:reciprocity=0.25",
+"public_goods n4 mpcr0.5 r500 s0 all_fep fep:reciprocity=0.5",
+"public_goods n4 mpcr0.5 r500 s0 all_fep fep:reciprocity=0.75",
+"public_goods n4 mpcr0.5 r500 s0 all_fep fep:reciprocity=1",
+"public_goods n4 mpcr0.5 r500 s1 all_fep fep:reciprocity=0",
+"public_goods n4 mpcr0.5 r500 s1 all_fep fep:reciprocity=0.25",
+"public_goods n4 mpcr0.5 r500 s1 all_fep fep:reciprocity=0.5",
+"public_goods n4 mpcr0.5 r500 s1 all_fep fep:reciprocity=0.75",
+"public_goods n4 mpcr0.5 r500 s1 all_fep fep:reciprocity=1",
+"public_goods n4 mpcr0.5 r500 s2 all_fep fep:reciprocity=0",
+"public_goods n4 mpcr0.5 r500 s2 all_fep fep:reciprocity=0.25",
+"public_goods n4 mpcr0.5 r500 s2 all_fep fep:reciprocity=0.5",
+"public_goods n4 mpcr0.5 r500 s2 all_fep fep:reciprocity=0.75",
+"public_goods n4 mpcr0.5 r500 s2 all_fep fep:reciprocity=1"
+]

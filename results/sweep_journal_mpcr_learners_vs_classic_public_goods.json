@@ -1,0 +1,17 @@
+[
+"public_goods n4 mpcr0.3 r500 s0 learners_vs_classic",
+"public_goods n4 mpcr0.3 r500 s1 learners_vs_classic",
+"public_goods n4 mpcr0.3 r500 s2 learners_vs_classic",
+"public_goods n4 mpcr0.4 r500 s0 learners_vs_classic",
+"public_goods n4 mpcr0.4 r500 s1 learners_vs_classic",
+"public_goods n4 mpcr0.4 r500 s2 learners_vs_classic",
+"public_goods n4 mpcr0.5 r500 s0 learners_vs_classic",
+"public_goods n4 mpcr0.5 r500 s1 learners_vs_classic",
+"public_goods n4 mpcr0.5 r500 s2 learners_vs_classic",
+"public_goods n4 mpcr0.6 r500 s0 learners_vs_classic",
+"public_goods n4 mpcr0.6 r500 s1 learners_vs_classic",
+"public_goods n4 mpcr0.6 r500 s2 learners_vs_classic",
+"public_goods n4 mpcr0.75 r500 s0 learners_vs_classic",
+"public_goods n4 mpcr0.75 r500 s1 learners_vs_classic",
+"public_goods n4 mpcr0.75 r500 s2 learners_vs_classic"
+]

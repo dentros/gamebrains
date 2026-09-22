@@ -22,6 +22,7 @@ import contextlib
 import csv
 import io
 import os
+import threading
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -30,12 +31,12 @@ from html import escape
 from urllib.parse import quote
 
 import numpy as np
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
 
 from ..agents.classic import AllC, AllD, MajorityTFT, RandomAgent
 # The prompt profiles, not the LLM agent: this module is imported at start-up and the
 # agent pulls in the Ollama client, which is why that import stays inside _make_agent.
-from ..agents import llm_prompt
+from ..agents import factory as agent_factory, llm_prompt
 from ..agents.qlearning import QLearningAgent
 from ..engine.agent import Agent
 from ..engine.console import LiveConsole
@@ -46,6 +47,7 @@ from ..engine.runner import run_match
 from ..games.congestion import from_preset as congestion_from_preset
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import equilibrium, graph, information, social, social_alt
+from ..experiments import sweep
 from ..repository import coverage, meta_analysis
 from ..repository.bundle import (
     BundleRejected, export_bundle, import_bundle, list_sources, load_records, untag,
@@ -210,16 +212,7 @@ class _Frozen(Agent):
 # --- roster construction ---------------------------------------------------------------------
 
 def _classic_agent(strategy: str, i: int, n: int, seed: int, extra: dict[str, Any] | None = None):
-    extra = extra or {}
-    if strategy == "AllC":
-        return AllC(f"AllC {i}")
-    if strategy == "AllD":
-        return AllD(f"AllD {i}")
-    if strategy == "Random":
-        return RandomAgent(f"Random {i}", p_cooperate=extra.get("p_cooperate", 0.5), seed=seed + 400 + i)
-    if strategy == "MajorityTFT":
-        return MajorityTFT(f"TFT {i}", n_agents=n)
-    raise ValueError(f"unknown classic strategy {strategy}")
+    return agent_factory.classic_agent(strategy, i, n, seed, extra)
 
 
 def _make_agent(kind: str, i: int, game: PublicGoodsGame, seed: int, classic_strategy: str,
@@ -228,42 +221,17 @@ def _make_agent(kind: str, i: int, game: PublicGoodsGame, seed: int, classic_str
     """`extra` carries kind-specific hyperparameter overrides beyond the handful already exposed
     as their own arguments (the roster builder's "Advanced" section) -- see `_ADVANCED_PARAMS`
     for the full list per kind and each one's default. Any key not present in `extra` falls back
-    to the underlying Agent class's own constructor default, not a value duplicated here."""
+    to the underlying Agent class's own constructor default, not a value duplicated here.
+
+    Everything but the language-model seat is built by `agents/factory.py`, which the batch tools
+    use as well. Two builders is how two runs come to share a `config_hash` and disagree about the
+    numbers: a seed offset or a default moves in one of them and nothing says so."""
     extra = extra or {}
-    labels, actions = game.state_labels(), game.action_names
-    if kind == "qlearning":
-        return QLearningAgent(
-            name=f"Q-learner {i}", n_states=game.n_states, n_actions=game.n_actions,
-            alpha=extra.get("alpha", 0.1), gamma=extra.get("gamma", 0.95),
-            epsilon=1.0, epsilon_min=epsilon_min, epsilon_decay=epsilon_decay,
-            seed=seed + 100 + i, state_labels=labels, action_labels=actions,
-        )
-    if kind == "dqn":
-        from ..agents.dqn import DQNAgent
-        kwargs = {}
-        for key in ("hidden", "lr", "gamma", "buffer_size", "batch_size", "train_every", "target_sync_every"):
-            if key in extra:
-                kwargs[key] = extra[key]
-        return DQNAgent(
-            name=f"DeepQ {i}", n_states=game.n_states, n_actions=game.n_actions,
-            epsilon=1.0, epsilon_min=epsilon_min, epsilon_decay=epsilon_decay,
-            seed=seed + 200 + i, state_labels=labels, action_labels=actions, **kwargs,
-        )
-    if kind == "fep":
-        from ..agents.fep import FEPAgent
-        kwargs = {k: extra[k] for k in ("obs_noise", "drift", "precision") if k in extra}
-        return FEPAgent(
-            name=f"FEP {i}", n_agents=game.n_agents, mpcr=game.mpcr, cost=game.cost,
-            reciprocity=reciprocity, seed=seed + 300 + i, start_state=game.start_state, **kwargs,
-        )
-    if kind == "markov_brain":
-        from ..agents.markov_brain import MarkovBrainAgent
-        return MarkovBrainAgent(
-            name=f"MarkovBrain {i}", n_states=game.n_states, n_actions=game.n_actions,
-            n_hidden=markov_hidden, seed=seed + 500 + i, start_state=game.start_state,
-        )
-    if kind == "classic":
-        return _classic_agent(classic_strategy, i, game.n_agents, seed, extra)
+    if kind in agent_factory.KINDS:
+        return agent_factory.build(
+            kind, i, game, seed, classic_strategy=classic_strategy, reciprocity=reciprocity,
+            markov_hidden=markov_hidden, epsilon_decay=epsilon_decay, epsilon_min=epsilon_min,
+            overrides=extra)
     if kind == "llm":
         from ..agents.llm import LLMAgent
         from ..agents.llm_ollama import DEFAULT_MODEL, OllamaBackend
@@ -2056,6 +2024,197 @@ def _matrix_svg(matrix: Any, labels: dict[str, str], cell_px: int = 26) -> tuple
                   f"width='{width}' height='{height}' "
                   f"style='background:#fff;color:#222;font-family:sans-serif'>{body}</svg>")
     return inline, "data:image/svg+xml;charset=utf-8," + quote(standalone)
+
+
+# --- Sweeping one parameter across a range, in parallel, while you watch -----------------------
+#
+# Independent runs over independent cores. The reason this is a view rather than a script is that
+# the answer to "what does this parameter do to everything" is only useful while it is arriving:
+# a researcher who has to wait for a batch and then open a file asks the question less often.
+
+#: Only one sweep at a time, and the state is module level because a second one would compete for
+#: the same cores and write to the same chain. A refusal naming the running sweep is more use than
+#: a queue nobody asked for.
+#: Parameters a range makes no sense of. A classic strategy is a name, and a sweep draws its axis
+#: as a number, so offering it would produce a chart with nothing on it. It remains settable in the
+#: roster builder, where picking one rather than ranging over them is the whole idea.
+_NOT_A_RANGE = ("strategy",)
+
+_SWEEP: dict[str, Any] = {"progress": None, "thread": None, "axis": "", "error": "", "cells": 0}
+_SWEEP_LOCK = threading.Lock()
+
+
+def _sweep_running() -> bool:
+    thread = _SWEEP.get("thread")
+    return bool(thread and thread.is_alive())
+
+
+def _sweep_worker(cells: list[Any], axis: str, workers: int, journal: Path) -> None:
+    """Drives the generator to exhaustion. The Progress object it updates is the one the page
+    polls, so nothing has to be copied between them."""
+    try:
+        for _ in sweep.run_sweep(cells, _REPO_ROOT, workers=workers, record=True, journal=journal,
+                                 progress=_SWEEP["progress"]):
+            pass
+    except Exception as failure:                  # the sweep, not a cell: cells fail individually
+        _SWEEP["error"] = f"{type(failure).__name__}: {failure}"
+
+
+def _sweep_series(rows: list[dict[str, Any]], axis: str) -> dict[str, list[tuple[float, float]]]:
+    """Every metric's points against the swept value, over the cells that have finished.
+
+    Keyed by metric name and discovered from the rows, so a measure added to the platform later
+    appears here without this function being told about it.
+    """
+    series: dict[str, list[tuple[float, float]]] = {}
+    for row in rows:
+        x = sweep.axis_value(row["cell"], axis)
+        if x is None:
+            continue
+        for name, value in row["metrics"].items():
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                series.setdefault(name, []).append((x, float(value)))
+    return {name: sorted(points) for name, points in series.items() if len(points) > 1}
+
+
+def _line_svg(points: list[tuple[float, float]], x_label: str, y_label: str,
+              width: int = 300, height: int = 160) -> str:
+    """One measure against the swept parameter: every run as a dot, the per-value mean as a line.
+
+    Both, deliberately. The line alone hides that three seeds disagreed, and the dots alone are
+    hard to read a direction from, and the disagreement between seeds is usually the finding.
+    """
+    if not points:
+        return ""
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    xmin, xmax = min(xs), max(xs)
+    ymin, ymax = min(ys), max(ys)
+    xspan = (xmax - xmin) or 1.0
+    yspan = (ymax - ymin) or (abs(ymax) or 1.0)
+    pad_l, pad_r, pad_t, pad_b = 46, 10, 22, 26
+
+    def sx(x: float) -> float:
+        return pad_l + (x - xmin) / xspan * (width - pad_l - pad_r)
+
+    def sy(y: float) -> float:
+        return height - pad_b - (y - ymin) / yspan * (height - pad_t - pad_b)
+
+    means: dict[float, list[float]] = {}
+    for x, y in points:
+        means.setdefault(x, []).append(y)
+    path = " ".join(
+        f"{'M' if i == 0 else 'L'}{sx(x):.1f},{sy(sum(v) / len(v)):.1f}"
+        for i, (x, v) in enumerate(sorted(means.items())))
+
+    dots = "".join(f"<circle cx='{sx(x):.1f}' cy='{sy(y):.1f}' r='2.5' fill='#3d6b8a' "
+                   f"fill-opacity='0.55'/>" for x, y in points)
+    axes = (f"<line x1='{pad_l}' y1='{height - pad_b}' x2='{width - pad_r}' y2='{height - pad_b}' "
+            f"stroke='#8888'/>"
+            f"<line x1='{pad_l}' y1='{pad_t}' x2='{pad_l}' y2='{height - pad_b}' stroke='#8888'/>")
+    ticks = "".join(
+        f"<text x='{pad_l - 6}' y='{sy(value):.1f}' text-anchor='end' dominant-baseline='middle' "
+        f"font-size='9' fill='currentColor'>{_format_tick(value)}</text>"
+        for value in (ymin, ymax)) + "".join(
+        f"<text x='{sx(value):.1f}' y='{height - pad_b + 13}' text-anchor='middle' font-size='9' "
+        f"fill='currentColor'>{_format_tick(value)}</text>" for value in (xmin, xmax))
+    title = (f"<text x='{width / 2}' y='13' text-anchor='middle' font-size='11' font-weight='600' "
+             f"fill='currentColor'>{escape(y_label)}</text>")
+    label = (f"<text x='{width / 2}' y='{height - 3}' text-anchor='middle' font-size='9' "
+             f"fill='currentColor'>{escape(x_label)}</text>")
+    line = f"<path d='{path}' fill='none' stroke='#d9a441' stroke-width='1.8'/>" if path else ""
+    return (f"<svg viewBox='0 0 {width} {height}' style='width:100%;height:auto;color:#c7cbe6' "
+            f"class='scatterchart'>{title}{axes}{ticks}{dots}{line}{label}</svg>")
+
+
+def _sweep_axes_offered() -> list[tuple[str, str]]:
+    """The axes a person may pick, built from what the factory will actually accept.
+
+    Generated rather than listed, so a hyperparameter added to an agent becomes sweepable the same
+    day, and one this factory would refuse is never offered.
+    """
+    options = [("mpcr", "Payoff parameter (MPCR)"), ("n_agents", "Population size"),
+               ("rounds", "Round count"), ("seed", "Seed")]
+    for kind, params in sorted(agent_factory.ACCEPTS.items()):
+        label = KIND_META.get(kind, {}).get("label", kind)
+        options += [(f"param:{kind}:{name}", f"{label} · {name}") for name in params
+                    if name not in _NOT_A_RANGE]
+    return options
+
+
+@app.route("/sweep", methods=["GET", "POST"])
+def sweep_view():
+    message = ""
+    axis = request.values.get("axis", "mpcr")
+    values = request.values.get("values", "0.3,0.4,0.5,0.6,0.75")
+    seeds = request.values.get("seeds", "0,1,2")
+    game = request.values.get("game", "public_goods")
+    mix = request.values.get("mix", "all_qlearning")
+    n_agents = int(request.values.get("agents", 4) or 4)
+    rounds = int(request.values.get("rounds", 500) or 500)
+    default_workers = max(1, (os.cpu_count() or 2) - 1)
+    workers = max(1, min(default_workers, int(request.values.get("workers", default_workers) or 1)))
+
+    if request.method == "POST":
+        with _SWEEP_LOCK:
+            if _sweep_running():
+                message = ("a sweep is already running. Two at once would compete for the same "
+                           "cores and write to the same chain, so this one was not started.")
+            else:
+                try:
+                    parsed = [float(v) if "." in v else int(v)
+                              for v in (t.strip() for t in values.split(",")) if v]
+                    seed_list = [int(s.strip()) for s in seeds.split(",") if s.strip()]
+                    base = sweep.Cell(game=game, n_agents=n_agents, rounds=rounds, mix=mix)
+                    cells = sweep.build_cells(base, axis, parsed, seed_list)
+                    if not cells:
+                        message = ("nothing to run: that roster has no meaning at this population "
+                                   "size, so every cell was dropped before starting")
+                    else:
+                        name = f"{axis}_{mix}_{game}".replace(":", "-")
+                        journal = sweep.RESULTS_DIR / f"sweep_journal_{name}.json"
+                        _SWEEP.update({"progress": sweep.Progress(), "axis": axis, "error": "",
+                                       "cells": len(cells)})
+                        thread = threading.Thread(
+                            target=_sweep_worker, args=(cells, axis, workers, journal),
+                            daemon=True)
+                        _SWEEP["thread"] = thread
+                        thread.start()
+                        message = f"{len(cells)} cells started over {workers} workers"
+                except (ValueError, KeyError) as bad:
+                    message = f"refused: {bad}"
+
+    progress = _SWEEP.get("progress")
+    charts = []
+    if progress and progress.rows:
+        for name, points in sorted(_sweep_series(progress.rows, _SWEEP["axis"]).items()):
+            label = dict(_METRIC_META).get(name, name)
+            charts.append({"metric": name, "label": label,
+                           "svg": _line_svg(points, _SWEEP["axis"], label)})
+
+    return render_template(
+        "sweep.html", active_tab="sweep", message=message, axis=axis, values=values, seeds=seeds,
+        game=game, mix=mix, agents=n_agents, rounds=rounds, workers=workers,
+        axes=_sweep_axes_offered(), mixes=sorted(sweep.MIXES), games=_GAME_CHOICES,
+        max_workers=default_workers, progress=progress, running=_sweep_running(),
+        error=_SWEEP.get("error", ""), charts=charts)
+
+
+@app.route("/sweep/progress", methods=["GET"])
+def sweep_progress():
+    """What the page polls. Small on purpose: a poll every second that returned the charts would
+    redraw the whole page to move a bar two pixels."""
+    progress = _SWEEP.get("progress")
+    if progress is None:
+        return jsonify({"state": "idle"})
+    left = progress.remaining_estimate
+    return jsonify({
+        "state": "running" if _sweep_running() else "finished",
+        "done": progress.done, "failed": progress.failed, "skipped": progress.skipped,
+        "total": progress.total, "last": progress.last, "elapsed": round(progress.elapsed, 1),
+        "eta": round(left, 1) if left is not None else None,
+        "error": _SWEEP.get("error", ""),
+    })
 
 
 @app.route("/coverage", methods=["GET"])

@@ -1,0 +1,8 @@
+[
+"public_goods n4 mpcr0.3 r500 s0 all_dqn",
+"public_goods n4 mpcr0.3 r500 s1 all_dqn",
+"public_goods n4 mpcr0.5 r500 s0 all_dqn",
+"public_goods n4 mpcr0.5 r500 s1 all_dqn",
+"public_goods n4 mpcr0.75 r500 s0 all_dqn",
+"public_goods n4 mpcr0.75 r500 s1 all_dqn"
+]

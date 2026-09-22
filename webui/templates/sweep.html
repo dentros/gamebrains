@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if message %}<div class="panel"><p>{{ message }}</p></div>{% endif %}
+{% if error %}<div class="panel"><p><span class="badge warn">the sweep stopped</span></p>
+  <p class="meta">{{ error }}</p></div>{% endif %}
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Move one thing, watch everything</h2>
+  <p class="meta">Pick a parameter and a range. Each value becomes its own experiment, they run at
+    the same time across this machine's cores, and every measure the platform computes is drawn
+    against the parameter as the runs land. Each one is recorded in the ledger like any other
+    match, so the answer is queryable afterwards rather than only visible here.</p>
+
+  <form method="post" action="/sweep">
+    <div class="grid">
+      <div>
+        <label>Vary</label>
+        <select name="axis">
+          {% for key, label in axes %}
+          <option value="{{ key }}" {% if key == axis %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Over these values</label>
+        <input type="text" name="values" value="{{ values }}">
+      </div>
+      <div>
+        <label>Seeds per value</label>
+        <input type="text" name="seeds" value="{{ seeds }}">
+      </div>
+    </div>
+    <div class="grid">
+      <div>
+        <label>Game</label>
+        <select name="game">
+          {% for key, label in games %}
+          <option value="{{ key }}" {% if key == game %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Roster</label>
+        <select name="mix">
+          {% for key in mixes %}
+          <option value="{{ key }}" {% if key == mix %}selected{% endif %}>{{ key }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div><label>Agents</label><input type="number" name="agents" value="{{ agents }}" min="2" max="10"></div>
+      <div><label>Rounds</label><input type="number" name="rounds" value="{{ rounds }}" min="20"></div>
+      <div>
+        <label>Workers</label>
+        <input type="number" name="workers" value="{{ workers }}" min="1" max="{{ max_workers }}">
+      </div>
+    </div>
+    <button type="submit" {% if running %}disabled{% endif %}>
+      {% if running %}A sweep is running{% else %}Run the range{% endif %}</button>
+    <p class="meta">One worker per core is deliberately not offered. The spare core is what keeps
+      this page answering while the sweep runs, and a sweep you cannot watch is a batch job.
+      Seeds are the honest part: three runs per value show whether a difference between values is
+      larger than the difference between seeds.</p>
+  </form>
+</div>
+
+{% if progress %}
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Progress</h2>
+  <div id="bar-track" style="background:#00000033;border-radius:6px;height:14px;overflow:hidden">
+    <div id="bar" style="height:100%;width:0%;background:var(--gold);transition:width .3s"></div>
+  </div>
+  <p class="meta" id="progress-line">starting</p>
+  <p class="meta" id="progress-last"></p>
+</div>
+{% endif %}
+
+{% if charts %}
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Every measure against {{ axis }}</h2>
+  <p class="meta">A dot is one run. The line joins the mean at each value. Both are drawn because
+    the line alone hides that the seeds disagreed, and where they disagree by more than the values
+    do, the parameter has not been shown to matter.</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">
+    {% for chart in charts %}
+    <div>{{ chart.svg|safe }}</div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+  const bar = document.getElementById('bar');
+  if (!bar) return;
+  const line = document.getElementById('progress-line');
+  const last = document.getElementById('progress-last');
+
+  function tick() {
+    fetch('/sweep/progress').then(r => r.json()).then(p => {
+      if (p.state === 'idle') return;
+      const counted = p.done + p.failed + p.skipped;
+      const pct = p.total ? Math.round(100 * counted / p.total) : 0;
+      bar.style.width = pct + '%';
+      let text = counted + ' of ' + p.total + ' (' + pct + '%), ' + p.done + ' recorded';
+      if (p.failed) text += ', ' + p.failed + ' failed';
+      if (p.skipped) text += ', ' + p.skipped + ' already done';
+      if (p.eta) text += ', about ' + Math.ceil(p.eta) + 's left';
+      line.textContent = text;
+      last.textContent = p.last || '';
+      if (p.state === 'running') {
+        setTimeout(tick, 1000);
+      } else {
+        // One reload when it finishes, so the charts are drawn from the finished rows rather
+        // than redrawn on every poll.
+        line.textContent = text + ' — done in ' + p.elapsed + 's';
+        if (!window.__sweepReloaded) { window.__sweepReloaded = true; setTimeout(() => location.reload(), 600); }
+      }
+    }).catch(() => setTimeout(tick, 3000));
+  }
+  tick();
+})();
+</script>
+
+{% endblock %}

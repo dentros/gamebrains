@@ -1,0 +1,14 @@
+[
+"public_goods n3 mpcr0.5 r500 s0 all_qlearning",
+"public_goods n3 mpcr0.5 r500 s1 all_qlearning",
+"public_goods n3 mpcr0.5 r500 s2 all_qlearning",
+"public_goods n4 mpcr0.5 r500 s0 all_qlearning",
+"public_goods n4 mpcr0.5 r500 s1 all_qlearning",
+"public_goods n4 mpcr0.5 r500 s2 all_qlearning",
+"public_goods n5 mpcr0.5 r500 s0 all_qlearning",
+"public_goods n5 mpcr0.5 r500 s1 all_qlearning",
+"public_goods n5 mpcr0.5 r500 s2 all_qlearning",
+"public_goods n6 mpcr0.5 r500 s0 all_qlearning",
+"public_goods n6 mpcr0.5 r500 s1 all_qlearning",
+"public_goods n6 mpcr0.5 r500 s2 all_qlearning"
+]

@@ -1,0 +1,8 @@
+[
+"public_goods n4 mpcr0.5 r300 s0 all_qlearning qlearning:gamma=0.8",
+"public_goods n4 mpcr0.5 r300 s0 all_qlearning qlearning:gamma=0.9",
+"public_goods n4 mpcr0.5 r300 s0 all_qlearning qlearning:gamma=0.99",
+"public_goods n4 mpcr0.5 r300 s1 all_qlearning qlearning:gamma=0.8",
+"public_goods n4 mpcr0.5 r300 s1 all_qlearning qlearning:gamma=0.9",
+"public_goods n4 mpcr0.5 r300 s1 all_qlearning qlearning:gamma=0.99"
+]

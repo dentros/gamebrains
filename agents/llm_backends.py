@@ -8,13 +8,17 @@ this platform cares about most:
                       the model is fast, but there is no PyTorch module to attach to, so hidden
                       activations do not exist as far as a caller is concerned.
 
-    transformers      the model loaded in-process as a torch module. Forward hooks can record any
-                      layer's activations, which is what interpretability tooling such as
+    transformers      the model loaded in-process as a torch module. Forward hooks could record
+                      any layer's activations, which is what interpretability tooling such as
                       TransformerLens and nnsight is built on, at roughly an order of magnitude
-                      more compute and memory.
+                      more compute and memory. **Not implemented.** It is described here because
+                      it is what the capability declaration exists to accommodate, and describing
+                      it is not the same as shipping it.
 
-**Neither is a superset of the other**, so the platform ships both behind one contract and each
-backend declares its own capabilities rather than failing quietly at the point of use. That is the
+What the platform actually ships is the Ollama backend and the replay backend of
+`agents/llm_replay.py`. **Neither serving strategy is a superset of the other**, so the contract
+is written so that a backend declares its own capabilities rather than failing quietly at the
+point of use. That is the
 same decision the rest of this codebase makes about games declaring their action semantics, and it
 exists for the same reason: a caller that asks for something a component cannot provide should be
 told so, not handed an empty structure that looks like a measurement.

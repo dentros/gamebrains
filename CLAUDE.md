@@ -986,6 +986,48 @@ and it was the one variable the platform was not recording.
    model's numbers with numbers that happened to be identical, which is the kind of loss that is
    only visible when the two disagree. Keyed by model and profile now.
 
+## 9m. Sweeping a parameter in parallel, and one factory for agents (2026-09-22)
+
+### `experiments/sweep.py` and the `/sweep` view
+
+Pick a parameter and a range, each value becomes its own experiment, they run across the cores, and
+every measure is drawn against the parameter as the runs land. Three things hold it together.
+
+* **Workers compute, the parent records.** A signed append-only chain has exactly one writer. Two
+  processes appending would interleave records whose `parents` hash each other's, and the chain
+  would verify until somebody checked it. Recording is microseconds against a match's seconds.
+* **A cell is a whole configuration, not a diff**, so a worker needs nothing from the parent and the
+  parent can rebuild the identical roster to record it. That rebuild is exact only because every
+  parameter `_PARAM_ATTRS` stores is a construction-time value. `test_sweep.py` plays a match and
+  then asserts it, since a hyperparameter that mutated during training would silently make every
+  record describe a roster that never played.
+* **Journalled per cell, not at the end.** The VM this is meant to scale onto has no UPS. The
+  journal holds cell labels rather than config hashes, because a hash is known only after the cell
+  has run and the point is to not run it.
+
+### `agents/factory.py`: one builder, and an override that is refused rather than dropped
+
+The interface built rosters one way and every batch tool built them another, which does not show up
+as a bug. It shows up as two runs with the same `config_hash` and different numbers. Both go through
+`factory.build` now, and the seed offsets (100/200/300/400/500) are part of the reproducibility
+contract rather than a tuning knob.
+
+**`ACCEPTS` makes an unrecognised override an error.** Found while designing the sweep: `reciprocity`
+and `n_hidden` were constructor arguments rather than overrides, so `param:fep:reciprocity` would
+have been accepted, dropped, and run five identical cells. Every cell runs, every cell is recorded,
+the numbers do not move, and the finding reads "this parameter has no effect". Worse, the five cells
+collapse onto one `config_hash`, because the parameter never reached the agent whose attributes the
+recorder reads.
+
+### What the first real sweep produced
+
+102 records in about two minutes over 11 workers: MPCR, population size, Q-learning alpha, FEP
+reciprocity, and the congestion family. Three cells failed, all at n=2 with MPCR 0.5, which is the
+game's own social-dilemma constraint refusing 1/n < MPCR. The ledger went from 7 records and one
+game to 109 records, 40 designs and two games, and the correlation matrix went from three surviving
+pairs that are true by definition to 14 that separate into a social cluster and an
+information-theoretic one.
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see

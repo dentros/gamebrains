@@ -1,0 +1,72 @@
+{
+  "model": "llama3.1:8b",
+  "profile": "minimal-v1",
+  "rounds": 40,
+  "seed": 0,
+  "pretrain_rounds": 3000,
+  "mpcr": 0.5,
+  "seconds": 254.5,
+  "agents": [
+    {
+      "name": "AllD",
+      "kind": "classic",
+      "information": "observation",
+      "payoff": 12.0,
+      "cooperation": 0.0
+    },
+    {
+      "name": "MarkovBrain",
+      "kind": "markov_brain",
+      "information": "observation",
+      "payoff": 12.0,
+      "cooperation": 0.0
+    },
+    {
+      "name": "Q0",
+      "kind": "qlearning",
+      "information": "observation",
+      "payoff": 11.0,
+      "cooperation": 0.025
+    },
+    {
+      "name": "FEP",
+      "kind": "fep",
+      "information": "observation",
+      "payoff": 7.0,
+      "cooperation": 0.125
+    },
+    {
+      "name": "LLM (llama3.1:8b)",
+      "kind": "llm",
+      "information": "observation+history",
+      "payoff": -6.0,
+      "cooperation": 0.45
+    }
+  ],
+  "match": {
+    "cooperation_rate": 0.12,
+    "efficiency": 0.12,
+    "payoff_gini": 0.24848484848484853,
+    "action_entropy_bits": 0.39768893728341326
+  },
+  "rationales": [
+    {
+      "round": 1,
+      "action": "concede",
+      "rationale": "No information is available to make an informed decision, so I will cooperate by default.",
+      "confidence": 0.5
+    },
+    {
+      "round": 21,
+      "action": "claim",
+      "rationale": "Previous rounds suggest that defecting is the dominant strategy",
+      "confidence": 0.8
+    },
+    {
+      "round": 40,
+      "action": "concede",
+      "rationale": "Recent history shows that conceding leads to a better payoff",
+      "confidence": 0.8
+    }
+  ]
+}

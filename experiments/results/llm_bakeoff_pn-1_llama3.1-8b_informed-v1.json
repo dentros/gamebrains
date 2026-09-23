@@ -1,0 +1,72 @@
+{
+  "model": "llama3.1:8b",
+  "profile": "informed-v1",
+  "rounds": 40,
+  "seed": 0,
+  "pretrain_rounds": 3000,
+  "mpcr": 0.5,
+  "seconds": 401.6,
+  "agents": [
+    {
+      "name": "AllD",
+      "kind": "classic",
+      "information": "observation",
+      "payoff": 3.5,
+      "cooperation": 0.0
+    },
+    {
+      "name": "MarkovBrain",
+      "kind": "markov_brain",
+      "information": "observation",
+      "payoff": 3.5,
+      "cooperation": 0.0
+    },
+    {
+      "name": "Q0",
+      "kind": "qlearning",
+      "information": "observation",
+      "payoff": 2.5,
+      "cooperation": 0.025
+    },
+    {
+      "name": "LLM (llama3.1:8b)",
+      "kind": "llm",
+      "information": "observation+history+others",
+      "payoff": 2.5,
+      "cooperation": 0.025
+    },
+    {
+      "name": "FEP",
+      "kind": "fep",
+      "information": "observation",
+      "payoff": -1.5,
+      "cooperation": 0.125
+    }
+  ],
+  "match": {
+    "cooperation_rate": 0.035,
+    "efficiency": 0.035,
+    "payoff_gini": 0.24444444444444446,
+    "action_entropy_bits": 0.11451477672228702
+  },
+  "rationales": [
+    {
+      "round": 1,
+      "action": "concede",
+      "rationale": "No information is available to make a decision, so I'll start by cooperating.",
+      "confidence": 0.5
+    },
+    {
+      "round": 21,
+      "action": "claim",
+      "rationale": "I've been defecting for a while and it's been profitable, so I'll continue",
+      "confidence": 0.8
+    },
+    {
+      "round": 40,
+      "action": "claim",
+      "rationale": "I've been playing claim for a while and haven't seen any benefit from conceding.",
+      "confidence": 0.8
+    }
+  ]
+}

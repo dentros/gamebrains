@@ -1,0 +1,306 @@
+{
+  "host": "pn-1",
+  "platform": "Linux x86_64",
+  "game": "public_goods",
+  "prompts": 10,
+  "repeats": 3,
+  "sessions": {
+    "llama3.2:1b": [
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.7,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "unstable_prompts": [
+          2,
+          3,
+          7
+        ]
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.8,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "unstable_prompts": [
+          0,
+          7
+        ]
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.8,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "unstable_prompts": [
+          0,
+          7
+        ]
+      }
+    ],
+    "qwen2.5:1.5b": [
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.5,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "unstable_prompts": [
+          1,
+          4,
+          5,
+          6,
+          8
+        ]
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 1.0,
+        "same_decision": 1.0,
+        "splits": [],
+        "unstable_prompts": []
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 1.0,
+        "same_decision": 1.0,
+        "splits": [],
+        "unstable_prompts": []
+      }
+    ]
+  },
+  "controls": {
+    "baseline": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 0.8,
+      "same_decision": 1.0,
+      "splits": [
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "unstable_prompts": [
+        0,
+        7
+      ]
+    },
+    "baseline_again": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 0.8,
+      "same_decision": 1.0,
+      "splits": [
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "unstable_prompts": [
+        0,
+        7
+      ]
+    },
+    "seed": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 0.8,
+      "same_decision": 1.0,
+      "splits": [
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "unstable_prompts": [
+        0,
+        7
+      ]
+    },
+    "reload": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 1.0,
+      "same_decision": 1.0,
+      "splits": [],
+      "unstable_prompts": []
+    },
+    "one_thread": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 0.5,
+      "same_decision": 1.0,
+      "splits": [
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "unstable_prompts": [
+        0,
+        2,
+        3,
+        7,
+        9
+      ]
+    },
+    "interleaved": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 0.6,
+      "same_decision": 1.0,
+      "splits": [
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "unstable_prompts": [
+        0,
+        2,
+        3,
+        7
+      ]
+    },
+    "load": {
+      "prompts": 10,
+      "repeats": 3,
+      "byte_identical": 0.6,
+      "same_decision": 1.0,
+      "splits": [
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "unstable_prompts": [
+        0,
+        2,
+        3,
+        7
+      ],
+      "busy_cores": 31
+    }
+  },
+  "cache_pairs": {
+    "prompts": 16,
+    "repeats": 3,
+    "warm_stable": 0.6875,
+    "evicted_stable": 1.0,
+    "stable_only_when_warm": 0,
+    "stable_only_when_evicted": 5,
+    "stable_in_both": 11,
+    "stable_in_neither": 0,
+    "model": "llama3.2:1b"
+  }
+}

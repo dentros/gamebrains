@@ -150,6 +150,40 @@ def paired_cache_test(backend, prompts, repeats: int, other: str) -> dict[str, A
     }
 
 
+def paired_reload_test(backend, prompts, repeats: int) -> dict[str, Any]:
+    """Does unloading the weights between repeats change how often the model repeats itself?
+
+    The unpaired arm said yes on both machines this has been run on: a forced reload was the only
+    control that reached 100% with no prompt disagreeing, while everything else, including the
+    baseline run twice, left the same handful of prompts unstable. That is suggestive and it is not
+    a result. Ten prompts cannot separate 80% from 100%, which is exactly the objection this study
+    raises against its own unpaired arms, so it is raised here too.
+
+    Both conditions are therefore measured **on the same prompt, back to back**, as for the cached
+    prefix. The count that matters is the disagreement: prompts stable only when the weights were
+    reloaded, against prompts stable only when they stayed resident. A real cause shows up as a
+    one-sided disagreement, and the interleaved arm is the reminder of why this matters, since its
+    unpaired version had the sign backwards.
+    """
+    both, resident_only, reloaded_only, neither = 0, 0, 0, 0
+    for prompt in prompts:
+        resident = len(set(_repeat(backend, prompt, repeats))) == 1
+        reloaded = len(set(_repeat(backend, prompt, repeats, keep_alive=0))) == 1
+        both += int(resident and reloaded)
+        resident_only += int(resident and not reloaded)
+        reloaded_only += int(reloaded and not resident)
+        neither += int(not resident and not reloaded)
+    return {
+        "prompts": len(prompts), "repeats": repeats,
+        "resident_stable": round((both + resident_only) / len(prompts), 4),
+        "reloaded_stable": round((both + reloaded_only) / len(prompts), 4),
+        "stable_only_when_resident": resident_only,
+        "stable_only_when_reloaded": reloaded_only,
+        "stable_in_both": both,
+        "stable_in_neither": neither,
+    }
+
+
 def _save(out: Path, results: dict[str, Any]) -> None:
     """Write, merging with whatever is on disk rather than replacing it.
 
@@ -169,8 +203,9 @@ def _save(out: Path, results: dict[str, Any]) -> None:
         controls = dict(disk.get("controls", {}))
         controls.update(results.get("controls", {}))
         merged["sessions"], merged["controls"] = sessions, controls
-        if "cache_pairs" not in merged and "cache_pairs" in disk:
-            merged["cache_pairs"] = disk["cache_pairs"]
+        for key in ("cache_pairs", "reload_pairs"):
+            if key not in merged and key in disk:
+                merged[key] = disk[key]
     out.write_text(json.dumps(merged, indent=2), encoding="utf-8")
 
 
@@ -186,6 +221,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cache-pairs", type=int, default=0,
                         help="paired warm-against-evicted test on this many prompts, which is the "
                              "one comparison the unpaired controls could not settle")
+    parser.add_argument("--reload-pairs", type=int, default=0,
+                        help="paired resident-against-reloaded test on this many prompts. The "
+                             "unpaired reload arm reached 100 percent on two machines, which ten "
+                             "prompts cannot establish, so it gets the same treatment")
     args = parser.parse_args(argv)
 
     pool = [p for p in collect_prompts(args.game, args.prompts + 8) if len(p) > 700][:args.prompts]
@@ -285,6 +324,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  evicted prefix {paired['evicted_stable']:.0%} repeated identically")
         print(f"  disagreed on {paired['stable_only_when_warm']} prompts one way and "
               f"{paired['stable_only_when_evicted']} the other")
+
+    if args.reload_pairs:
+        model = args.models[0]
+        backend = OllamaBackend(model=model, constrained=True)
+        wide = [p for p in collect_prompts(args.game, args.reload_pairs + 10)
+                if len(p) > 700][:args.reload_pairs]
+        backend.complete(wide[0], SCHEMA)
+        paired = paired_reload_test(backend, wide, args.repeats)
+        paired["model"] = model
+        results["reload_pairs"] = paired
+        print(f"\npaired reload test on {paired['prompts']} prompts, "
+              f"{args.repeats} repeats each:")
+        print(f"  weights resident {paired['resident_stable']:.0%} repeated identically")
+        print(f"  weights reloaded {paired['reloaded_stable']:.0%} repeated identically")
+        print(f"  disagreed on {paired['stable_only_when_resident']} prompts one way and "
+              f"{paired['stable_only_when_reloaded']} the other")
 
     _save(out, results)
     print(f"\nwrote {out}")

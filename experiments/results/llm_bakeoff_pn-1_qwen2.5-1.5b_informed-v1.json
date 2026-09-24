@@ -1,0 +1,72 @@
+{
+  "model": "qwen2.5:1.5b",
+  "profile": "informed-v1",
+  "rounds": 40,
+  "seed": 0,
+  "pretrain_rounds": 3000,
+  "mpcr": 0.5,
+  "seconds": 133.5,
+  "agents": [
+    {
+      "name": "AllD",
+      "kind": "classic",
+      "information": "observation",
+      "payoff": 20.5,
+      "cooperation": 0.0
+    },
+    {
+      "name": "MarkovBrain",
+      "kind": "markov_brain",
+      "information": "observation",
+      "payoff": 20.5,
+      "cooperation": 0.0
+    },
+    {
+      "name": "Q0",
+      "kind": "qlearning",
+      "information": "observation",
+      "payoff": 19.5,
+      "cooperation": 0.025
+    },
+    {
+      "name": "FEP",
+      "kind": "fep",
+      "information": "observation",
+      "payoff": 15.5,
+      "cooperation": 0.125
+    },
+    {
+      "name": "LLM (qwen2.5:1.5b)",
+      "kind": "llm",
+      "information": "observation+history+others",
+      "payoff": -14.5,
+      "cooperation": 0.875
+    }
+  ],
+  "match": {
+    "cooperation_rate": 0.205,
+    "efficiency": 0.205,
+    "payoff_gini": 0.22388059701492535,
+    "action_entropy_bits": 0.6808630978445394
+  },
+  "rationales": [
+    {
+      "round": 1,
+      "action": "concede",
+      "rationale": "I concede because I want to ensure I have enough resources to contribute to the public goods pool in future rounds.",
+      "confidence": 0.9
+    },
+    {
+      "round": 21,
+      "action": "concede",
+      "rationale": "I concede to maintain the negative reputation and avoid the negative feedback from the previous rounds.",
+      "confidence": 0.9
+    },
+    {
+      "round": 40,
+      "action": "concede",
+      "rationale": "I concede to maintain the negative reputation and avoid the negative consequences of conceding in previous rounds.",
+      "confidence": 0.95
+    }
+  ]
+}

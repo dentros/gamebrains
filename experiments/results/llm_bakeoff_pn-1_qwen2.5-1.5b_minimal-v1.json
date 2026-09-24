@@ -1,0 +1,72 @@
+{
+  "model": "qwen2.5:1.5b",
+  "profile": "minimal-v1",
+  "rounds": 40,
+  "seed": 0,
+  "pretrain_rounds": 3000,
+  "mpcr": 0.5,
+  "seconds": 99.1,
+  "agents": [
+    {
+      "name": "AllD",
+      "kind": "classic",
+      "information": "observation",
+      "payoff": 23.0,
+      "cooperation": 0.0
+    },
+    {
+      "name": "MarkovBrain",
+      "kind": "markov_brain",
+      "information": "observation",
+      "payoff": 23.0,
+      "cooperation": 0.0
+    },
+    {
+      "name": "Q0",
+      "kind": "qlearning",
+      "information": "observation",
+      "payoff": 22.0,
+      "cooperation": 0.025
+    },
+    {
+      "name": "FEP",
+      "kind": "fep",
+      "information": "observation",
+      "payoff": 18.0,
+      "cooperation": 0.125
+    },
+    {
+      "name": "LLM (qwen2.5:1.5b)",
+      "kind": "llm",
+      "information": "observation+history",
+      "payoff": -17.0,
+      "cooperation": 1.0
+    }
+  ],
+  "match": {
+    "cooperation_rate": 0.23,
+    "efficiency": 0.23,
+    "payoff_gini": 0.22077922077922074,
+    "action_entropy_bits": 0.7592814698224581
+  },
+  "rationales": [
+    {
+      "round": 1,
+      "action": "concede",
+      "rationale": "Based on the previous round's action, it seems that most players chose to cooperate. Defecting in this round would likely lead to a lower payoff for the group.",
+      "confidence": 0.8
+    },
+    {
+      "round": 21,
+      "action": "concede",
+      "rationale": "I have already received a negative outcome in the previous rounds, so I want to avoid further negative consequences.",
+      "confidence": 0.9
+    },
+    {
+      "round": 40,
+      "action": "concede",
+      "rationale": "I have already received a negative outcome in the previous rounds, so I want to avoid further negative consequences.",
+      "confidence": 0.9
+    }
+  ]
+}

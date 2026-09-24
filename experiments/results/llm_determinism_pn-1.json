@@ -70,6 +70,71 @@
           0,
           7
         ]
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.7,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "unstable_prompts": [
+          2,
+          3,
+          7
+        ]
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.8,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "unstable_prompts": [
+          0,
+          7
+        ]
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.8,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "unstable_prompts": [
+          0,
+          7
+        ]
       }
     ],
     "qwen2.5:1.5b": [
@@ -123,6 +188,91 @@
         "same_decision": 1.0,
         "splits": [],
         "unstable_prompts": []
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.1,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "unstable_prompts": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ]
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.9,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ]
+        ],
+        "unstable_prompts": [
+          7
+        ]
+      },
+      {
+        "prompts": 10,
+        "repeats": 3,
+        "byte_identical": 0.9,
+        "same_decision": 1.0,
+        "splits": [
+          [
+            2,
+            1
+          ]
+        ],
+        "unstable_prompts": [
+          7
+        ]
       }
     ]
   },
@@ -291,6 +441,17 @@
       ],
       "busy_cores": 31
     }
+  },
+  "reload_pairs": {
+    "prompts": 16,
+    "repeats": 3,
+    "resident_stable": 0.25,
+    "reloaded_stable": 0.1875,
+    "stable_only_when_resident": 1,
+    "stable_only_when_reloaded": 0,
+    "stable_in_both": 3,
+    "stable_in_neither": 12,
+    "model": "qwen2.5:1.5b"
   },
   "cache_pairs": {
     "prompts": 16,

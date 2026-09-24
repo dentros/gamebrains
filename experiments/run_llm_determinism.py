@@ -203,9 +203,12 @@ def _save(out: Path, results: dict[str, Any]) -> None:
         controls = dict(disk.get("controls", {}))
         controls.update(results.get("controls", {}))
         merged["sessions"], merged["controls"] = sessions, controls
-        for key in ("cache_pairs", "reload_pairs"):
-            if key not in merged and key in disk:
-                merged[key] = disk[key]
+        if "cache_pairs" not in merged and "cache_pairs" in disk:
+            merged["cache_pairs"] = disk["cache_pairs"]
+        # Per-model, so a second model's run adds to the first rather than replacing it.
+        if isinstance(disk.get("reload_pairs"), dict):
+            for model, cell in disk["reload_pairs"].items():
+                merged.setdefault("reload_pairs", {}).setdefault(model, cell)
     out.write_text(json.dumps(merged, indent=2), encoding="utf-8")
 
 
@@ -332,8 +335,12 @@ def main(argv: list[str] | None = None) -> int:
                 if len(p) > 700][:args.reload_pairs]
         backend.complete(wide[0], SCHEMA)
         paired = paired_reload_test(backend, wide, args.repeats)
+        # Keyed by model, unlike the cache test, which was written when only one model was ever
+        # measured this way. The first version of this block was not, so measuring a second model
+        # replaced the first one's numbers and left the paper quoting a figure that traced to a
+        # log rather than to a results file.
         paired["model"] = model
-        results["reload_pairs"] = paired
+        results.setdefault("reload_pairs", {})[model] = paired
         print(f"\npaired reload test on {paired['prompts']} prompts, "
               f"{args.repeats} repeats each:")
         print(f"  weights resident {paired['resident_stable']:.0%} repeated identically")

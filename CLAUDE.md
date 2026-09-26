@@ -1028,6 +1028,51 @@ game to 109 records, 40 designs and two games, and the correlation matrix went f
 pairs that are true by definition to 14 that separate into a social cluster and an
 information-theoretic one.
 
+## 9n. The semantic defect, found a second time one layer up (2026-09-26)
+
+**`metrics/social.py` was never migrated to the declaration mechanism, and reported the exact
+opposite of cooperation for the whole congestion family.** `cooperation_rate` computed
+`actions.mean()`, i.e. the fraction of agents playing index 1. That is cooperating in the Public
+Goods Game and *claiming the jar* in congestion, where conceding is STAY = 0.
+
+Measured, not inferred: a match with `AllC` in every seat, after the section 9g fix so those agents
+genuinely do play STAY there, reported **cooperation rate 0.000** while every agent conceded in
+every single round. The complement is exact: on a stored 500-round record the reported 0.5713 and
+the game's own count of 0.4287 sum to 1.
+
+**What had been fixed and what had not.** Section 3 built the declaration mechanism, 9g migrated
+the agents and audited them, and 9i made the binding enforced rather than advised. All of that
+held: the runner already records `result.info["cooperators"]` straight from the game
+(`runner.py:100`), and `congestion.py:257` declares it correctly as `sum(a == STAY)`. **The correct
+number was being carried the whole way and one function declined to read it.** `compute_all` now
+passes `records["cooperators"]` -- the game's own count -- into `cooperation_rate`, which falls back
+to the old index reading only for a game that declares no count.
+
+**How it was found, which is the part worth keeping.** Not by a test. `repository/verify.py` was
+written to answer a different question -- can a shared repository tell whether a record's numbers
+are the ones its evidence supports -- by recomputing every headline measure from the record's own
+stored event log. On its first real run over the local ledger, 106 of 115 records verified and the
+9 that failed were exactly the 9 congestion records, all on `cooperation_rate`. A checker that
+recomputes from evidence found a defect that every existing test had passed over, because the
+tests asserted against the same convention the defect lived in.
+
+**Two of my own errors on the way, both instructive.** The first version of the checker
+reimplemented the Gini coefficient without the platform's documented shift for negative payoffs
+and disagreed with every record; the shift is part of what the published number *means*, so the
+check has to share it. It also canonicalised JSON its own way for the `content_cid`, which is not
+a second opinion but a guaranteed mismatch -- a checksum must agree byte for byte on how bytes are
+produced, and the independence that matters is in the measures, not the hashing.
+
+**Tests:** `tests/test_cooperation_semantics.py` pins the property rather than a number -- a roster
+that always concedes reads 1.0 and one that never does reads 0.0, in both games, whichever way each
+numbers its actions -- plus a guard-the-guard case that fails if the two games ever stop
+disagreeing about the index, since the pair would then be testing nothing. Verified fail-first by
+hiding the game's declaration, which reproduces 0.000 exactly.
+
+**⚠️ Nine stored records carry the old number.** They are the congestion runs from the 2026-09-22
+sweep. Their event logs are intact and correct, so the number is recoverable by recomputation;
+nothing in the paper's tables uses them (every reported table is Public Goods).
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see

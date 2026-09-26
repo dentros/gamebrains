@@ -16,13 +16,37 @@ Metrics:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
 
-def cooperation_rate(actions: np.ndarray) -> dict[str, Any]:
-    per_round = actions.mean(axis=1)          # fraction cooperating each round
+def cooperation_rate(actions: np.ndarray,
+                     cooperators: Optional[np.ndarray] = None) -> dict[str, Any]:
+    """The share of players who cooperated, per round and overall.
+
+    **`cooperators` is the game's own count and is what this uses when it is given.** Deriving the
+    answer from `actions` instead means reading an index as a meaning, and an index means nothing
+    across games: cooperating is action 1 in the Public Goods Game and action 0 in the congestion
+    family, where the cooperative act is to stay put and let somebody else through. Counting
+    `actions == 1` therefore reported the *claim* rate under the name "cooperation rate" for every
+    congestion run, which is the complement of the truth.
+
+    This is the same defect the platform's own declaration mechanism was built to prevent, one
+    layer up from where it was fixed. `agents/` was migrated to ask the game what its indices mean
+    (CLAUDE.md sections 3 and 9g) and `engine/runner.py` already records `result.info["cooperators"]`
+    from the game, so the correct number was being carried the whole time and this function was
+    the one place that stopped reading it. Found by `repository/verify.py` recomputing stored
+    records from their own event logs, not by a test.
+
+    The fallback to `actions` is kept for a game that declares no count, and it is only correct
+    for a game whose cooperative action is index 1. A game should declare the count instead.
+    """
+    if cooperators is not None:
+        n_agents = actions.shape[1]
+        per_round = np.asarray(cooperators, dtype=float) / float(n_agents)
+        return {"overall": float(per_round.mean()), "series": per_round}
+    per_round = actions.mean(axis=1)
     return {"overall": float(actions.mean()), "series": per_round}
 
 
@@ -62,7 +86,9 @@ def compute_all(records: dict[str, np.ndarray], max_welfare_per_round: float) ->
     actions = records["actions"]
     rewards = records["rewards"]
     cum = rewards.sum(axis=0)
-    coop = cooperation_rate(actions)
+    # The game's own per-round count when the runner captured one, which it does for every game
+    # that declares it. See `cooperation_rate` for why reading `actions` instead was wrong.
+    coop = cooperation_rate(actions, records.get("cooperators"))
     return {
         "cooperation_rate": coop["overall"],
         "cooperation_series": coop["series"],

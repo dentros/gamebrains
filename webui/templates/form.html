@@ -12,7 +12,7 @@
     <label class="wizard-choice"><input type="radio" name="wiz_rounds" value="500"> Quick look (500 rounds)</label>
     <label class="wizard-choice"><input type="radio" name="wiz_rounds" value="1500" checked> Standard (1500 rounds)</label>
     <label class="wizard-choice"><input type="radio" name="wiz_rounds" value="3000"> Long run, see convergence (3000 rounds)</label>
-    <button type="button" class="btn" onclick="wizardStep(2)">Next</button>
+    <button type="button" class="btn" onclick="wizardStep(2)">{{ t('btn.next') }}</button>
   </div>
 
   <div class="wizard-step" data-step="2" style="display:none">
@@ -25,8 +25,8 @@
     <label class="wizard-choice"><input type="radio" name="wiz_mix" value="evo_vs_online">
       Evolutionary vs online learners (Markov-brain, Q-learning, DQN)</label>
     <div>
-      <button type="button" class="secondary" onclick="wizardStep(1)">Back</button>
-      <button type="button" class="btn" onclick="wizardStep(3)">Next</button>
+      <button type="button" class="secondary" onclick="wizardStep(1)">{{ t('btn.back') }}</button>
+      <button type="button" class="btn" onclick="wizardStep(3)">{{ t('btn.next') }}</button>
     </div>
   </div>
 
@@ -34,8 +34,8 @@
     <p class="wizard-title">Quick start &mdash; step 3 of 3</p>
     <p id="wizard-summary" class="meta"></p>
     <div>
-      <button type="button" class="secondary" onclick="wizardStep(2)">Back</button>
-      <button type="button" class="btn" onclick="wizardRun(this)">Run it</button>
+      <button type="button" class="secondary" onclick="wizardStep(2)">{{ t('btn.back') }}</button>
+      <button type="button" class="btn" onclick="wizardRun(this)">{{ t('btn.run_it') }}</button>
     </div>
   </div>
 </div>
@@ -55,98 +55,89 @@
 <form action="/run" method="post" id="mainform">
 
   <div class="panel fw-step" data-fwstep="1">
-    <h2><svg class="glyph"><use href="#glyph-game"/></svg>Game</h2>
+    <h2><svg class="glyph"><use href="#glyph-game"/></svg>{{ t('sec.game_h') }}</h2>
     <div class="grid">
       <div>
-        <label>Game</label>
-        <select name="game_kind" onchange="toggleCongestionFields()">
+        <label>{{ t('field.game_kind') }}{{ info('field.game_kind') }}</label>
+        <select name="game_kind" onchange="toggleCongestionFields(); showGameHelp(this)">
           {% for key, label in game_choices %}
-          <option value="{{ key }}"{% if loop.first %} selected{% endif %}>{{ label }}</option>
+          <option value="{{ key }}" data-help="{{ game_help(key) }}"
+                  {% if loop.first %} selected{% endif %}>{{ label }}</option>
           {% endfor %}
           {% for g in game_roadmap %}<option disabled>{{ g }}</option>{% endfor %}
         </select>
+        {# Each option carries its own explanation, so adding a game adds its description with
+           it rather than leaving this panel describing the games that happened to exist when it
+           was written. #}
+        <span class="epsilon-hint" id="game-help"></span>
       </div>
       <div>
-        <label class="fieldicon"><svg class="glyph"><use href="#glyph-clock"/></svg>Rounds</label>
+        <label class="fieldicon"><svg class="glyph"><use href="#glyph-clock"/></svg>{{ t('field.rounds') }}{{ info('field.rounds') }}</label>
         <input type="number" name="rounds" value="1500" min="10" max="200000" required
                oninput="updateEpsilonHints()">
       </div>
       <div>
-        <label class="fieldicon"><svg class="glyph"><use href="#glyph-percent"/></svg>MPCR
-          <span class="hint">(marginal per-capita return = r/n. Blank = default)</span></label>
+        <label class="fieldicon"><svg class="glyph"><use href="#glyph-percent"/></svg>{{ t('field.mpcr') }}{{ info('field.mpcr') }}</label>
         <input type="text" name="mpcr" placeholder="e.g. 0.5">
-        <span class="epsilon-hint">Sets how much cooperating is worth. Needs 1/n &lt; MPCR &lt; 1
-          (a genuine social dilemma). Blank picks a safe default automatically.</span>
+        
       </div>
       <div>
-        <label class="fieldicon"><svg class="glyph"><use href="#glyph-dice"/></svg>Seed</label>
+        <label class="fieldicon"><svg class="glyph"><use href="#glyph-dice"/></svg>{{ t('field.seed') }}{{ info('field.seed') }}</label>
         <input type="number" name="seed" value="0">
       </div>
     </div>
 
     <fieldset id="congestion-fields" style="display:none">
-      <legend>Congestion family</legend>
-      <p class="meta">Every field below is optional. Leave it blank to keep whatever the chosen
-        preset uses, which for the published ones is the configuration the papers actually ran.</p>
+      <legend>{{ t('sec.congestion') }}</legend>
+      <p class="meta">{{ n('note.congestion_optional') }}</p>
       <div class="grid">
         <div>
-          <label>Positions in the corridor <span class="hint">(2 = one-shot)</span></label>
+          <label>{{ t('field.cong_num_positions') }}{{ info('field.cong_num_positions') }}</label>
           <input type="number" name="cong_num_positions" min="2" max="10" placeholder="preset">
-          <span class="epsilon-hint">At 2 a single simultaneous move decides the episode, the
-            ballistic case. At 3 or more there is an intermediate cell, so an agent's approach is
-            visible before it commits and movement itself can act as a signal.</span>
+          <span class="epsilon-hint">{{ n('note.positions_explained') }}</span>
         </div>
         <div>
-          <label>Reward rule <span class="hint">(how a tie is punished)</span></label>
+          <label>{{ t('field.cong_reward_rule') }}{{ info('field.cong_reward_rule') }}</label>
           <select name="cong_reward_rule">
             {% for key, label in reward_rules %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
           </select>
-          <span class="epsilon-hint">Dividing by n keeps the penalty independent of how many
-            actually collided; dividing by k is literal Rosenthal congestion.</span>
+          
         </div>
         <div>
-          <label>Memory <span class="hint">(episodes of history in the state)</span></label>
+          <label>{{ t('field.cong_memory_episodes') }}{{ info('field.cong_memory_episodes') }}</label>
           <input type="number" name="cong_memory_episodes" min="0" max="3" placeholder="preset">
-          <span class="epsilon-hint">0 is Type-A, positions only. 1 is Type-B, which also shows
-            who arrived last episode and is what makes turn-taking learnable. Each extra episode
-            multiplies the state space by 2^n, so this grows fast.</span>
+          
         </div>
         <div>
-          <label>Episode round cap</label>
+          <label>{{ t('field.cong_episode_max_rounds') }}{{ info('field.cong_episode_max_rounds') }}</label>
           <input type="number" name="cong_episode_max_rounds" min="1" max="500" placeholder="preset">
-          <span class="epsilon-hint">Ends an episode when nobody has arrived in time. Needed
-            because agents that all hold back would otherwise never finish. A capped episode is
-            recorded with no winner, which is a real outcome.</span>
+          
         </div>
         <div>
-          <label>Full reward <span class="hint">(for arriving alone)</span></label>
+          <label>{{ t('field.cong_full_reward') }}{{ info('field.cong_full_reward') }}</label>
           <input type="text" name="cong_full_reward" placeholder="preset (100)">
         </div>
         <div class="checkrow" style="align-self:end">
           <input type="checkbox" name="cong_collapse_at_full" id="cong_collapse_at_full" checked>
-          <label for="cong_collapse_at_full" style="margin:0">Zero when everyone arrives at once
-            <span class="hint">(applied only if you pick a reward rule above)</span></label>
+          <label for="cong_collapse_at_full" style="margin:0">{{ t('field.cong_collapse_at_full') }}{{ info('field.cong_collapse_at_full') }}</label>
         </div>
       </div>
-      <p class="meta">The published main rule keeps universal collision at exactly zero, so total
-        non-coordination cannot register as partial success. The published k-variant deliberately
-        does not, since r/k with everyone arriving simply yields r/n.</p>
+      <p class="meta">{{ n('note.zero_floor') }}</p>
     </fieldset>
 
     <div class="fw-nav"><span></span>
-      <button type="button" class="btn" onclick="mainWizardGoto(2)">Next: Roster &rarr;</button>
+      <button type="button" class="btn" onclick="mainWizardGoto(2)">{{ t('btn.next_roster') }} &rarr;</button>
     </div>
   </div>
 
   <div class="panel fw-step" data-fwstep="2" style="display:none">
-    <h2><svg class="glyph"><use href="#glyph-roster"/></svg>Roster: add agents one at a time (the total is computed for you)</h2>
-    <p class="meta">Total agents: <span id="agent-total">0</span></p>
-    <p class="meta">Squad presets <span class="hint">(replace the whole roster with one click; edit
-      afterward if you like)</span></p>
+    <h2><svg class="glyph"><use href="#glyph-roster"/></svg>{{ t('sec.roster_h') }}</h2>
+    <p class="meta">{{ n('note.total_agents') }} <span id="agent-total">0</span></p>
+    <p class="meta">{{ n('note.squad_presets') }}</p>
     <div class="quickadd">
-      <button type="button" class="secondary" onclick="applyPreset('one_of_each')">One of each</button>
-      <button type="button" class="secondary" onclick="applyPreset('rl_showdown')">RL showdown</button>
-      <button type="button" class="secondary" onclick="applyPreset('evo_vs_online')">Evolutionary vs online</button>
+      <button type="button" class="secondary" onclick="applyPreset('one_of_each')">{{ t('preset.one_of_each') }}</button>
+      <button type="button" class="secondary" onclick="applyPreset('rl_showdown')">{{ t('preset.rl_showdown') }}</button>
+      <button type="button" class="secondary" onclick="applyPreset('evo_vs_online')">{{ t('preset.evo_vs_online') }}</button>
     </div>
     <div id="rows"></div>
     <div class="quickadd">
@@ -154,92 +145,89 @@
       <button type="button" class="secondary" onclick="addRow('{{ kind }}')">
         + {{ kind_meta[kind].label }}</button>
       {% endfor %}
-      <button type="button" class="secondary" onclick="addRow('')">+ blank row</button>
+      <button type="button" class="secondary" onclick="addRow('')">+ {{ t('btn.blank_row') }}</button>
     </div>
     <div class="fw-nav">
-      <button type="button" class="secondary" onclick="mainWizardGoto(1)">&larr; Back</button>
-      <button type="button" class="btn" onclick="mainWizardGoto(3)">Next: Metrics &rarr;</button>
+      <button type="button" class="secondary" onclick="mainWizardGoto(1)">&larr; {{ t('btn.back') }}</button>
+      <button type="button" class="btn" onclick="mainWizardGoto(3)">{{ t('btn.next_metrics') }} &rarr;</button>
     </div>
   </div>
 
   <div class="panel fw-step" data-fwstep="3" style="display:none">
-    <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Metrics: what to show</h2>
+    <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>{{ t('sec.metrics_h') }}{{ info('field.show_metrics') }}</h2>
     <div class="grid">
       {% for key, label in metric_meta %}
       <div class="checkrow">
         <input type="checkbox" name="show_metrics" value="{{ key }}" id="m_{{ key }}" checked>
-        <label for="m_{{ key }}" style="margin:0">{{ label }}</label>
+        <label for="m_{{ key }}" style="margin:0">{{ t('metric.' + key) }}{{ info('metric.' + key) }}</label>
       </div>
       {% endfor %}
     </div>
     <div class="checkrow">
       <input type="checkbox" name="compute_nash" id="compute_nash">
-      <label for="compute_nash" style="margin:0">Nash equilibrium (pygambit, n&le;10 only)</label>
+      <label for="compute_nash" style="margin:0">{{ t('field.compute_nash_l') }}{{ info('field.compute_nash') }}</label>
     </div>
     <div class="checkrow">
       <input type="checkbox" name="compute_phi" id="compute_phi">
-      <label for="compute_phi" style="margin:0">&Phi; / causal autonomy (only if a markov_brain is present; slow, ~15s)</label>
+      <label for="compute_phi" style="margin:0">{{ t('field.compute_phi_l') }}{{ info('field.compute_phi') }}</label>
     </div>
     {% if metric_roadmap %}
     <fieldset>
-      <legend>Roadmap</legend>
+      <legend>{{ t('sec.roadmap') }}</legend>
       {% for m in metric_roadmap %}
       <div class="checkrow disabled">
         <input type="checkbox" disabled>
-        <label style="margin:0">{{ m }} <span class="badge todo">planned</span></label>
+        <label style="margin:0">{{ m }} <span class="badge todo">{{ t('badge.planned') }}</span></label>
       </div>
       {% endfor %}
     </fieldset>
     {% endif %}
     <div class="fw-nav">
-      <button type="button" class="secondary" onclick="mainWizardGoto(2)">&larr; Back</button>
-      <button type="button" class="btn" onclick="mainWizardGoto(4)">Next: Recording &rarr;</button>
+      <button type="button" class="secondary" onclick="mainWizardGoto(2)">&larr; {{ t('btn.back') }}</button>
+      <button type="button" class="btn" onclick="mainWizardGoto(4)">{{ t('btn.next_record') }} &rarr;</button>
     </div>
   </div>
 
   <div class="panel fw-step" data-fwstep="4" style="display:none">
-    <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Recording</h2>
+    <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>{{ t('sec.record_h') }}</h2>
     <div class="checkrow">
       <input type="checkbox" name="record_repo" id="record_repo" checked>
-      <label for="record_repo" style="margin:0">Record to the repository-lite ledger (+ Smart Filter)</label>
+      <label for="record_repo" style="margin:0">{{ t('field.record_repo_l') }}{{ info('field.record_repo') }}</label>
     </div>
     <div>
-      <label>Narration density <span class="hint">(how many round-lines the log shows.
-        Doesn't affect the experiment itself, only how detailed the transcript below is)</span></label>
+      <label>{{ t('field.log_lines_l') }}{{ info('field.log_lines') }}</label>
       <input type="number" name="log_lines" value="50" min="5" max="500">
     </div>
     <div class="fw-nav">
-      <button type="button" class="secondary" onclick="mainWizardGoto(3)">&larr; Back</button>
-      <button type="button" class="btn" onclick="mainWizardGoto(5)">Next: Batch mode &rarr;</button>
+      <button type="button" class="secondary" onclick="mainWizardGoto(3)">&larr; {{ t('btn.back') }}</button>
+      <button type="button" class="btn" onclick="mainWizardGoto(5)">{{ t('btn.next_batch') }} &rarr;</button>
     </div>
   </div>
 
   <div class="panel fw-step" data-fwstep="5" style="display:none">
-    <h2><svg class="glyph"><use href="#glyph-versus"/></svg>Batch mode <span class="hint">(optional)</span></h2>
+    <h2><svg class="glyph"><use href="#glyph-versus"/></svg>{{ t('sec.batch_h') }}</h2>
     <div class="checkrow">
       <input type="checkbox" name="batch_mode" id="batch_mode">
-      <label for="batch_mode" style="margin:0">Run a batch: vary one field across several values,
-        record every run separately</label>
+      <label for="batch_mode" style="margin:0">{{ t('field.batch_mode_l') }}{{ info('field.batch_mode') }}</label>
     </div>
     <div class="grid">
       <div>
-        <label class="fieldicon"><svg class="glyph"><use href="#glyph-metrics"/></svg>Field to sweep</label>
+        <label class="fieldicon"><svg class="glyph"><use href="#glyph-metrics"/></svg>{{ t('field.batch_param_l') }}{{ info('field.batch_param') }}</label>
         <select name="batch_param">
-          <option value="rounds">Rounds</option>
-          <option value="seed">Seed</option>
+          <option value="rounds">{{ t('opt.rounds') }}</option>
+          <option value="seed">{{ t('opt.seed') }}</option>
           <option value="mpcr">MPCR</option>
-          <option value="row0_count">First roster row's count</option>
+          <option value="row0_count">{{ t('opt.row0_count') }}</option>
         </select>
       </div>
       <div>
-        <label class="fieldicon"><svg class="glyph"><use href="#glyph-log"/></svg>Values
-          <span class="hint">(comma-separated, e.g. 500,1000,2000)</span></label>
+        <label class="fieldicon"><svg class="glyph"><use href="#glyph-log"/></svg>{{ t('field.batch_values_l') }}{{ info('field.batch_values') }}</label>
         <input type="text" name="batch_values" placeholder="e.g. 500,1000,2000">
       </div>
     </div>
     <div class="fw-nav">
-      <button type="button" class="secondary" onclick="mainWizardGoto(4)">&larr; Back</button>
-      <button type="submit" id="mainsubmit">Run the experiment</button>
+      <button type="button" class="secondary" onclick="mainWizardGoto(4)">&larr; {{ t('btn.back') }}</button>
+      <button type="submit" id="mainsubmit">{{ t('btn.submit_run') }}</button>
     </div>
   </div>
 </form>
@@ -288,27 +276,26 @@ document.getElementById('mainform').addEventListener('submit', () => {
 
     <div class="rr-body" style="display:none">
       <div class="kindfield" data-for="classic" style="display:none">
-        <label style="margin-top:0">Strategy</label>
+        <label style="margin-top:0">{{ t('param.strategy') }}{{ info('param.strategy') }}</label>
         <select name="row_classic_strategy[]">
           {% for s in classic_strategies %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
         </select>
       </div>
 
       <div class="kindfield" data-for="fep" style="display:none">
-        <label style="margin-top:0">Reciprocity <span class="hint">(0 = selfish)</span></label>
+        <label style="margin-top:0">{{ t('param.reciprocity') }}{{ info('param.reciprocity') }}</label>
         <input type="text" name="row_reciprocity[]" value="0.0">
       </div>
 
       <div class="kindfield" data-for="markov_brain" style="display:none">
-        <label style="margin-top:0">Hidden nodes</label>
+        <label style="margin-top:0">{{ t('param.n_hidden') }}{{ info('param.n_hidden') }}</label>
         <input type="number" name="row_markov_hidden[]" value="2" min="1" max="6">
-        <label style="margin-top:6px">Evolved genome CID <span class="hint">(optional, from
-          the Evolutionary tab)</span></label>
+        <label style="margin-top:6px">{{ t('param.genome_cid') }}{{ info('param.genome_cid') }}</label>
         <input type="text" name="row_genome_cid[]" placeholder="e.g. 7bf62b89...">
       </div>
 
       <div class="kindfield epsilon-block" data-for="qlearning" style="display:none">
-        <label style="margin-top:0">&epsilon; decay / &epsilon; min</label>
+        <label style="margin-top:0">{{ t('param.epsilon_pair') }}{{ info('param.epsilon_pair') }}</label>
         <div style="display:flex; gap:6px">
           <input type="text" name="row_epsilon_decay[]" value="0.9995" oninput="updateEpsilonHints()">
           <input type="text" name="row_epsilon_min[]" value="0.02" oninput="updateEpsilonHints()">
@@ -316,7 +303,7 @@ document.getElementById('mainform').addEventListener('submit', () => {
         <span class="epsilon-hint epshint"></span>
       </div>
       <div class="kindfield epsilon-block" data-for="dqn" style="display:none">
-        <label style="margin-top:0">&epsilon; decay / &epsilon; min</label>
+        <label style="margin-top:0">{{ t('param.epsilon_pair') }}{{ info('param.epsilon_pair') }}</label>
         <div style="display:flex; gap:6px">
           <input type="text" name="row_epsilon_decay[]" value="0.9995" oninput="updateEpsilonHints()">
           <input type="text" name="row_epsilon_min[]" value="0.02" oninput="updateEpsilonHints()">
@@ -325,14 +312,27 @@ document.getElementById('mainform').addEventListener('submit', () => {
       </div>
 
       <details class="explain advanced">
-        <summary>Advanced parameters</summary>
+        <summary>{{ t('btn.advanced') }}</summary>
         {% for kind, params in advanced_params.items() %}
         <div class="kindfield" data-for="{{ kind }}" style="display:none">
           <div class="grid">
             {% for pname, default, help in params %}
+            {% set picker = param_choices(pname) %}
             <div>
-              <label style="margin-top:0">{{ pname }} <span class="hint">({{ help }})</span></label>
+              <label style="margin-top:0">{{ t('param.' + pname) }}{{ info('param.' + pname) }}</label>
+              {# A parameter whose values come from a fixed set gets the set, not a text box: a
+                 typed name fails forty rounds into a match, and for the prompt profile a free
+                 box would let two runs differ by a sentence nobody recorded. #}
+              {% if picker %}
+              <select name="row_adv_{{ kind }}_{{ pname }}[]">
+                {% for value, label in picker.options %}
+                <option value="{{ value }}"{% if value == default|string %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              {% if picker.note %}<span class="epsilon-hint">{{ picker.note }}</span>{% endif %}
+              {% else %}
               <input type="text" name="row_adv_{{ kind }}_{{ pname }}[]" value="{{ default }}">
+              {% endif %}
             </div>
             {% endfor %}
           </div>
@@ -340,7 +340,7 @@ document.getElementById('mainform').addEventListener('submit', () => {
         {% endfor %}
       </details>
 
-      <button type="button" class="secondary removerow" onclick="removeRow(this)">Remove</button>
+      <button type="button" class="secondary removerow" onclick="removeRow(this)">{{ t('btn.remove') }}</button>
     </div>
   </div>
 </template>
@@ -368,6 +368,13 @@ function updateTotals() {
   });
   document.getElementById('agent-total').textContent = total;
 }
+function showGameHelp(select) {
+  const target = document.getElementById('game-help');
+  if (!target) return;
+  const picked = select.options[select.selectedIndex];
+  target.textContent = picked ? (picked.dataset.help || '') : '';
+}
+
 function updateEpsilonHints() {
   const roundsField = document.querySelector('input[name=rounds]');
   const rounds = parseFloat(roundsField ? roundsField.value : '0') || 0;
@@ -415,7 +422,12 @@ function toggleCongestionFields() {
   var mpcr = document.querySelector('input[name=mpcr]');
   if (mpcr) mpcr.closest('div').style.display = isCongestion ? 'none' : '';
 }
-document.addEventListener('DOMContentLoaded', toggleCongestionFields);
+document.addEventListener('DOMContentLoaded', () => {
+  toggleCongestionFields();
+  // The selected game explains itself on arrival too, not only after the reader changes it.
+  const picker = document.querySelector('select[name=game_kind]');
+  if (picker) showGameHelp(picker);
+});
 
 function mainWizardGoto(n) {
   document.querySelectorAll('.panel.fw-step').forEach(el => {

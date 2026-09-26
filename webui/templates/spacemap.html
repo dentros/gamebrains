@@ -2,23 +2,18 @@
 {% block content %}
 
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Parameter-space map</h2>
-  <p class="meta">The declared grid of experiment configurations for the Public Goods Game, checked
-    against the ledger: which cells have already been run, which are missing, and which are
-    structurally invalid (the social-dilemma condition 1/n &lt; MPCR &lt; 1 fails, or the mix is
-    undefined at that population size). Edit the grid below and Update to redefine the map; runs
-    launched from here use default hyperparameters and record straight to the ledger, so the
-    Analytics page can query them immediately.</p>
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>{{ t('h.spacemap') }}</h2>
+  <p class="meta">{{ n('note.spacemap_intro') }}</p>
 
   <form method="get" action="/spacemap">
     <div class="grid">
-      <div><label>Population sizes n</label>
+      <div><label>{{ t('field.grid_n') }}{{ info('field.grid_n') }}</label>
         <input type="text" name="grid_n" value="{{ grid_n }}"></div>
-      <div><label>MPCR values</label>
+      <div><label>{{ t('field.grid_mpcr') }}{{ info('field.grid_mpcr') }}</label>
         <input type="text" name="grid_mpcr" value="{{ grid_mpcr }}"></div>
-      <div><label>Rounds</label>
+      <div><label>{{ t('field.grid_rounds') }}{{ info('field.grid_rounds') }}</label>
         <input type="text" name="grid_rounds" value="{{ grid_rounds }}"></div>
-      <div><label>Seeds</label>
+      <div><label>{{ t('field.grid_seeds') }}{{ info('field.grid_seeds') }}</label>
         <input type="text" name="grid_seeds" value="{{ grid_seeds }}"></div>
     </div>
     {% for key, label in all_mixes %}
@@ -28,16 +23,16 @@
       <label for="mix_{{ key }}" style="margin:0">{{ label }}</label>
     </div>
     {% endfor %}
-    <button type="submit" class="secondary">Update map</button>
+    <button type="submit" class="secondary">{{ t('btn.update_map') }}</button>
   </form>
 </div>
 
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Coverage</h2>
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>{{ t('h.coverage2') }}</h2>
   <p class="meta">
-    <b>{{ n_covered }}</b> covered &middot; <b>{{ n_missing }}</b> missing &middot;
-    {{ n_invalid }} invalid &middot; {{ n_cells }} cells total
-    {% if ran %}<span class="badge ok">just ran {{ ran }} missing cell{{ 's' if ran != 1 }}</span>{% endif %}
+    <b>{{ n_covered }}</b> {{ n('w.covered') }} &middot; <b>{{ n_missing }}</b> {{ n('w.missing') }} &middot;
+    {{ n_invalid }} {{ n('w.invalid') }} &middot; {{ n_cells }} {{ n('w.cells_total') }}
+    {% if ran %}<span class="badge ok">{{ n('w.just_ran') }} {{ ran }} {{ n('w.missing_cells') }}</span>{% endif %}
   </p>
 
   {% if n_missing > 0 %}
@@ -50,12 +45,11 @@
     {% for key in mix_keys %}<input type="hidden" name="grid_mix" value="{{ key }}">{% endfor %}
     <div class="grid">
       <div>
-        <label>Cells to run this click <span class="hint">(they run synchronously; DQN cells at
-          3000 rounds take the longest)</span></label>
+        <label>Cells to run this click <span class="hint">{{ n('note.spacemap_cap') }}</span></label>
         <input type="number" name="cap" value="5" min="1" max="50">
       </div>
       <div style="align-self:end">
-        <button type="submit">Run missing cells now</button>
+        <button type="submit">{{ t('btn.run_missing_now') }}</button>
       </div>
     </div>
   </form>
@@ -84,10 +78,7 @@
     {% endfor %}
   </table>
   {% endfor %}
-  <p class="meta">Each cell aggregates over the grid's rounds &times; seeds: covered runs / total
-    valid combinations. Green = fully covered, amber = partially, grey = nothing run yet, dash =
-    structurally invalid. Coverage matches on the grid coordinates and roster composition only;
-    hyperparameters are free dimensions (a run with custom alpha still covers its cell).</p>
+  <p class="meta">{{ n('note.spacemap_cells') }}</p>
 </div>
 
 {% endblock %}

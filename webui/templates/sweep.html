@@ -6,16 +6,13 @@
   <p class="meta">{{ error }}</p></div>{% endif %}
 
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Move one thing, watch everything</h2>
-  <p class="meta">Pick a parameter and a range. Each value becomes its own experiment, they run at
-    the same time across this machine's cores, and every measure the platform computes is drawn
-    against the parameter as the runs land. Each one is recorded in the ledger like any other
-    match, so the answer is queryable afterwards rather than only visible here.</p>
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>{{ t('h.sweep') }}</h2>
+  <p class="meta">{{ n('note.sweep_intro') }}</p>
 
   <form method="post" action="/sweep">
     <div class="grid">
       <div>
-        <label>Vary</label>
+        <label>{{ t('field.axis') }}{{ info('field.axis') }}</label>
         <select name="axis">
           {% for key, label in axes %}
           <option value="{{ key }}" {% if key == axis %}selected{% endif %}>{{ label }}</option>
@@ -23,17 +20,17 @@
         </select>
       </div>
       <div>
-        <label>Over these values</label>
+        <label>{{ t('field.values') }}{{ info('field.values') }}</label>
         <input type="text" name="values" value="{{ values }}">
       </div>
       <div>
-        <label>Seeds per value</label>
+        <label>{{ t('field.seeds') }}{{ info('field.seeds') }}</label>
         <input type="text" name="seeds" value="{{ seeds }}">
       </div>
     </div>
     <div class="grid">
       <div>
-        <label>Game</label>
+        <label>{{ t('field.game') }}{{ info('field.game_kind') }}</label>
         <select name="game">
           {% for key, label in games %}
           <option value="{{ key }}" {% if key == game %}selected{% endif %}>{{ label }}</option>
@@ -41,36 +38,33 @@
         </select>
       </div>
       <div>
-        <label>Roster</label>
+        <label>{{ t('field.mix') }}{{ info('field.mix') }}</label>
         <select name="mix">
           {% for key in mixes %}
           <option value="{{ key }}" {% if key == mix %}selected{% endif %}>{{ key }}</option>
           {% endfor %}
         </select>
       </div>
-      <div><label>Agents</label><input type="number" name="agents" value="{{ agents }}" min="2" max="10"></div>
-      <div><label>Rounds</label><input type="number" name="rounds" value="{{ rounds }}" min="20"></div>
+      <div><label>{{ t('field.agents') }}{{ info('field.n_agents') }}</label><input type="number" name="agents" value="{{ agents }}" min="2" max="10"></div>
+      <div><label>{{ t('field.rounds') }}{{ info('field.rounds') }}</label><input type="number" name="rounds" value="{{ rounds }}" min="20"></div>
       <div>
-        <label>Workers</label>
+        <label>{{ t('field.workers') }}{{ info('field.workers') }}</label>
         <input type="number" name="workers" value="{{ workers }}" min="1" max="{{ max_workers }}">
       </div>
     </div>
     <button type="submit" {% if running %}disabled{% endif %}>
       {% if running %}A sweep is running{% else %}Run the range{% endif %}</button>
-    <p class="meta">One worker per core is deliberately not offered. The spare core is what keeps
-      this page answering while the sweep runs, and a sweep you cannot watch is a batch job.
-      Seeds are the honest part: three runs per value show whether a difference between values is
-      larger than the difference between seeds.</p>
+    <p class="meta">{{ n('note.sweep_workers') }}</p>
   </form>
 </div>
 
 {% if progress %}
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Progress</h2>
+  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>{{ t('h.sweep_prog') }}</h2>
   <div id="bar-track" style="background:#00000033;border-radius:6px;height:14px;overflow:hidden">
     <div id="bar" style="height:100%;width:0%;background:var(--gold);transition:width .3s"></div>
   </div>
-  <p class="meta" id="progress-line">starting</p>
+  <p class="meta" id="progress-line">{{ n('note.sweep_starting') }}</p>
   <p class="meta" id="progress-last"></p>
 </div>
 {% endif %}
@@ -78,9 +72,7 @@
 {% if charts %}
 <div class="panel">
   <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Every measure against {{ axis }}</h2>
-  <p class="meta">A dot is one run. The line joins the mean at each value. Both are drawn because
-    the line alone hides that the seeds disagreed, and where they disagree by more than the values
-    do, the parameter has not been shown to matter.</p>
+  <p class="meta">{{ n('note.sweep_chart') }}</p>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">
     {% for chart in charts %}
     <div>{{ chart.svg|safe }}</div>

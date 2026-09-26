@@ -127,14 +127,20 @@ def test_the_analytics_table_opens_and_selects_runs() -> None:
         records = _record_runs(root)
         page = webui.app.test_client().get("/analytics").get_data(as_text=True)
         assert f"/run/{_id(records[0])}" in page
-        assert 'name="rid"' in page and "Compare selected" in page
+        # Asserted through the form's own wiring rather than the button's words, because the
+        # interface is bilingual now and a visible string is whichever language the reader chose.
+        assert 'name="rid"' in page
+        assert 'action="/compare"' in page, "the selected runs must post to the comparison view"
         print("OK: analytics rows open a run and can be selected for comparison")
 
 
 def test_meta_pools_by_design_and_reports_the_seeds_it_pooled() -> None:
     with _Repo() as root:
         _record_runs(root, seeds=(0, 1, 2))
-        page = webui.app.test_client().get("/meta?metric=cooperation_rate").get_data(as_text=True)
+        # Pinned to English, since the interface defaults to Greek and this assertion is about
+        # the page's wording. The arithmetic below is language-independent and is the real subject.
+        page = webui.app.test_client().get(
+            "/meta?metric=cooperation_rate&lang=en").get_data(as_text=True)
 
         assert "Designs" in page and "this installation" in page
         # Seeds 0, 1 and 2 recorded 0.30, 0.40 and 0.50, so the row must read mean 0.4000,

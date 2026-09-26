@@ -3,12 +3,10 @@
 
 <form action="/analytics" method="post">
   <div class="panel">
-    <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Smart filters</h2>
-    <p class="meta">Query every run ever recorded to the repository-lite ledger. Filters combine
-      with AND; a filter on a per-kind parameter (e.g. "Q-learning &middot; epsilon_decay") matches
-      a run if <em>any</em> agent of that kind in its roster satisfies the condition.</p>
+    <h2><svg class="glyph"><use href="#glyph-filter"/></svg>{{ t('h.filters') }}</h2>
+    <p class="meta">{{ n('note.analytics_intro') }}</p>
 
-    <label>Only runs whose roster includes at least one of:</label>
+    <label>{{ t('field.roster_has') }}{{ info('field.roster_has') }}</label>
     <div class="checkrow-group">
       {% for kind, meta in kind_meta.items() %}
       <label class="checkrow" style="display:inline-flex; width:auto; margin-right:14px;">
@@ -20,11 +18,11 @@
     </div>
 
     <div id="filter-rows" style="margin-top:14px"></div>
-    <button type="button" class="secondary" onclick="addFilterRow()">+ filter</button>
+    <button type="button" class="secondary" onclick="addFilterRow()">+ {{ t('btn.add_filter') }}</button>
 
     <div class="grid" style="margin-top:14px">
       <div>
-        <label>Chart X axis</label>
+        <label>{{ t('field.chart_x') }}{{ info('field.chart_x') }}</label>
         <select name="chart_x">
           {% for key, label in chart_axis_options %}
           <option value="{{ key }}" {% if key == chart_x %}selected{% endif %}>{{ label }}</option>
@@ -32,7 +30,7 @@
         </select>
       </div>
       <div>
-        <label>Chart Y axis</label>
+        <label>{{ t('field.chart_y') }}{{ info('field.chart_y') }}</label>
         <select name="chart_y">
           {% for key, label in chart_axis_options %}
           <option value="{{ key }}" {% if key == chart_y %}selected{% endif %}>{{ label }}</option>
@@ -41,20 +39,20 @@
       </div>
     </div>
 
-    <button type="submit" style="margin-top:14px">Apply filters</button>
+    <button type="submit" style="margin-top:14px">{{ t('btn.apply_filters') }}</button>
   </div>
 </form>
 
 <template id="filter-row-template">
   <div class="rosterrow filterrow">
     <div>
-      <label>Field</label>
+      <label>{{ t('field.filter_field') }}{{ info('field.filter_field') }}</label>
       <select name="filter_field[]">
         {% for key, label in field_options %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
       </select>
     </div>
     <div>
-      <label>Operator</label>
+      <label>{{ t('field.filter_operator') }}{{ info('field.filter_operator') }}</label>
       <select name="filter_op[]">
         <option value=">=">&ge;</option><option value="<=">&le;</option>
         <option value=">">&gt;</option><option value="<">&lt;</option>
@@ -62,36 +60,77 @@
       </select>
     </div>
     <div>
-      <label>Value</label>
+      <label>{{ t('field.filter_value') }}{{ info('field.filter_value') }}</label>
       <input type="text" name="filter_value[]" placeholder="e.g. 0.8">
     </div>
-    <button type="button" class="removerow" onclick="this.closest('.filterrow').remove()">Remove</button>
+    <button type="button" class="removerow" onclick="this.closest('.filterrow').remove()">{{ t('btn.remove') }}</button>
   </div>
 </template>
 
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Correlation chart</h2>
-  <p class="meta">{{ rows|length }} of {{ total_count }} recorded runs match the current filters.</p>
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>{{ t('h.corr_chart') }}</h2>
+  <p class="meta">{{ rows|length }} {{ n('w.of') }} {{ total_count }} {{ n('w.match_filters') }}.</p>
   {% if chart_svg %}
   {{ chart_svg | safe }}
   {% if correlation %}
-  <p class="meta"><b>Pearson r = {{ "%.3f"|format(correlation.r) }}</b> over n = {{ correlation.n }}
-    matching runs. Correlation across recorded experiments, not causation &mdash; runs differ in
-    whatever the filters did not pin down.</p>
+  <p class="meta"><b>Pearson r = {{ "%.3f"|format(correlation.r) }}</b>
+    {{ n('w.over_n') }} n = {{ correlation.n }} {{ n('w.matching_runs') }}.
+    {{ n('w.not_causation') }}</p>
   {% elif rows|length >= 2 %}
-  <p class="meta">Correlation not shown: it needs at least 3 matching runs with variation on both
-    axes.</p>
+  <p class="meta">{{ n('note.analytics_nocorr') }}</p>
   {% endif %}
-  <p class="meta"><a href="{{ chart_download }}" download="gamebrains_analytics_chart.svg">Download
-    this chart as a standalone SVG</a> &mdash; a real vector file (not a screenshot), suitable to
-    drop directly into a paper figure.</p>
-  {% else %}<p class="meta">No two matching runs share both chosen axes yet -- nothing to plot.</p>
+  <p class="meta"><a href="{{ chart_download }}"
+    download="gamebrains_analytics_chart.svg">{{ n('note.svg_link') }}</a>
+    &mdash; {{ n('note.analytics_svg') }}</p>
+  {% else %}<p class="meta">{{ n('note.analytics_noaxes') }}</p>
   {% endif %}
 </div>
 
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Matching runs</h2>
-  {% if rows %}
+  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>{{ t('h.matching') }}</h2>
+
+  {# Grouping and page size re-post the filters, so changing either keeps the current selection
+     rather than silently resetting it to every run in the ledger. #}
+  <form method="get" action="/analytics" class="tablecontrols">
+    {% for k in include_kinds %}<input type="hidden" name="include_kind" value="{{ k }}">{% endfor %}
+    {% for f, o, v in active_filters %}
+      <input type="hidden" name="filter_field[]" value="{{ f }}">
+      <input type="hidden" name="filter_op[]" value="{{ o }}">
+      <input type="hidden" name="filter_value[]" value="{{ v }}">
+    {% endfor %}
+    <input type="hidden" name="chart_x" value="{{ chart_x }}">
+    <input type="hidden" name="chart_y" value="{{ chart_y }}">
+    <label>{{ t('field.group_by') }}{{ info('field.group_by') }}</label>
+    <select name="group_by" onchange="this.form.submit()">
+      {% for key, label_key in group_options %}
+      <option value="{{ key }}"{% if key == group_by %} selected{% endif %}>{{ t(label_key) }}</option>
+      {% endfor %}
+    </select>
+    <label>{{ t('field.per_page') }}{{ info('field.per_page') }}</label>
+    <select name="per_page" onchange="this.form.submit()">
+      {% for size in page_sizes %}
+      <option value="{{ size }}"{% if size == pager.per_page %} selected{% endif %}>{{ size }}</option>
+      {% endfor %}
+    </select>
+    <span class="meta">{{ n('w.showing') }} {{ pager.first }}&ndash;{{ pager.last }}
+      {{ n('w.slash_of') }} {{ pager.total }}
+      {% if matched_count != total_count %}({{ matched_count }} {{ n('w.of') }} {{ total_count }} {{ n('w.runs') }}){% endif %}</span>
+  </form>
+
+  {% if groups %}
+  <table>
+    <tr><th>{{ t('field.group_by') }}</th><th>{{ n('w.runs') }}</th><th>{{ t('field.game') }}</th>
+        <th>{{ t('field.mix') }}</th></tr>
+    {% for g in groups %}
+    <tr>
+      <td><code>{{ g.name }}</code></td>
+      <td>{{ g.count }}</td>
+      <td>{{ g.games | join(', ') }}</td>
+      <td>{{ g.rosters | join(', ') }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% elif rows %}
   <form action="/compare" method="get">
   <table>
     <tr>
@@ -114,11 +153,23 @@
     </tr>
     {% endfor %}
   </table>
-  <button type="submit" class="secondary" style="margin-top:12px">Compare selected</button>
-  <span class="meta">Tick two or more, or open one to see the run as it was stored.</span>
+  <button type="submit" class="secondary" style="margin-top:12px">{{ t('btn.compare') }}</button>
+  <span class="meta">{{ n('note.analytics_tick') }}</span>
   </form>
-  {% else %}
-  <p class="meta">No recorded runs match these filters yet.</p>
+  {% endif %}
+
+  {% if pager.pages > 1 %}
+  <p class="pager">
+    {% set base = '/analytics?group_by=' ~ group_by ~ '&per_page=' ~ pager.per_page
+       ~ '&chart_x=' ~ chart_x ~ '&chart_y=' ~ chart_y %}
+    {% if pager.page > 1 %}<a href="{{ base }}&page={{ pager.page - 1 }}">&larr; {{ t('btn.prev_page') }}</a>{% endif %}
+    <span class="meta">{{ n('w.page_of') }} {{ pager.page }} {{ n('w.slash_of') }} {{ pager.pages }}</span>
+    {% if pager.page < pager.pages %}<a href="{{ base }}&page={{ pager.page + 1 }}">{{ t('btn.next_page') }} &rarr;</a>{% endif %}
+  </p>
+  {% endif %}
+
+  {% if not rows and not groups %}
+  <p class="meta">{{ n('note.analytics_none') }}</p>
   {% endif %}
 </div>
 

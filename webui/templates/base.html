@@ -86,6 +86,63 @@
     display: flex; justify-content: center; margin-bottom: 10px;
   }
   [data-theme="gamified"] .creature-mascot svg { width: 76px; height: 76px; }
+
+  /* ---- the info badge -------------------------------------------------------------------
+     Every field and button carries one, and it has to work for both a mouse and a finger. So
+     the bubble opens on hover *and* on focus, and the badge is a <button> rather than a <span>
+     so that a tap and the keyboard both reach it. It is aria-describedby'd to its own text,
+     which is what a screen reader reads instead of the visual bubble. */
+  .info { position: relative; display: inline-flex; vertical-align: middle; margin-left: 5px; }
+  .info > button {
+    all: unset; cursor: pointer; width: 15px; height: 15px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10.5px; font-weight: 700; line-height: 1;
+    background: var(--gold); color: #1b1a17; opacity: .55; transition: opacity .12s;
+  }
+  .info > button:hover, .info > button:focus-visible { opacity: 1; }
+  .info > button[aria-expanded="true"] { opacity: 1; }
+  .info > button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .info .bubble {
+    position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+    width: max-content; max-width: 320px; padding: 9px 11px; border-radius: 8px;
+    background: #1b1a17; color: #f2eee4; border: 1px solid #ffffff22;
+    font-size: 12.5px; font-weight: 400; line-height: 1.5; text-align: left;
+    white-space: normal; letter-spacing: normal; text-transform: none;
+    box-shadow: 0 6px 20px #00000055; z-index: 60;
+    opacity: 0; visibility: hidden; transition: opacity .12s;
+  }
+  .info .bubble::after {
+    content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: #1b1a17;
+  }
+  .info > button[aria-expanded="true"] + .bubble { opacity: 1; visibility: visible; }
+  /* Near the right edge the bubble would fall off the page, so a field can ask for it to hang
+     from the left instead. */
+  .info.left .bubble { left: 0; transform: none; }
+  .info.left .bubble::after { left: 12px; transform: none; }
+  [data-theme="gamified"] .info > button { background: var(--gold); color: #1b1a17; }
+
+
+  /* The correlation heat map. It carries no colour of its own, so `currentColor` resolves to the
+     page's ink in whichever theme is active; the previous version hardcoded a dark-theme blue and
+     disappeared entirely against the light one. It also keeps its drawn size and scrolls when the
+     window is narrower, because scaling it down is what made the labels unreadable. */
+  .matrixwrap { overflow-x: auto; max-width: 100%; padding-bottom: 6px; }
+  .matrixchart { color: var(--ink); display: block; max-width: none; }
+  /* Every server-drawn chart takes its ink from the theme for the same reason. Three of them
+     carried the same hardcoded dark-theme blue and were unreadable on the light skin. */
+  .themedchart { color: var(--ink); }
+  [data-theme="gamified"] .themedchart { color: #2e2a25; }
+  [data-theme="gamified"] .matrixchart { color: #2e2a25; }
+
+  .lang-switch {
+    margin-left: 10px; padding: 5px 9px; border-radius: 7px; text-decoration: none;
+    font-size: 12px; font-weight: 700; letter-spacing: .04em;
+    background: #ffffff14; border: 1px solid #ffffff22; color: var(--ink); opacity: .75;
+  }
+  .lang-switch:hover { opacity: 1; }
+  [data-theme="gamified"] .lang-switch { background: #00000010; border-color: #00000020; }
+
   .theme-toggle {
     display: inline-flex; background: #ffffff12; border: 1px solid #ffffff22; border-radius: 999px;
     padding: 3px; margin-left: 14px; align-self: center; gap: 0;
@@ -475,20 +532,22 @@
     <svg class="glyph" width="28" height="28" viewBox="0 0 24 24" style="color:var(--gold)"><use href="#glyph-markov_brain"/></svg>
     <h1>GameBrains</h1>
   </div>
-  <span class="tag">interactive research demo</span>
+  <span class="tag">{{ t('app.tagline') }}</span>
   <nav class="tabs">
-    <a href="/" class="{{ 'active' if active_tab == 'match' else '' }}">Match</a>
-    <a href="/evolve" class="{{ 'active' if active_tab == 'evolve' else '' }}">Evolutionary</a>
-    <a href="/analytics" class="{{ 'active' if active_tab == 'analytics' else '' }}">Analytics</a>
-    <a href="/meta" class="{{ 'active' if active_tab == 'meta' else '' }}">Meta-analysis</a>
-    <a href="/sweep" class="{{ 'active' if active_tab == 'sweep' else '' }}">Sweep</a>
-    <a href="/coverage" class="{{ 'active' if active_tab == 'coverage' else '' }}">Coverage</a>
-    <a href="/spacemap" class="{{ 'active' if active_tab == 'spacemap' else '' }}">Space map</a>
+    <a href="/" class="{{ 'active' if active_tab == 'match' else '' }}">{{ t('nav.match') }}</a>
+    <a href="/evolve" class="{{ 'active' if active_tab == 'evolve' else '' }}">{{ t('nav.evolve') }}</a>
+    <a href="/analytics" class="{{ 'active' if active_tab == 'analytics' else '' }}">{{ t('nav.analytics') }}</a>
+    <a href="/meta" class="{{ 'active' if active_tab == 'meta' else '' }}">{{ t('nav.meta') }}</a>
+    <a href="/sweep" class="{{ 'active' if active_tab == 'sweep' else '' }}">{{ t('nav.sweep') }}</a>
+    <a href="/coverage" class="{{ 'active' if active_tab == 'coverage' else '' }}">{{ t('nav.coverage') }}</a>
+    <a href="/spacemap" class="{{ 'active' if active_tab == 'spacemap' else '' }}">{{ t('nav.spacemap') }}</a>
   </nav>
   <div class="theme-toggle">
-    <button type="button" class="theme-btn" data-set-theme="scientific" onclick="setGbTheme('scientific')">📐 Scientific</button>
-    <button type="button" class="theme-btn" data-set-theme="gamified" onclick="setGbTheme('gamified')">🧪 Gamified</button>
+    <button type="button" class="theme-btn" data-set-theme="scientific" onclick="setGbTheme('scientific')">📐 {{ t('theme.scientific') }}</button>
+    <button type="button" class="theme-btn" data-set-theme="gamified" onclick="setGbTheme('gamified')">🧪 {{ t('theme.gamified') }}</button>
   </div>
+  <a class="lang-switch" href="?lang={{ other_lang }}"
+     title="{{ t('lang.switch') }}">{{ other_lang|upper }}</a>
 </header>
 <main>
 {% block content %}{% endblock %}
@@ -526,6 +585,23 @@ function syncThemeButtons() {
   });
 }
 syncThemeButtons();
+</script>
+<script>
+// One open bubble at a time, and a click anywhere else closes it. Without this, badges opened by
+// clicking stay open until each is clicked again, and a form with fifty of them fills with
+// stacked bubbles.
+document.addEventListener('click', event => {
+  const badge = event.target.closest('.info > button');
+  document.querySelectorAll('.info > button[aria-expanded="true"]').forEach(open => {
+    if (open !== badge) open.setAttribute('aria-expanded', 'false');
+  });
+});
+// Escape closes whatever is open, the usual way out of a transient layer.
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  document.querySelectorAll('.info > button[aria-expanded="true"]')
+    .forEach(open => open.setAttribute('aria-expanded', 'false'));
+});
 </script>
 </body>
 </html>

@@ -59,8 +59,70 @@ from ..repository.record import (
     protocol_from_run, record_experiment,
 )
 from ..repository.smart_filter import lookup as smart_filter_lookup, nearest as smart_filter_nearest
+from markupsafe import Markup, escape
+
+from . import i18n
+
+#: What a screen reader announces for the badge, since the visible glyph is just a letter.
+_INFO_LABEL = {"el": "Τι κάνει αυτό;", "en": "What does this do?"}
+
+#: The badge's markup. The click handler flips `aria-expanded`, which the stylesheet uses to keep
+#: the bubble open after a tap; hover and keyboard focus open it through CSS alone, so a device
+#: with no JavaScript still gets the explanation.
+_INFO_HTML = (
+    '<span class="info {side}">'
+    '<button type="button" aria-expanded="false" aria-label="{label}"'
+    ''' onclick="this.setAttribute('aria-expanded','''
+    ''' this.getAttribute('aria-expanded')==='true'?'false':'true')">i</button>'''
+    '<span class="bubble" role="tooltip">{text}</span>'
+    '</span>'
+)
 
 app = Flask(__name__)
+
+
+@app.context_processor
+def _inject_language():
+    """Make `t`, `h` and `lang` available to every template without threading them through.
+
+    The language is a cookie rather than a session, because nothing here needs a session and a
+    cookie survives a restart of the dev server. `?lang=` sets it, which is what the switch in the
+    header links to, and anything unrecognised falls back to the default rather than erroring.
+    """
+    lang = i18n.normalise(request.args.get("lang") or request.cookies.get("lang"))
+    other = "en" if lang == "el" else "el"
+    def info(key: str, side: str = "") -> Markup:
+        """The ⓘ badge for one control, or nothing at all where that key has no help text.
+
+        A Python function rather than a Jinja macro, so a template calls `info('field.rounds')`
+        with no import line. It opens on hover for a mouse and on click for a finger, and the
+        bubble is the accessible description rather than a `title=` the keyboard cannot reach.
+        """
+        text = i18n.h(key, lang)
+        if not text:
+            return Markup("")
+        return Markup(_INFO_HTML).format(
+            side=escape(side), label=escape(_INFO_LABEL[lang]), text=escape(text))
+
+    return {
+        "lang": lang,
+        "other_lang": other,
+        "t": lambda key: i18n.t(key, lang),
+        "h": lambda key: i18n.h(key, lang),
+        "n": lambda key: i18n.n(key, lang),
+        "game_help": lambda key: i18n.game(key, lang),
+        "param_choices": lambda pname: _choices_for(pname, lang),
+        "info": info,
+    }
+
+
+@app.after_request
+def _remember_language(response):
+    """Persist an explicit `?lang=` choice, so the rest of the interface follows it."""
+    chosen = request.args.get("lang")
+    if chosen in i18n.LANGS and request.cookies.get("lang") != chosen:
+        response.set_cookie("lang", chosen, max_age=60 * 60 * 24 * 365, samesite="Lax")
+    return response
 
 
 @app.context_processor
@@ -278,6 +340,61 @@ _ADVANCED_PARAMS: dict[str, list[tuple[str, Any, str]]] = {
             ("llm_profile", llm_prompt.DEFAULT_PROFILE,
              "what the model is told, by name: " + ", ".join(sorted(llm_prompt.PROFILES)))],
 }
+
+
+#: Parameters whose value comes from a fixed set rather than from typing. A free text box for
+#: any of these is a way to lose forty rounds to a typo, and for `llm_profile` it contradicts the
+#: whole reason that parameter exists: the profile is a name from a catalogue, so that two runs
+#: cannot differ by a sentence nobody recorded. Offering a box there invites exactly the drift the
+#: design forbids.
+#:
+#: `llm_model` is not listed here because its options are whatever the reader has actually pulled,
+#: which only the Ollama server knows. `_model_choices` asks it.
+_PARAM_CHOICES: dict[str, list[tuple[str, str]]] = {
+    "llm_profile": [(name, name) for name in sorted(llm_prompt.PROFILES)],
+    "llm_constrained": [("1", "opt.constrained_on"), ("0", "opt.constrained_off")],
+}
+
+
+def _choices_for(pname: str, lang: str) -> Optional[dict]:
+    """The dropdown for one parameter, with its labels already in the reader's language.
+
+    `None` means this parameter is genuinely free text, and the template keeps its input box.
+    """
+    if pname == "llm_model":
+        options, problem = _model_choices()
+        return {"options": options, "note": i18n.n(problem, lang) if problem else None}
+    fixed = _PARAM_CHOICES.get(pname)
+    if fixed is None:
+        return None
+    return {"options": [(value, i18n.t(label, lang) if label.startswith("opt.") else label)
+                        for value, label in fixed], "note": None}
+
+
+def _model_choices() -> tuple[list[tuple[str, str]], Optional[str]]:
+    """The models this machine has pulled, and a reason when the list could not be fetched.
+
+    Returns the options to offer and, when Ollama is not answering, a message key explaining
+    that rather than an empty dropdown. The default stays selectable in that case, so a reader
+    whose server is merely stopped is not blocked from building a roster.
+    """
+    default = _ADVANCED_DEFAULT("llm", "llm_model")
+    try:
+        from ..agents.llm_ollama import OllamaBackend
+
+        installed = [m for m in OllamaBackend(model=default).installed_models() if m]
+    except Exception:
+        return [(default, default)], "note.ollama_absent"
+    if not installed:
+        return [(default, default)], "note.ollama_empty"
+    return [(m, m) for m in sorted(installed)], None
+
+
+def _ADVANCED_DEFAULT(kind: str, pname: str) -> str:
+    for name, default, _help in _ADVANCED_PARAMS.get(kind, []):
+        if name == pname:
+            return str(default)
+    return ""
 
 
 def _compute_phi_sequential(agent: Any, n_t: int = 5):
@@ -1510,7 +1627,7 @@ def _scatter_svg(points: list[tuple[float, float]], x_label: str, y_label: str,
     # standalone downloadable file (which sets its own white background below, deliberately
     # print/paper-appropriate regardless of the on-page theme).
     inline_html = (
-        f"<svg viewBox='0 0 {width} {height}' class='scatterchart' style='color:#c7cbe6'>"
+        f"<svg viewBox='0 0 {width} {height}' class='scatterchart themedchart'>"
         f"{body}</svg>"
     )
     standalone_svg = (
@@ -1520,6 +1637,52 @@ def _scatter_svg(points: list[tuple[float, float]], x_label: str, y_label: str,
     )
     download_href = "data:image/svg+xml;charset=utf-8," + quote(standalone_svg)
     return inline_html, download_href
+
+
+#: How the matching-runs table can be grouped. The chart and the filters always see every
+#: matching run; grouping changes only how the table is read, which is the point -- a hundred
+#: rows of individual runs answers "what have I got" badly, while the same runs collapsed by
+#: design answer it well and still open individually.
+_GROUP_BY = {
+    "none":   ("group.none", lambda row: None),
+    "design": ("group.design", lambda row: (row.get("config_hash") or "")[:16]),
+    "game":   ("group.game", lambda row: row.get("game_name") or "?"),
+    "roster": ("group.roster", lambda row: row.get("kind_summary") or "?"),
+}
+_PAGE_SIZES = (25, 50, 100, 250)
+
+
+def _grouped(rows: list[dict], key: str) -> list[dict]:
+    """Collapse rows into groups, each keeping its own runs so a group can be opened.
+
+    A group carries the count and the spread of whatever is being charted, because the useful
+    question about a group of runs of one design is not what the first one did but whether they
+    agreed with each other.
+    """
+    _, getter = _GROUP_BY.get(key, _GROUP_BY["none"])
+    if getter is None:
+        return []
+    buckets: dict[Any, list[dict]] = {}
+    for row in rows:
+        buckets.setdefault(getter(row), []).append(row)
+    out = []
+    for name, members in buckets.items():
+        out.append({"name": name, "count": len(members), "runs": members,
+                    "games": sorted({m.get("game_name") or "?" for m in members}),
+                    "rosters": sorted({m.get("kind_summary") or "?" for m in members})})
+    out.sort(key=lambda g: (-g["count"], str(g["name"])))
+    return out
+
+
+def _paginate(rows: list, page: int, per_page: int) -> tuple[list, dict]:
+    """One page of rows, plus what the pager needs to draw itself."""
+    total = len(rows)
+    pages = max(1, (total + per_page - 1) // per_page)
+    page = min(max(1, page), pages)
+    start = (page - 1) * per_page
+    window = rows[start:start + per_page]
+    return window, {"page": page, "pages": pages, "per_page": per_page, "total": total,
+                    "first": start + 1 if total else 0, "last": start + len(window)}
 
 
 @app.route("/analytics", methods=["GET", "POST"])
@@ -1565,12 +1728,40 @@ def analytics():
         if xs.std() > 0 and ys.std() > 0:
             correlation = {"r": float(np.corrcoef(xs, ys)[0, 1]), "n": len(points)}
 
+    # The table is paged and optionally grouped. Both act on the filtered set only, after the
+    # chart and the correlation have already seen all of it, so paging never silently changes a
+    # number the page reports.
+    group_by = request.values.get("group_by", "none")
+    if group_by not in _GROUP_BY:
+        group_by = "none"
+    try:
+        per_page = int(request.values.get("per_page", 25))
+    except ValueError:
+        per_page = 25
+    if per_page not in _PAGE_SIZES:
+        per_page = 25
+    try:
+        page = int(request.values.get("page", 1))
+    except ValueError:
+        page = 1
+
+    groups = _grouped(filtered, group_by) if group_by != "none" else []
+    if groups:
+        shown, pager = _paginate(groups, page, per_page)
+        rows_shown = []
+    else:
+        shown = []
+        rows_shown, pager = _paginate(filtered, page, per_page)
+
     return render_template(
-        "analytics.html", rows=filtered, total_count=len(rows), kind_meta=KIND_META,
+        "analytics.html", rows=rows_shown, groups=shown, pager=pager,
+        total_count=len(rows), matched_count=len(filtered), kind_meta=KIND_META,
         field_options=_analytics_field_options(), chart_axis_options=chart_axis_options,
         include_kinds=include_kinds, chart_download=chart_download,
         active_filters=list(zip(filter_fields, filter_ops, filter_values)),
         chart_x=chart_x, chart_y=chart_y, chart_svg=chart_svg, correlation=correlation,
+        group_by=group_by, group_options=[(k, v[0]) for k, v in _GROUP_BY.items()],
+        page_sizes=_PAGE_SIZES,
     )
 
 
@@ -1773,7 +1964,7 @@ def _forest_svg(rows: list[dict[str, Any]], label: str, width: int = 760,
 
     inner = "".join(body)
     inline = (f"<svg viewBox='0 0 {width} {height}' class='scatterchart' "
-              f"style='color:#c7cbe6'>{inner}</svg>")
+              f"class='themedchart'>{inner}</svg>")
     standalone = (f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}' "
                   f"width='{width}' height='{height}' "
                   f"style='background:#fff;color:#222;font-family:sans-serif'>{inner}</svg>")
@@ -1963,7 +2154,7 @@ def _field_label(name: str) -> str:
     return labels.get(name, name.split(":", 1)[-1] if ":" in name else name)
 
 
-def _matrix_svg(matrix: Any, labels: dict[str, str], cell_px: int = 26) -> tuple[str, str]:
+def _matrix_svg(matrix: Any, labels: dict[str, str], cell_px: int = 30) -> tuple[str, str]:
     """The correlation matrix as a heat map, with the cells that survive the correction marked.
 
     Colour carries the sign and the magnitude, and a ring carries significance. A cell with no
@@ -1973,7 +2164,13 @@ def _matrix_svg(matrix: Any, labels: dict[str, str], cell_px: int = 26) -> tuple
     fields = matrix.fields
     if not fields:
         return "", ""
-    pad_left, pad_top, pad_right, pad_bottom = 230, 230, 14, 14
+    # The margins are sized from the labels that actually appear rather than fixed at the longest
+    # imaginable one. A fixed 230px gutter next to short names is what made the grid look like a
+    # narrow band of colour pushed against a wall of text.
+    shown = {name: labels.get(name, name)[:34] for name in fields}
+    longest = max((len(text) for text in shown.values()), default=10)
+    gutter = min(250, 16 + int(longest * 5.9))
+    pad_left, pad_top, pad_right, pad_bottom = gutter, gutter, 16, 16
     size = len(fields) * cell_px
     width, height = pad_left + size + pad_right, pad_top + size + pad_bottom
 
@@ -2008,18 +2205,23 @@ def _matrix_svg(matrix: Any, labels: dict[str, str], cell_px: int = 26) -> tuple
                   f"{' (survives)' if cell.significant else ''}</title>")
 
     for i, name in enumerate(fields):
-        label = labels.get(name, name)[:34]
+        label = shown[name]
         y = pad_top + i * cell_px + cell_px / 2
-        parts.append(f"<text x='{pad_left - 8}' y='{y}' text-anchor='end' "
-                     f"dominant-baseline='middle' font-size='10' fill='currentColor'>"
+        parts.append(f"<text x='{pad_left - 9}' y='{y}' text-anchor='end' "
+                     f"dominant-baseline='middle' font-size='11.5' fill='currentColor'>"
                      f"{escape(label)}</text>")
         x = pad_left + i * cell_px + cell_px / 2
-        parts.append(f"<text x='{x}' y='{pad_top - 8}' font-size='10' fill='currentColor' "
-                     f"transform='rotate(-90 {x} {pad_top - 8})'>{escape(label)}</text>")
+        parts.append(f"<text x='{x}' y='{pad_top - 9}' font-size='11.5' fill='currentColor' "
+                     f"transform='rotate(-90 {x} {pad_top - 9})'>{escape(label)}</text>")
 
     body = "".join(parts)
-    inline = (f"<svg viewBox='0 0 {width} {height}' style='width:100%;height:auto;color:#c7cbe6' "
-              f"class='matrixchart'>{body}</svg>")
+    # No hardcoded ink colour. That one was a dark-theme blue, so every label vanished against the
+    # light theme's cream panel -- the same trap this project has hit before with recessed
+    # surfaces. `currentColor` inherits, and the stylesheet sets it per theme. The chart also
+    # keeps its natural size instead of being squeezed to the panel width, since shrinking it is
+    # what made the labels unreadable; a narrow window scrolls it rather than crushing it.
+    inline = (f"<div class='matrixwrap'><svg viewBox='0 0 {width} {height}' "
+              f"width='{width}' height='{height}' class='matrixchart'>{body}</svg></div>")
     standalone = (f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}' "
                   f"width='{width}' height='{height}' "
                   f"style='background:#fff;color:#222;font-family:sans-serif'>{body}</svg>")
@@ -2123,7 +2325,7 @@ def _line_svg(points: list[tuple[float, float]], x_label: str, y_label: str,
     label = (f"<text x='{width / 2}' y='{height - 3}' text-anchor='middle' font-size='9' "
              f"fill='currentColor'>{escape(x_label)}</text>")
     line = f"<path d='{path}' fill='none' stroke='#d9a441' stroke-width='1.8'/>" if path else ""
-    return (f"<svg viewBox='0 0 {width} {height}' style='width:100%;height:auto;color:#c7cbe6' "
+    return (f"<svg viewBox='0 0 {width} {height}' style='width:100%;height:auto' class='themedchart' "
             f"class='scatterchart'>{title}{axes}{ticks}{dots}{line}{label}</svg>")
 
 

@@ -45,9 +45,9 @@
     {% if epsilon_hints %}
     <p class="meta">
       {% for h in epsilon_hints %}
-        &epsilon; ({{ h.kind }}): decay={{ h.decay }} min={{ h.emin }} &rarr; needs
-        ~{{ (h.rounds_needed)|round(0, 'ceil')|int }} rounds
-        {% if h.reached %}<span class="badge ok">reached &epsilon;_min</span>{% else %}<span class="badge warn">not yet reached</span>{% endif %}
+        &epsilon; ({{ h.kind }}): decay={{ h.decay }} min={{ h.emin }} &rarr;
+        {{ n('w.needs_about') }} {{ (h.rounds_needed)|round(0, 'ceil')|int }} {{ n('w.rounds_word') }}
+        {% if h.reached %}<span class="badge ok">{{ n('w.reached') }}</span>{% else %}<span class="badge warn">{{ n('w.not_reached') }}</span>{% endif %}
         &middot;
       {% endfor %}
     </p>
@@ -86,8 +86,7 @@
   {% if genome_cids %}
   <div class="panel">
     <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>Evolved genomes from this match</h2>
-    <p class="meta">Paste this CID into a markov_brain row's Evolved Genome CID field on a future
-      run to reuse this genome instead of a random one.</p>
+    <p class="meta">{{ n('note.genome_cid') }}</p>
     <table>
       <tr><th>Agent</th><th>Genome CID</th></tr>
       {% for g in genome_cids %}<tr><td>{{ g.name }}</td><td><code>{{ g.cid }}</code></td></tr>{% endfor %}
@@ -100,18 +99,16 @@
   {% if alt_metrics %}
   <div class="panel">
     <h2><svg class="glyph"><use href="#glyph-scale"/></svg>Temporal fairness (ALT &amp; RP)</h2>
-    <p class="meta">Over {{ alt_metrics.n_episodes }} completed episodes:
-      <b>{{ alt_metrics.solo_win_episodes }}</b> won by a single agent,
-      <b>{{ alt_metrics.collision_episodes }}</b> ending in a collision{% if alt_metrics.empty_episodes %},
-      <b>{{ alt_metrics.empty_episodes }}</b> with nobody arriving{% endif %}.
-      Higher is better throughout.</p>
+    <p class="meta">{{ n('w.episodes_over') }} {{ alt_metrics.n_episodes }} {{ n('w.episodes_done') }}
+      <b>{{ alt_metrics.solo_win_episodes }}</b> {{ n('w.won_alone') }},
+      <b>{{ alt_metrics.collision_episodes }}</b> {{ n('w.collided') }}{% if alt_metrics.empty_episodes %},
+      <b>{{ alt_metrics.empty_episodes }}</b> {{ n('w.nobody_arrived') }}{% endif %}.
+      {{ n('note.alt_episodes_tail') }}</p>
     <table>
       <tr>{% for key, label in alt_metric_meta %}{% if key in alt_metrics %}<th>{{ label }}</th>{% endif %}{% endfor %}</tr>
       <tr>{% for key, label in alt_metric_meta %}{% if key in alt_metrics %}<td>{{ "%.4f"|format(alt_metrics[key]) }}</td>{% endif %}{% endfor %}</tr>
     </table>
-    <p class="meta">Compare the fairness columns against CALT and AALT. Outcome-based fairness can
-      sit near 1.0 while the alternation measures sit near 0, which is exactly the case these
-      measures exist to expose: everyone got a similar amount, nobody ever took a turn.</p>
+    <p class="meta">{{ n('note.alt_compare') }}</p>
     {{ alt_help_trigger | safe }}
   </div>
   {% endif %}
@@ -127,12 +124,7 @@
   {% if metrics.mutual_information_detail %}
   <div class="panel">
     <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Mutual information &amp; transfer entropy</h2>
-    <p class="meta">Discrete plug-in estimator with Miller-Madow bias correction. Every transfer-entropy
-      pair below is tested against {{ metrics.transfer_entropy_detail.n_surrogates }} time-shift
-      surrogates; only pairs with p &lt; 0.05 count toward the "Transfer entropy" figure in the
-      Summary panel above &mdash; a nonzero raw value with a large p-value here is not evidence of a
-      real link, it can be finite-sample noise or a shared confound (e.g. both agents reacting to the
-      same public signal).</p>
+    <p class="meta">{{ n('note.te_method') }}</p>
     <table>
       <tr><th>Agent</th><th>Kind</th><th>I(obs;action) bits</th><th>PI(past;future) bits</th></tr>
       {% for bits in metrics.mutual_information_detail.bits_by_agent %}
@@ -158,11 +150,7 @@
   {% if metrics.graph_detail %}
   <div class="panel">
     <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Interaction graphs (networkx)</h2>
-    <p class="meta">Two graphs over the same match. <b>Co-cooperation</b> (undirected): edge weight
-      is the fraction of rounds both agents cooperated together &mdash; the literal
-      who-cooperates-with-whom network. <b>Influence</b> (directed): an edge exists only where the
-      transfer entropy above passed its surrogate test, so this is the topological reading of the
-      significant TE links, not a new computation.</p>
+    <p class="meta">{{ n('note.graphs_explained') }}</p>
     <table>
       <tr><th>Pair</th><th>Co-cooperation weight</th></tr>
       {% for e in metrics.graph_detail.coop_edges %}
@@ -179,8 +167,7 @@
       {% endfor %}
     </table>
     {% else %}
-    <p class="meta">No surrogate-significant influence links in this match, so the influence graph
-      has no edges (density 0). That is a finding, not a failure.</p>
+    <p class="meta">{{ n('note.no_influence') }}</p>
     {% endif %}
   </div>
   {% endif %}
@@ -188,7 +175,7 @@
   {% if phi_info %}
   <div class="panel">
     <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>&Phi; (integrated information) &amp; causal autonomy</h2>
-    <p class="meta">agent: {{ phi_info.agent }}</p>
+    <p class="meta">{{ n('w.agent') }} {{ phi_info.agent }}</p>
     <table>
       <tr><th>&Phi;</th><th>Causal autonomy (bits)</th></tr>
       <tr><td>{{ "%.4f"|format(phi_info.phi) }}</td><td>{{ "%.4f"|format(phi_info.autonomy) }}</td></tr>
@@ -236,7 +223,7 @@
       {% endfor %}
     </table>
     {% else %}
-    <p class="meta">No prior experiments in the repository to compare against yet.</p>
+    <p class="meta">{{ n('note.no_prior') }}</p>
     {% endif %}
   </div>
 </div>

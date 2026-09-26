@@ -4,9 +4,7 @@
 
 <div class="panel">
   <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Batch results: sweeping <code>{{ param }}</code></h2>
-  <p class="meta">Each row is a separate, fully recorded run: same base configuration, one field
-    varied. Use the Repository/Smart Filter tools on the Match tab to dig into any single run by
-    its config_hash or content_cid.</p>
+  <p class="meta">{{ n('note.batch_rows') }}</p>
   {% if chart_svg %}{{ chart_svg | safe }}{% endif %}
   <table>
     <tr><th>{{ param }}</th><th>Cooperation rate</th><th>Efficiency</th><th>config_hash</th><th>content_cid</th></tr>

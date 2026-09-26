@@ -6,10 +6,8 @@
   <p class="meta" style="white-space:pre-line">{{ error }}</p></div>{% endif %}
 
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Sources</h2>
-  <p class="meta">One chain per installation. An imported chain is kept beside the local one and
-    never merged into it, so two installations writing at the same time cannot fork a shared
-    chain, and nothing has to choose between branches.</p>
+  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>{{ t('h.sources') }}</h2>
+  <p class="meta">{{ n('note.meta_onechain') }}</p>
   <table>
     <tr><th>Source</th><th>Records</th><th>Key</th><th>Status</th></tr>
     {% for s in sources %}
@@ -26,35 +24,33 @@
   <div class="grid" style="margin-top:16px">
     <form method="post" enctype="multipart/form-data">
       <input type="hidden" name="action" value="import">
-      <label>Import a bundle</label>
+      <label>{{ t('field.bundle') }}{{ info('field.bundle') }}</label>
       <input type="file" name="bundle" accept=".zip">
-      <label>Their public key, as they gave it to you</label>
+      <label>{{ t('field.trusted_key') }}{{ info('field.trusted_key') }}</label>
       <input type="text" name="trusted_key" placeholder="64 hex characters">
-      <label>Label</label>
+      <label>{{ t('field.label') }}{{ info('field.label') }}</label>
       <input type="text" name="label" placeholder="e.g. Lab A">
-      <button type="submit">Verify and import</button>
-      <p class="meta">The key has to reach you some other way than inside the file. A bundle that
-        vouches for itself proves only that whoever built it was consistent.</p>
+      <button type="submit">{{ t('btn.verify_import') }}</button>
+      <p class="meta">{{ n('note.meta_keychannel') }}</p>
     </form>
 
     <form method="post">
       <input type="hidden" name="action" value="export">
-      <label>Export this installation's chain</label>
+      <label>{{ t('field.title') }}{{ info('field.title') }}</label>
       <input type="text" name="title" placeholder="title, e.g. September runs">
-      <label>DOI, if the results have one</label>
+      <label>{{ t('field.doi') }}{{ info('field.doi') }}</label>
       <input type="text" name="doi" placeholder="10.5281/zenodo....">
-      <button type="submit" class="secondary">Export bundle</button>
-      <p class="meta">Carries the chain, the objects its records point at and the public key.
-        Never the private key.</p>
+      <button type="submit" class="secondary">{{ t('btn.export_bundle') }}</button>
+      <p class="meta">{{ n('note.meta_export') }}</p>
     </form>
   </div>
 </div>
 
 <form method="get" class="panel">
-  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>Pool across runs</h2>
+  <h2><svg class="glyph"><use href="#glyph-filter"/></svg>{{ t('h.pool') }}</h2>
   <div class="grid">
     <div>
-      <label>Measure</label>
+      <label>{{ t('field.metric') }}{{ info('field.metric') }}</label>
       <select name="metric">
         {% for key, label in metric_options %}
         <option value="{{ key }}" {% if key == metric %}selected{% endif %}>{{ label }}</option>
@@ -68,26 +64,23 @@
       </label>
     </div>
   </div>
-  <button type="submit">Pool</button>
-  <p class="meta">{{ total_records }} records readable. Runs are grouped by design, which is the
-    configuration hash together with the scoring protocol, so seeds pool and differently scored
-    runs do not.</p>
+  <button type="submit">{{ t('btn.pool') }}</button>
+  <p class="meta">{{ total_records }} {{ n('w.records_readable') }}
+    {{ n('w.grouped_by_design') }}</p>
 </form>
 
 {% if chart_svg %}
 <div class="panel">
   <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>{{ metric_label }} by design</h2>
   {{ chart_svg | safe }}
-  <p class="meta">Each row is one design: the dot is the mean, the bar is the 95% interval, and
-    the small dots are the individual runs. The runs are drawn because a mean can sit where no run
-    did, which has already happened on this platform when seeds split into two regimes.</p>
-  <p class="meta"><a href="{{ chart_download }}" download="gamebrains_meta_forest.svg">Download SVG</a>
-    &middot; <a href="{{ csv_href }}" download="gamebrains_meta.csv">Download CSV</a></p>
+  <p class="meta">{{ n('note.meta_rows') }}</p>
+  <p class="meta"><a href="{{ chart_download }}" download="gamebrains_meta_forest.svg">{{ n('w.dl_svg') }}</a>
+    &middot; <a href="{{ csv_href }}" download="gamebrains_meta.csv">{{ n('w.dl_csv') }}</a></p>
 </div>
 {% endif %}
 
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>Designs</h2>
+  <h2><svg class="glyph"><use href="#glyph-ledger"/></svg>{{ t('h.designs') }}</h2>
   {% if rows %}
   <table>
     <tr><th>Game</th><th>Roster</th><th>n</th><th>Runs</th><th>Mean</th><th>SD</th>
@@ -109,18 +102,16 @@
     </tr>
     {% endfor %}
   </table>
-  <p class="meta">A design with one run reports its mean and no interval. Reporting a zero there
-    would be a claim about variation from data that could not have seen any.</p>
+  <p class="meta">{{ n('note.meta_single') }}</p>
   {% else %}
-  <p class="meta">No recorded run reports this measure yet.</p>
+  <p class="meta">{{ n('note.meta_nometric') }}</p>
   {% endif %}
 </div>
 
 {% if shared %}
 <div class="panel">
-  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Designs more than one installation ran</h2>
-  <p class="meta">This is the question the repository exists for: does the same declared
-    experiment give the same answer somewhere else?</p>
+  <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>{{ t('h.shared') }}</h2>
+  <p class="meta">{{ n('note.meta_question') }}</p>
   <table>
     <tr><th>Design</th><th>Sources</th><th>Per source</th><th>Q</th><th>I&sup2;</th>
       <th>Pooled</th></tr>
@@ -140,10 +131,7 @@
     </tr>
     {% endfor %}
   </table>
-  <p class="meta">Sources whose mean rests on a single run stay in the table and are excluded from
-    Q and I&sup2;, since a point estimate with no spread cannot be weighted against one that has
-    it. With a handful of sources, I&sup2; is noisy enough to read beside the per-source intervals
-    rather than as a threshold.</p>
+  <p class="meta">{{ n('note.meta_singlesource') }}</p>
 </div>
 {% endif %}
 

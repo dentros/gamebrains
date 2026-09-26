@@ -19,11 +19,9 @@
     <tr><td></td>{% for c in chosen %}
       <td><a href="/run/{{ c.row.record_hash }}">open</a></td>{% endfor %}</tr>
   </table>
-  <p class="meta">Runs sharing a design hash differ only in length or seed. Runs whose hashes
-    differ are different experiments, and the gap between their numbers includes that difference.</p>
+  <p class="meta">{{ n('note.compare_hashes') }}</p>
   {% else %}
-  <p class="meta">Nothing selected. Tick two or more runs on the analytics page and choose
-    "compare".</p>
+  <p class="meta">{{ n('note.compare_none') }}</p>
   {% endif %}
 </div>
 
@@ -46,8 +44,7 @@
     </tr>
     {% endfor %}
   </table>
-  <p class="meta">A measure that some runs withheld shows its reason rather than a number, and the
-    spread ignores those rather than treating an absence as a value.</p>
+  <p class="meta">{{ n('note.compare_withheld') }}</p>
 </div>
 {% endif %}
 

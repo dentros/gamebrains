@@ -28,7 +28,7 @@
   </p>
 
   {% if record.reproducibility and not record.reproducibility.byte_identical_claimed %}
-  <p class="meta">This run does not claim a byte-identical rerun, because of
+  <p class="meta">{{ n('note.not_byte_identical') }}
     {% for a in record.reproducibility.nondeterministic_agents %}<b>{{ a.name }}</b>
     ({{ a.kind }}){% if not loop.last %}, {% endif %}{% endfor %}.
     {% if record.reproducibility.nondeterministic_agents %}
@@ -36,9 +36,9 @@
   {% endif %}
 
   {% if record.lineage and (record.lineage.extends or record.lineage.replicates) %}
-  <p class="meta">Lineage:
-    {% if record.lineage.extends %}extends <code>{{ record.lineage.extends[:16] }}...</code>{% endif %}
-    {% if record.lineage.replicates %}&middot; replicates
+  <p class="meta">{{ n('note.lineage') }}
+    {% if record.lineage.extends %}{{ n('w.extends') }} <code>{{ record.lineage.extends[:16] }}...</code>{% endif %}
+    {% if record.lineage.replicates %}&middot; {{ n('w.replicates') }}
       <code>{{ record.lineage.replicates[:16] }}...</code>{% endif %}
   </p>
   {% endif %}
@@ -46,9 +46,7 @@
 
 {% if not has_package %}
 <div class="panel">
-  <p class="meta">The record is here but its event log is not. That happens when a bundle was
-    imported without the objects its records point at: the chain still verifies, and the per-round
-    detail simply is not present to show.</p>
+  <p class="meta">{{ n('note.log_missing') }}</p>
 </div>
 {% endif %}
 
@@ -56,9 +54,9 @@
 <div class="panel">
   <h2><svg class="glyph"><use href="#glyph-metrics"/></svg>Cooperation rate by round</h2>
   {{ chart_svg | safe }}
-  <p class="meta">Read back from the stored event log, {{ series.rounds }} rounds
-    {% if series.episodes %}across {{ series.episodes | length }} episodes{% endif %}.
-    Nothing here was recomputed or rerun.</p>
+  <p class="meta">{{ n('w.read_back_from') }} {{ series.rounds }} {{ n('w.rounds_word') }}
+    {% if series.episodes %}{{ n('w.across') }} {{ series.episodes | length }} {{ n('w.episodes_word') }}{% endif %}.
+    {{ n('note.read_back_tail') }}</p>
 </div>
 {% endif %}
 
@@ -76,8 +74,7 @@
       {% endif %}
     {% endfor %}
   </table>
-  <p class="meta">A measure that declined to report itself appears here in words rather than as a
-    number, which is how it was stored.</p>
+  <p class="meta">{{ n('note.withheld_in_words') }}</p>
 </div>
 
 {% if brains %}
@@ -88,7 +85,7 @@
     <div class="creature" style="--piece-color: {{ card.color }}">
       <h3><svg class="glyph"><use href="#{{ card.glyph }}"/></svg>{{ card.name }}
         <span class="badge">{{ card.kind }}</span>
-        <span class="meta">round {{ card.round }}</span></h3>
+        <span class="meta">{{ n('w.round') }} {{ card.round }}</span></h3>
       {{ card.body | safe }}
     </div>
     {% endfor %}
@@ -96,8 +93,7 @@
 </div>
 {% else %}
 <div class="panel">
-  <p class="meta">No brain snapshots in this log. They are written only when a run asks for them,
-    so their absence is a property of that run rather than of this page.</p>
+  <p class="meta">{{ n('note.no_snapshots') }}</p>
 </div>
 {% endif %}
 
@@ -117,11 +113,9 @@
     </tr>
     {% endfor %}
   </table>
-  <p class="meta">Distance is in standardised units over the feature vector, weighted so design
-    counts for more than length. Comparable within this list, not across repositories.</p>
+  <p class="meta">{{ n('note.distance_units') }}</p>
   {% else %}
-  <p class="meta">Nothing comparable yet. Runs recorded before a new agent kind was added carry a
-    shorter feature vector and are skipped rather than compared on mismatched dimensions.</p>
+  <p class="meta">{{ n('note.nothing_comparable') }}</p>
   {% endif %}
 </div>
 

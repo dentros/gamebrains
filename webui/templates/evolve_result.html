@@ -13,9 +13,7 @@
     <tr><th>Best fitness</th><th>Avg fitness</th></tr>
     <tr><td>{{ "%.3f"|format(best_fitness) }}</td><td>{{ "%.3f"|format(avg_fitness) }}</td></tr>
   </table>
-  <p class="meta">Fitness is mean payoff from self-play matches. In a Public Goods Game with a
-    genuine social dilemma, theory and the other paradigms (RL, Nash) predict convergence toward
-    ~0 (universal defection). Compare with the Match tab's Nash equilibrium panel.</p>
+  <p class="meta">{{ n('note.fitness_explained') }}</p>
 </div>
 
 <div class="panel">
@@ -36,7 +34,7 @@
 
 <div class="panel">
   <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>Genome hand-off</h2>
-  <p class="meta">CID of the best evolved genome (use it in a markov_brain row on the Match tab, Mode 2):</p>
+  <p class="meta">{{ n('note.best_genome_cid') }}</p>
   <p><code>{{ genome_cid }}</code></p>
 </div>
 

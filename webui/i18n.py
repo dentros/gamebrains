@@ -39,6 +39,9 @@ T: dict[str, tuple[str, str]] = {
     # ---- chrome -------------------------------------------------------------------------
     "app.tagline":        ("Αρχιτεκτονικές που παίζουν επαναλαμβανόμενα παιχνίδια",
                            "Architectures that play repeated games"),
+    "field.genome_origin": ("Από πού προκύπτει αυτό το κύκλωμα", "Where this circuit comes from"),
+    "opt.genome_random":   ("Καινούργιο τυχαίο", "A fresh random one"),
+    "opt.genome_cid":      ("Από κωδικό εξελιγμένου", "From an evolved circuit's identifier"),
     "nav.group.run":       ("Δοκιμή", "Run"),
     "nav.group.results":   ("Αποτελέσματα", "Results"),
     "nav.group.synthesis": ("Μεγάλη εικόνα", "Big picture"),
@@ -744,6 +747,16 @@ H: dict[str, tuple[str, str]] = {
         "What exactly the text sent to the model says. minimal-v1 gives only the rules, "
         "informed-v1 also gives what the others did. It is a choice from a list rather than "
         "free text, because two models given different instructions are not being compared."),
+    "field.genome_origin": (
+        "Το κύκλωμα δεν μαθαίνει μέσα στην παρτίδα: παίζει όπως είναι φτιαγμένο. Ένα καινούργιο "
+        "τυχαίο θα παίξει σχεδόν στην τύχη, που είναι χρήσιμο μόνο ως σημείο αναφοράς. Για να "
+        "δεις τι μπορεί να κάνει, πρέπει πρώτα να το εξελίξεις στη σελίδα Εξέλιξη και μετά να "
+        "φέρεις εδώ τον κωδικό του. Η εξέλιξη είναι προετοιμασία πριν την παρτίδα, δεν τρέχει "
+        "μέσα σε αυτήν.",
+        "The circuit does not learn during a match: it plays as it was built. A fresh random one "
+        "plays close to randomly, which is useful only as a baseline. To see what it can do you "
+        "first evolve it on the Evolution page and then bring its identifier here. Evolution is "
+        "preparation before a match, not something that runs inside one."),
     "param.genome_cid": (
         "Προαιρετικό. Όταν τρέξεις εξέλιξη, το καλύτερο κύκλωμα που θα προκύψει παίρνει έναν "
         "μοναδικό κωδικό. Αν τον αντιγράψεις εδώ, θα παίξει εκείνο αντί για ένα καινούργιο "

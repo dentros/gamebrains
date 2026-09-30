@@ -290,8 +290,21 @@ document.getElementById('mainform').addEventListener('submit', () => {
       <div class="kindfield" data-for="markov_brain" style="display:none">
         <label style="margin-top:0">{{ t('param.n_hidden') }}{{ info('param.n_hidden') }}</label>
         <input type="number" name="row_markov_hidden[]" value="2" min="1" max="6">
-        <label style="margin-top:6px">{{ t('param.genome_cid') }}{{ info('param.genome_cid') }}</label>
-        <input type="text" name="row_genome_cid[]" placeholder="e.g. 7bf62b89...">
+        {# Where the circuit comes from, asked here rather than left implicit. This architecture
+           does not learn inside a match, so a blank identifier means a random circuit and a
+           near-random player -- which read as the architecture being weak, when in fact it had
+           simply never been prepared. Evolution is that preparation, and this is where somebody
+           needs to be told so. #}
+        <label style="margin-top:6px">{{ t('field.genome_origin') }}{{ info('field.genome_origin') }}</label>
+        <select name="row_genome_origin[]" onchange="toggleGenomeCid(this)">
+          <option value="random">{{ t('opt.genome_random') }}</option>
+          <option value="cid">{{ t('opt.genome_cid') }}</option>
+        </select>
+        <div class="genome-cid-row" style="display:none; margin-top:6px">
+          <label style="margin-top:0">{{ t('param.genome_cid') }}{{ info('param.genome_cid') }}</label>
+          <input type="text" name="row_genome_cid[]" placeholder="e.g. 7bf62b89...">
+          <span class="epsilon-hint"><a href="/evolve">{{ t('nav.evolve') }} &rarr;</a></span>
+        </div>
       </div>
 
       <div class="kindfield epsilon-block" data-for="qlearning" style="display:none">
@@ -368,6 +381,13 @@ function updateTotals() {
   });
   document.getElementById('agent-total').textContent = total;
 }
+function toggleGenomeCid(select) {
+  // The identifier box only exists when it is going to be used. Showing an empty text field
+  // beside "a fresh random one" invites somebody to fill it and wonder why nothing changed.
+  const row = select.closest('.kindfield').querySelector('.genome-cid-row');
+  if (row) row.style.display = select.value === 'cid' ? '' : 'none';
+}
+
 function showGameHelp(select) {
   const target = document.getElementById('game-help');
   if (!target) return;

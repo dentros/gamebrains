@@ -1113,6 +1113,16 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
     rows_ed = f.getlist("row_epsilon_decay[]")
     rows_em = f.getlist("row_epsilon_min[]")
     rows_gcid = f.getlist("row_genome_cid[]")
+    # The origin selector decides whether the identifier is used at all. Without this, a CID left
+    # in the box from an earlier edit would silently seat an evolved circuit in a run the reader
+    # had just told the form to make random -- a roster that differs from what the page shows,
+    # which is the one thing the record must never be.
+    rows_gorigin = f.getlist("row_genome_origin[]")
+    if len(rows_gorigin) == len(rows_gcid):
+        # Only when the two lists line up. A caller that does not send the selector at all -- an
+        # older bookmarked form, or any programmatic post -- means "no opinion", and clearing its
+        # identifiers because a field was absent would be worse than ignoring the selector.
+        rows_gcid = [cid if origin == "cid" else "" for cid, origin in zip(rows_gcid, rows_gorigin)]
     # One parallel list per (kind, advanced-param) pair -- see _ADVANCED_PARAMS. Row N's own kind
     # picks out only the entries relevant to it; the rest are simply unused for that row.
     adv_lists: dict[tuple[str, str], list[str]] = {

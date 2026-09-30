@@ -135,6 +135,19 @@
   [data-theme="gamified"] .themedchart { color: #2e2a25; }
   [data-theme="gamified"] .matrixchart { color: #2e2a25; }
 
+
+  /* The second navigation row: where inside a group the reader is. Hidden when a group has one
+     member, so the bar never appears with a single item in it. */
+  .groupbar { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 22px 0; }
+  .groupbar:empty { display: none; }
+  .groupbar a {
+    padding: 5px 11px; border-radius: 7px; text-decoration: none; font-size: 13px;
+    color: var(--ink); opacity: .6; border: 1px solid transparent;
+  }
+  .groupbar a:hover { opacity: 1; }
+  .groupbar a.active { opacity: 1; background: #ffffff14; border-color: #ffffff22; }
+  [data-theme="gamified"] .groupbar a.active { background: #00000010; border-color: #00000020; }
+
   .lang-switch {
     margin-left: 10px; padding: 5px 9px; border-radius: 7px; text-decoration: none;
     font-size: 12px; font-weight: 700; letter-spacing: .04em;
@@ -533,14 +546,12 @@
     <h1>GameBrains</h1>
   </div>
   <span class="tag">{{ t('app.tagline') }}</span>
+  {# Three groups by what the reader is doing, each opening its own row. The structure lives in
+     app.py's NAV so the bar and the active-tab logic cannot drift apart. #}
   <nav class="tabs">
-    <a href="/" class="{{ 'active' if active_tab == 'match' else '' }}">{{ t('nav.match') }}</a>
-    <a href="/evolve" class="{{ 'active' if active_tab == 'evolve' else '' }}">{{ t('nav.evolve') }}</a>
-    <a href="/analytics" class="{{ 'active' if active_tab == 'analytics' else '' }}">{{ t('nav.analytics') }}</a>
-    <a href="/meta" class="{{ 'active' if active_tab == 'meta' else '' }}">{{ t('nav.meta') }}</a>
-    <a href="/sweep" class="{{ 'active' if active_tab == 'sweep' else '' }}">{{ t('nav.sweep') }}</a>
-    <a href="/coverage" class="{{ 'active' if active_tab == 'coverage' else '' }}">{{ t('nav.coverage') }}</a>
-    <a href="/spacemap" class="{{ 'active' if active_tab == 'spacemap' else '' }}">{{ t('nav.spacemap') }}</a>
+    {% for key, label, members in nav %}
+    <a href="{{ members[0][2] }}" class="{{ 'active' if active_group == key else '' }}">{{ t(label) }}</a>
+    {% endfor %}
   </nav>
   <div class="theme-toggle">
     <button type="button" class="theme-btn" data-set-theme="scientific" onclick="setGbTheme('scientific')">📐 {{ t('theme.scientific') }}</button>
@@ -549,6 +560,13 @@
   <a class="lang-switch" href="?lang={{ other_lang }}"
      title="{{ t('lang.switch') }}">{{ other_lang|upper }}</a>
 </header>
+<nav class="groupbar">
+  {% for key, label, members in nav %}{% if active_group == key and members|length > 1 %}
+    {% for tab, tab_label, href in members %}
+    <a href="{{ href }}" class="{{ 'active' if active_tab == tab else '' }}">{{ t(tab_label) }}</a>
+    {% endfor %}
+  {% endif %}{% endfor %}
+</nav>
 <main>
 {% block content %}{% endblock %}
 </main>

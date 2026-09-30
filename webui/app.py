@@ -125,19 +125,51 @@ def _remember_language(response):
     return response
 
 
+#: The interface in three groups, by what a person is doing rather than by which module answers.
+#: Seven flat tabs divided the features on no consistent principle -- a single match sat beside a
+#: cross-run correlation map -- so the shape of the tool said nothing about how to use it. The
+#: groups are the research loop: set something running, look at what came back, put many runs
+#: together.
+#:
+#: Routes are unchanged. Grouping is a navigation concern and rewriting URLs would break stored
+#: links, the tests, and anything a reader has bookmarked, for no gain.
+#:
+#: Evolution sits under "run" rather than in the top bar. It is not a seventh peer of the match
+#: view, it is a way of *preparing* one architecture before it plays, and giving it equal billing
+#: implied a parallel world with its own rules. The roster links to it from the markov_brain row,
+#: which is where somebody actually needs it.
+NAV = [
+    ("run", "nav.group.run", [
+        ("match", "nav.match", "/"),
+        ("sweep", "nav.sweep", "/sweep"),
+        ("spacemap", "nav.spacemap", "/spacemap"),
+        ("evolve", "nav.evolve", "/evolve"),
+    ]),
+    ("results", "nav.group.results", [
+        ("analytics", "nav.analytics", "/analytics"),
+    ]),
+    ("synthesis", "nav.group.synthesis", [
+        ("meta", "nav.meta", "/meta"),
+        ("coverage", "nav.coverage", "/coverage"),
+    ]),
+]
+
+#: Which tab a path belongs to, longest prefix first so "/run/" does not answer for "/".
+_TAB_FOR_PATH = [
+    ("/analytics", "analytics"), ("/compare", "analytics"), ("/run/", "analytics"),
+    ("/spacemap", "spacemap"), ("/coverage", "coverage"),
+    ("/meta", "meta"), ("/sources", "meta"),
+    ("/sweep", "sweep"), ("/evolve", "evolve"),
+]
+
+
 @app.context_processor
 def _inject_active_tab():
-    if request.path.startswith("/evolve"):
-        return {"active_tab": "evolve"}
-    if request.path.startswith("/analytics"):
-        return {"active_tab": "analytics"}
-    if request.path.startswith("/spacemap"):
-        return {"active_tab": "spacemap"}
-    if request.path.startswith("/meta") or request.path.startswith("/sources"):
-        return {"active_tab": "meta"}
-    if request.path.startswith("/run/") or request.path.startswith("/compare"):
-        return {"active_tab": "analytics"}
-    return {"active_tab": "match"}
+    path = request.path
+    active = next((tab for prefix, tab in _TAB_FOR_PATH if path.startswith(prefix)), "match")
+    group = next((key for key, _label, members in NAV
+                  if any(tab == active for tab, _l, _h in members)), "run")
+    return {"active_tab": active, "active_group": group, "nav": NAV}
 
 
 _GAMEBRAINS_ROOT = Path(__file__).resolve().parents[1]

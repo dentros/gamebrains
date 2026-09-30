@@ -39,6 +39,9 @@ T: dict[str, tuple[str, str]] = {
     # ---- chrome -------------------------------------------------------------------------
     "app.tagline":        ("Αρχιτεκτονικές που παίζουν επαναλαμβανόμενα παιχνίδια",
                            "Architectures that play repeated games"),
+    "nav.group.run":       ("Δοκιμή", "Run"),
+    "nav.group.results":   ("Αποτελέσματα", "Results"),
+    "nav.group.synthesis": ("Μεγάλη εικόνα", "Big picture"),
     "nav.match":          ("Παρτίδα", "Match"),
     "nav.evolve":         ("Εξέλιξη", "Evolutionary"),
     "nav.analytics":      ("Αναλύσεις", "Analytics"),

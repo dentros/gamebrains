@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-game"/></svg>{{ t('h.play') }}</h2>
+  <p class="meta">{{ n('note.play_intro') }}</p>
+
+  {% if hiccup %}
+  {# A double submit or a stale tab. Said out loud, because a click that did nothing is worse
+     when nothing acknowledges it. #}
+  <p class="meta"><span class="badge warn">{{ hiccup }}</span></p>
+  {% endif %}
+
+  {% set prompt = match.prompt %}
+  {% if prompt %}
+  <p class="meta">{{ n('w.round_n') }} {{ prompt.round + 1 }} &middot; {{ prompt.name }}</p>
+
+  <form method="post" action="/play/{{ token }}" class="playrow">
+    {% for choice in prompt.choices %}
+    {# The words come from the game's own declaration, so the same two buttons read "Cooperate"
+       and "Defect" in one game and "Stay" and "Move" in another, and the seat never sees an
+       index. That is the whole reason this seat is role-bound. #}
+    <button type="submit" name="role" value="{{ choice.role }}" class="playbtn">
+      {{ choice.label }}
+      <span class="playrole">{{ t('btn.concede') if choice.role == 'concede' else t('btn.claim') }}</span>
+    </button>
+    {% endfor %}
+  </form>
+
+  {% if prompt.history %}
+  <h3>{{ t('w.your_moves') }}</h3>
+  <table>
+    <tr><th>{{ n('w.round_n') }}</th><th>{{ t('field.row_kind') }}</th><th>{{ t('metric.efficiency') }}</th></tr>
+    {% for entry in prompt.history %}
+    <tr>
+      <td>{{ entry.round + 1 }}</td>
+      <td>{{ entry.label }}</td>
+      <td>{{ '%+.2f'|format(entry.reward) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% else %}
+  {# Between rounds the other seats are deciding, which takes microseconds. The page reloads
+     itself rather than asking somebody to press anything, and the interval is short because the
+     wait is short. #}
+  <p class="meta">{{ n('w.waiting_others') }}</p>
+  <meta http-equiv="refresh" content="1">
+  {% endif %}
+</div>
+
+<style>
+  .playrow { display: flex; gap: 12px; flex-wrap: wrap; margin: 14px 0 4px; }
+  .playbtn {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    min-width: 150px; padding: 16px 22px; font-size: 17px; cursor: pointer;
+  }
+  .playrole { font-size: 12px; opacity: .7; font-weight: 400; }
+</style>
+
+{# While a person is being asked, nothing else is happening, so a reload is the whole protocol.
+   It needs no JavaScript and survives a refresh, which matters for a page somebody may leave
+   open: the match state lives on the server, not in this tab. #}
+{% if not match.prompt and match.running %}{% endif %}
+
+{% endblock %}

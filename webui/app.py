@@ -22,6 +22,7 @@ import contextlib
 import csv
 import io
 import os
+import sys
 import threading
 import zipfile
 from datetime import datetime
@@ -31,7 +32,7 @@ from html import escape
 from urllib.parse import quote
 
 import numpy as np
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 
 from ..agents.classic import AllC, AllD, MajorityTFT, RandomAgent
 # The prompt profiles, not the LLM agent: this module is imported at start-up and the
@@ -61,7 +62,7 @@ from ..repository.record import (
 from ..repository.smart_filter import lookup as smart_filter_lookup, nearest as smart_filter_nearest
 from markupsafe import Markup, escape
 
-from . import i18n
+from . import i18n, live
 
 #: What a screen reader announces for the badge, since the visible glyph is just a letter.
 _INFO_LABEL = {"el": "Τι κάνει αυτό;", "en": "What does this do?"}
@@ -125,19 +126,51 @@ def _remember_language(response):
     return response
 
 
+#: The interface in three groups, by what a person is doing rather than by which module answers.
+#: Seven flat tabs divided the features on no consistent principle -- a single match sat beside a
+#: cross-run correlation map -- so the shape of the tool said nothing about how to use it. The
+#: groups are the research loop: set something running, look at what came back, put many runs
+#: together.
+#:
+#: Routes are unchanged. Grouping is a navigation concern and rewriting URLs would break stored
+#: links, the tests, and anything a reader has bookmarked, for no gain.
+#:
+#: Evolution sits under "run" rather than in the top bar. It is not a seventh peer of the match
+#: view, it is a way of *preparing* one architecture before it plays, and giving it equal billing
+#: implied a parallel world with its own rules. The roster links to it from the markov_brain row,
+#: which is where somebody actually needs it.
+NAV = [
+    ("run", "nav.group.run", [
+        ("match", "nav.match", "/"),
+        ("sweep", "nav.sweep", "/sweep"),
+        ("spacemap", "nav.spacemap", "/spacemap"),
+        ("evolve", "nav.evolve", "/evolve"),
+    ]),
+    ("results", "nav.group.results", [
+        ("analytics", "nav.analytics", "/analytics"),
+    ]),
+    ("synthesis", "nav.group.synthesis", [
+        ("meta", "nav.meta", "/meta"),
+        ("coverage", "nav.coverage", "/coverage"),
+    ]),
+]
+
+#: Which tab a path belongs to, longest prefix first so "/run/" does not answer for "/".
+_TAB_FOR_PATH = [
+    ("/analytics", "analytics"), ("/compare", "analytics"), ("/run/", "analytics"),
+    ("/spacemap", "spacemap"), ("/coverage", "coverage"),
+    ("/meta", "meta"), ("/sources", "meta"),
+    ("/sweep", "sweep"), ("/evolve", "evolve"),
+]
+
+
 @app.context_processor
 def _inject_active_tab():
-    if request.path.startswith("/evolve"):
-        return {"active_tab": "evolve"}
-    if request.path.startswith("/analytics"):
-        return {"active_tab": "analytics"}
-    if request.path.startswith("/spacemap"):
-        return {"active_tab": "spacemap"}
-    if request.path.startswith("/meta") or request.path.startswith("/sources"):
-        return {"active_tab": "meta"}
-    if request.path.startswith("/run/") or request.path.startswith("/compare"):
-        return {"active_tab": "analytics"}
-    return {"active_tab": "match"}
+    path = request.path
+    active = next((tab for prefix, tab in _TAB_FOR_PATH if path.startswith(prefix)), "match")
+    group = next((key for key, _label, members in NAV
+                  if any(tab == active for tab, _l, _h in members)), "run")
+    return {"active_tab": active, "active_group": group, "nav": NAV}
 
 
 _GAMEBRAINS_ROOT = Path(__file__).resolve().parents[1]
@@ -158,8 +191,9 @@ KIND_META = {
     "markov_brain": {"glyph": "glyph-markov_brain", "label": "Markov-brain (evolutionary)", "color": "#b5541f"},
     "classic":      {"glyph": "glyph-classic",   "label": "Classic (fixed)",  "color": "#5c5346"},
     "llm":          {"glyph": "glyph-llm",       "label": "LLM (Ollama)",     "color": "#4aa39a"},
+    "human":        {"glyph": "glyph-classic",   "label": "Human (you)",      "color": "#c98a2b"},
 }
-_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "llm"]
+_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "llm", "human"]
 
 _METRIC_META = [
     ("cooperation_rate", "Cooperation rate"),
@@ -310,6 +344,9 @@ def _make_agent(kind: str, i: int, game: PublicGoodsGame, seed: int, classic_str
                 f"`ollama serve`, then `ollama pull {backend.model}`.")
         return LLMAgent(f"LLM {i}", backend=backend,
                         profile=str(extra.get("llm_profile") or llm_prompt.DEFAULT_PROFILE))
+    if kind == "human":
+        from ..agents.human import HumanAgent
+        return HumanAgent(f"You {i}" if i else "You")
     raise ValueError(f"unknown kind {kind}")
 
 
@@ -1047,6 +1084,26 @@ def run():
     f = request.form
     if f.get("batch_mode") == "on":
         return _run_batch(f)
+
+    # A roster with a person in it cannot finish inside this request: somebody has to be asked,
+    # several times, with thinking in between. The match moves to a thread and the browser is sent
+    # to the board. Everything else still runs start to finish while the browser waits, which is
+    # the right shape when every seat answers in microseconds.
+    if "human" in set(f.getlist("row_kind[]")):
+        form = f.to_dict(flat=False)
+
+        def work(humans: list):
+            outcome = _execute_single_run(_FrozenForm(form), roster_sink=humans)
+            if isinstance(outcome, tuple):
+                raise ValueError(outcome[0])
+            return outcome
+
+        try:
+            token = live.start(work)
+        except RuntimeError as exc:
+            return render_template("error.html", message=str(exc)), 503
+        return redirect(url_for("play", token=token))
+
     result = _execute_single_run(f)
     if isinstance(result, tuple):
         message, status = result
@@ -1054,7 +1111,101 @@ def run():
     return render_template("results.html", **result)
 
 
-def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
+class _FrozenForm:
+    """A snapshot of the submitted form, readable from the match thread.
+
+    Flask's `request.form` is bound to the request that is about to end, so the thread would be
+    reading something already torn down. This copies the values and answers the two methods the
+    pipeline uses, which keeps `_execute_single_run` unchanged rather than teaching it about
+    threads.
+    """
+
+    def __init__(self, data: dict[str, list[str]]) -> None:
+        self._data = data
+
+    def get(self, key: str, default: Any = None) -> Any:
+        values = self._data.get(key)
+        return values[0] if values else default
+
+    def getlist(self, key: str) -> list[str]:
+        return list(self._data.get(key, []))
+
+
+@app.route("/play/<token>", methods=["GET", "POST"])
+def play(token: str):
+    """The board, while a person is being asked for a move."""
+    match = live.get(token)
+    if match is None:
+        finished = live.collect(token)
+        if finished:
+            return render_template("results.html", **finished)
+        return render_template("error.html", message=i18n.n(
+            "note.match_gone", i18n.normalise(request.cookies.get("lang")))), 404
+
+    if request.method == "POST":
+        try:
+            match.submit(request.form.get("role", ""))
+        except (RuntimeError, ValueError) as exc:
+            # A double submit or a stale page. Saying so beats silently dropping the move, since
+            # the person is entitled to know their click did nothing.
+            return render_template("play.html", token=token, match=match, hiccup=str(exc))
+        return redirect(url_for("play", token=token))
+
+    if not match.running:
+        result = live.collect(token)
+        if result:
+            return render_template("results.html", **result)
+        return render_template("error.html", message=match.error or i18n.n(
+            "note.match_gone", i18n.normalise(request.cookies.get("lang")))), 500
+
+    return render_template("play.html", token=token, match=match, hiccup=None)
+
+
+class _PerThreadStdout:
+    """A stdout that each thread can capture without stealing it from the others.
+
+    `contextlib.redirect_stdout` replaces `sys.stdout` for the whole process. That was harmless
+    while a match ran inside the request that asked for it, because nothing else was running. A
+    match with a person in it runs for minutes in a background thread, and redirecting there
+    swallowed every other thread's output -- the server's own request log included. Found by a
+    diagnostic print that produced nothing at all.
+
+    So the proxy is installed once and dispatches per thread: a thread that has asked to capture
+    gets its buffer, every other thread gets the real stdout.
+    """
+
+    def __init__(self, real: Any) -> None:
+        self._real = real
+        self._local = threading.local()
+
+    def _target(self):
+        return getattr(self._local, "buffer", None) or self._real
+
+    def write(self, text: str) -> int:
+        return self._target().write(text)
+
+    def flush(self) -> None:
+        self._target().flush()
+
+    def isatty(self) -> bool:
+        return getattr(self._real, "isatty", lambda: False)()
+
+    @contextlib.contextmanager
+    def capturing(self, buffer):
+        previous = getattr(self._local, "buffer", None)
+        self._local.buffer = buffer
+        try:
+            yield buffer
+        finally:
+            self._local.buffer = previous
+
+
+#: Installed once, on import, so every capture below goes through it.
+_STDOUT = _PerThreadStdout(sys.stdout)
+sys.stdout = _STDOUT
+
+
+def _execute_single_run(f, roster_sink: Optional[list] = None) -> dict[str, Any] | tuple[str, int]:
     """Runs one match end-to-end and returns the kwargs `results.html` needs, or an
     `(error_message, http_status)` pair. Factored out of the `/run` route so batch mode
     (`_run_batch`) can call it repeatedly with one form field swept, without duplicating the
@@ -1081,6 +1232,16 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
     rows_ed = f.getlist("row_epsilon_decay[]")
     rows_em = f.getlist("row_epsilon_min[]")
     rows_gcid = f.getlist("row_genome_cid[]")
+    # The origin selector decides whether the identifier is used at all. Without this, a CID left
+    # in the box from an earlier edit would silently seat an evolved circuit in a run the reader
+    # had just told the form to make random -- a roster that differs from what the page shows,
+    # which is the one thing the record must never be.
+    rows_gorigin = f.getlist("row_genome_origin[]")
+    if len(rows_gorigin) == len(rows_gcid):
+        # Only when the two lists line up. A caller that does not send the selector at all -- an
+        # older bookmarked form, or any programmatic post -- means "no opinion", and clearing its
+        # identifiers because a field was absent would be worse than ignoring the selector.
+        rows_gcid = [cid if origin == "cid" else "" for cid, origin in zip(rows_gcid, rows_gorigin)]
     # One parallel list per (kind, advanced-param) pair -- see _ADVANCED_PARAMS. Row N's own kind
     # picks out only the entries relevant to it; the rest are simply unused for that row.
     adv_lists: dict[tuple[str, str], list[str]] = {
@@ -1148,12 +1309,18 @@ def _execute_single_run(f) -> dict[str, Any] | tuple[str, int]:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path = _RESULTS_DIR / f"webui_n{n_agents}_{stamp}.jsonl"
 
+    # Hand the roster out before play starts, so a caller driving a live match can reach the seats
+    # a person has to answer for. The pipeline itself is unchanged and does not know or care that
+    # anyone is watching: a second run path for human matches is exactly what this avoids.
+    if roster_sink is not None:
+        roster_sink.extend(a for a in roster if getattr(a, "kind", "") == "human")
+
     console = LiveConsole()
     console.use_emoji, console.coop_sym, console.defect_sym = True, "\U0001f7e2", "\U0001f534"
     snap_idx = next((i for i, a in enumerate(roster) if a.kind in ("qlearning", "dqn", "fep")), 0)
 
     buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
+    with _STDOUT.capturing(buf):
         with EventLog(path=log_path) as log:
             records = run_match(
                 game, roster, rounds=rounds, seed=seed, eventlog=log, console=console,
@@ -1421,7 +1588,7 @@ def evolve_run():
         return PublicGoodsGame(n_agents=n_agents, rounds=cfg.match_rounds, mpcr=mpcr)
 
     buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
+    with _STDOUT.capturing(buf):
         print(f"Evolving: population={cfg.population_size} generations={cfg.generations} "
              f"match_rounds={cfg.match_rounds} n_hidden={cfg.n_hidden} seed={cfg.seed}")
         from ..agents.markov_brain import crossover as mb_crossover, spawn as mb_spawn
@@ -2121,7 +2288,7 @@ def _run_cell(cell: dict[str, Any]) -> None:
     _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     log_path = _RESULTS_DIR / f"webui_space_n{cell['n']}_{stamp}.jsonl"
-    with contextlib.redirect_stdout(io.StringIO()):
+    with _STDOUT.capturing(io.StringIO()):
         with EventLog(path=log_path) as log:
             records = run_match(game, roster, rounds=cell["rounds"], seed=seed, eventlog=log)
     metrics = social.compute_all(records, game.max_welfare_per_round())

@@ -68,7 +68,17 @@ def compute_all(records: dict[str, np.ndarray], te_detail: dict[str, Any]) -> di
     mean_weight = float(np.mean(weights)) if weights else 0.0
     # nx.average_clustering(weight=...) needs at least one triangle to be meaningful; for n=2 it
     # is 0 by construction (no triangles exist), which is correct, not an error.
-    clustering = float(nx.average_clustering(coop_g, weight="weight")) if n_agents >= 2 else 0.0
+    #
+    # It also divides every edge weight by the largest one, so a graph whose weights are all zero
+    # raises ZeroDivisionError inside networkx. That graph is not exotic: it is any match where no
+    # two agents ever cooperated in the same round, which one AllC against two AllD produces on
+    # the first try. The webui answered 500 for that roster. Zero is the right value and the only
+    # defensible one -- there is no cooperation to be clustered -- so it is returned directly
+    # rather than asking networkx a question whose answer is undefined.
+    if n_agents < 2 or max(weights, default=0.0) <= 0.0:
+        clustering = 0.0
+    else:
+        clustering = float(nx.average_clustering(coop_g, weight="weight"))
 
     infl_g = influence_graph(te_detail, n_agents)
     possible = n_agents * (n_agents - 1)

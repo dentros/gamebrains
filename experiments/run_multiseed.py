@@ -15,6 +15,16 @@ cannot.
 
 The default 30 seeds over five run lengths is a long job, dominated by the two longest lengths.
 Use --seeds/--lengths for a quick check that the trend is present before committing to the full run.
+
+**It resumes.** Every seed is written to a journal the moment it finishes, and a rerun with the
+same arguments skips what is already there. A job that dies at seed 67 of 100 therefore costs one
+seed, not a night, which matters because the machine this is meant to run on has no UPS and the
+longest lengths dominate the cost. The journal records the code version it was written under and
+is ignored, with a line saying so, when that changes: a resumed run that mixed results from two
+versions of the code would be a silent lie about what produced the numbers.
+
+    python -m gamebrains.experiments.run_multiseed --journal runs/multiseed.jsonl
+    python -m gamebrains.experiments.run_multiseed --journal runs/multiseed.jsonl --fresh
 """
 
 from __future__ import annotations
@@ -22,7 +32,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from typing import Optional
+import os
+import subprocess
+from pathlib import Path
+from typing import Any, Optional
 
 import numpy as np
 
@@ -82,18 +95,117 @@ def _efficiency(row: dict) -> float:
     return float(row["alt_efficiency"] if "alt_efficiency" in row else row["efficiency"])
 
 
+def _code_version() -> str:
+    """The commit this ran under, so a journal cannot be resumed across a code change.
+
+    Falls back to a marker rather than to an empty string: two runs from a tree with no git would
+    otherwise share a version and silently resume each other's journals.
+    """
+    try:
+        out = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True,
+                             text=True, cwd=Path(__file__).resolve().parents[1])
+        if out.returncode == 0 and out.stdout.strip():
+            return "git:" + out.stdout.strip()
+    except OSError:
+        pass
+    return "unknown"
+
+
+class SeedJournal:
+    """Per-seed results on disk, so an interrupted job resumes instead of starting over.
+
+    One JSON object per line, appended and flushed as each seed finishes, because the failure this
+    exists for is the process dying: anything held in memory until the end is exactly what gets
+    lost. The first line is a header carrying the code version, and a journal written under a
+    different version is discarded rather than merged, since a run whose numbers came half from
+    one version of the code and half from another is not a run anybody can interpret.
+
+    Disabled by passing no path, which is the default: a short check does not need a journal and
+    leaving files around after every quick run is its own nuisance.
+    """
+
+    def __init__(self, path: Optional[str], code_version: str, fresh: bool = False) -> None:
+        self.path = Path(path) if path else None
+        self.code_version = code_version
+        self.done: dict[str, Any] = {}
+        self._handle = None
+        if self.path is None:
+            return
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if fresh and self.path.exists():
+            self.path.unlink()
+        elif self.path.exists():
+            self._load()
+        if not self.path.exists():
+            with self.path.open("w", encoding="utf-8") as handle:
+                handle.write(json.dumps({"header": True, "code_version": code_version}) + "\n")
+        self._handle = self.path.open("a", encoding="utf-8")
+
+    def _load(self) -> None:
+        with self.path.open(encoding="utf-8") as handle:
+            lines = [line for line in handle if line.strip()]
+        if not lines:
+            return
+        try:
+            header = json.loads(lines[0])
+        except json.JSONDecodeError:
+            header = {}
+        if header.get("code_version") != self.code_version:
+            print(f"  journal was written under code_version {header.get('code_version')!r} and "
+                  f"this is {self.code_version!r}; starting it over rather than mixing the two")
+            self.path.unlink()
+            return
+        for line in lines[1:]:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                # A half-written final line is exactly what a kill mid-append leaves behind. Stop
+                # at it and recompute that seed, rather than discarding every seed before it.
+                break
+            self.done[entry["key"]] = entry["value"]
+        if self.done:
+            print(f"  resuming: {len(self.done)} seed(s) already in {self.path}")
+
+    def get_or_run(self, key: str, compute):
+        """The stored value for this key, or the computed one, written before it is returned."""
+        if key in self.done:
+            return self.done[key]
+        value = compute()
+        self.done[key] = value
+        if self._handle is not None:
+            self._handle.write(json.dumps({"key": key, "value": value}) + "\n")
+            self._handle.flush()
+            os.fsync(self._handle.fileno())
+        return value
+
+    def close(self) -> None:
+        if self._handle is not None:
+            self._handle.close()
+            self._handle = None
+
+
 def main(argv: Optional[list[str]] = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     parser.add_argument("--seeds", type=int, default=30)
     parser.add_argument("--lengths", type=int, nargs="+", default=list(DEFAULT_LENGTHS))
     parser.add_argument("--json", default="")
+    parser.add_argument("--journal", default="",
+                        help="write each seed here as it finishes, and resume from it")
+    parser.add_argument("--fresh", action="store_true",
+                        help="ignore an existing journal and start the run over")
     args = parser.parse_args(argv)
 
     n = args.seeds
     results: dict = {}
+    journal = SeedJournal(args.journal or None, _code_version(), fresh=args.fresh)
 
     print(f"EXPERIMENT 1  Public Goods, 5 Q-learners, 3000 rounds, N={n} seeds")
-    first, last = zip(*[public_goods_run(s) for s in range(1, n + 1)])
+    # Journal keys carry every input that changes the answer. A key that left one out would let a
+    # resumed run hand back a stored value computed under different settings, which is worse than
+    # no journal at all: the run would finish quickly and be wrong.
+    pairs = [journal.get_or_run(f"pgg:{s}", lambda s=s: list(public_goods_run(s)))
+             for s in range(1, n + 1)]
+    first, last = zip(*pairs)
     fm, fh = ci95(first)
     lm, lh = ci95(last)
     fell = sum(1 for a, b in zip(first, last) if b < a)
@@ -117,8 +229,12 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     results["congestion"] = {}
     for rounds in args.lengths:
-        learners = [congestion_run(s, rounds, learner=True) for s in range(1, n + 1)]
-        randoms = [congestion_run(s, rounds, learner=False) for s in range(1, n + 1)]
+        learners = [journal.get_or_run(f"cong:{rounds}:ql:{s}",
+                                       lambda s=s, r=rounds: congestion_run(s, r, learner=True))
+                    for s in range(1, n + 1)]
+        randoms = [journal.get_or_run(f"cong:{rounds}:rnd:{s}",
+                                      lambda s=s, r=rounds: congestion_run(s, r, learner=False))
+                   for s in range(1, n + 1)]
 
         per_seed["calt_ql"].append([float(r["CALT"]) for r in learners])
         per_seed["aalt_ql"].append([float(r["AALT"]) for r in learners])
@@ -178,6 +294,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                   f"{m[:,-1].min():.3f}-{m[:,-1].max():.3f} at the longest, "
                   f"disjoint={bool(m[:,-1].max() < m[:,0].min())}")
 
+    journal.close()
     if args.json:
         with open(args.json, "w", encoding="utf-8") as handle:
             json.dump(results, handle, indent=2)

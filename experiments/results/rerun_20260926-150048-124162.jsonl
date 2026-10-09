@@ -1,0 +1,722 @@
+{"type": "meta", "game": {"name": "congestion", "n_agents": 4, "n_actions": 2, "action_names": ["Stay", "Move"], "n_states": 81, "observation_kind": "board_index", "action_roles": {"concede": 0, "claim": 1, "yield": 0, "contest": 1}, "family": "congestion", "num_positions": 3, "timing": "dynamic", "reward_rule": "ILF", "reward_base": "n", "reward_exponent": 1, "reward_published": true, "full_reward": 100.0, "collapse_at_full": true, "memory_episodes": 0, "state_type": "Type-A", "episode_max_rounds": 20}, "seed": 2, "rounds": 500, "roster": [{"idx": 0, "name": "Q-learner 0", "kind": "qlearning", "training_mode": "online"}, {"idx": 1, "name": "Q-learner 1", "kind": "qlearning", "training_mode": "online"}, {"idx": 2, "name": "Q-learner 2", "kind": "qlearning", "training_mode": "online"}, {"idx": 3, "name": "Q-learner 3", "kind": "qlearning", "training_mode": "online"}], "registry": [{"kind": "classic", "display_name": "Classic Strategy", "renderer": "rule", "training_mode": "fixed", "house": {"theme": "library", "emoji": "📜"}, "blurb": "Fixed hand-written strategies (AllC, AllD, Random, Majority-TFT)."}, {"kind": "qlearning", "display_name": "Q-Learning", "renderer": "qtable", "training_mode": "online", "house": {"theme": "grid", "emoji": "🧮"}, "blurb": "Tabular Q-learning; its brain is an inspectable Q-table."}, {"kind": "dqn", "display_name": "Deep Q-Network", "renderer": "network", "training_mode": "online", "house": {"theme": "circuit", "emoji": "🕸️"}, "blurb": "Q-learning with a neural-network function approximator."}, {"kind": "fep", "display_name": "Active Inference (FEP)", "renderer": "beliefs", "training_mode": "online", "house": {"theme": "observatory", "emoji": "🔮"}, "blurb": "Free-energy-minimizing agent that models the others (theory of mind)."}, {"kind": "markov_brain", "display_name": "Markov-Brain Animat", "renderer": "wiring", "training_mode": "evolutionary", "house": {"theme": "petri", "emoji": "🧬"}, "blurb": "Evolved logic-gate network; small enough to measure integrated information (Φ)."}]}
+{"type": "round", "round": 0, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 1, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 0, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 2, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 3, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 1, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 4, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 5, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 2, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 6, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 7, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 8, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 9, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 3, "rounds": 4, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 10, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 11, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 4, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 12, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 13, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 5, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 25.0], "top_agents": [1, 0, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 14, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 15, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 16, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 6, "rounds": 3, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 17, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 18, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 19, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 7, "rounds": 3, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 20, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 21, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 8, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 22, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 23, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 9, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 24, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 25, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 26, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 10, "rounds": 3, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 27, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 28, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 11, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 25.0], "top_agents": [1, 1, 0, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 29, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 30, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 12, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 31, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 32, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 13, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 33, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 34, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 14, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 35, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 36, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 15, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 37, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 38, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 16, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 39, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 40, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 17, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 41, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 42, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 43, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 18, "rounds": 3, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 44, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 45, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 46, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 47, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 48, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 19, "rounds": 5, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 49, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 50, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 51, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [25.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 20, "rounds": 3, "rewards": [25.0, 25.0, 25.0, 0.0], "top_agents": [1, 1, 1, 0], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 52, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 53, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 21, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 54, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 55, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 25.0]}
+{"type": "episode", "episode": 22, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 25.0], "top_agents": [0, 1, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 56, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 57, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 58, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 23, "rounds": 3, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 59, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 60, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 24, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 61, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 62, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 25, "rounds": 2, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 63, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 64, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 26, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 65, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 66, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 27, "rounds": 2, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 67, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 68, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 69, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 28, "rounds": 3, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 70, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 71, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 29, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 72, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 73, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 74, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 75, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 30, "rounds": 4, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 76, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 77, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 31, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 78, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 79, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 32, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 80, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 81, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 33, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 82, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 83, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 84, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 34, "rounds": 3, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 85, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 86, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 35, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 87, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 88, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 36, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 89, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 90, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 37, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 91, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 92, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 38, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 93, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 94, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 95, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 39, "rounds": 3, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 96, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 97, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 40, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 98, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 99, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 41, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 100, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 101, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 42, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 102, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 103, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 43, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 104, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 105, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 44, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 106, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 107, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 45, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 108, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 109, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 46, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 110, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 111, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 47, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 112, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 113, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 48, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 114, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 115, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 49, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 116, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 117, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 50, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 118, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 119, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 120, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 51, "rounds": 3, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 121, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 122, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 123, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 52, "rounds": 3, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 124, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 125, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 53, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 126, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 127, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 54, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 128, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 129, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 55, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 130, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 131, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 56, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 132, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 133, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 134, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 57, "rounds": 3, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 135, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 136, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 137, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 25.0, 25.0, 25.0]}
+{"type": "episode", "episode": 58, "rounds": 3, "rewards": [0.0, 25.0, 25.0, 25.0], "top_agents": [0, 1, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 138, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 139, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 59, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 140, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 141, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 60, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 142, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 143, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 61, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 144, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 145, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 62, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 146, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 147, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 63, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 148, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 149, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 150, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 64, "rounds": 3, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 151, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 152, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 65, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 153, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 154, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 155, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 66, "rounds": 3, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 156, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 157, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 158, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 67, "rounds": 3, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 159, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 160, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 68, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 161, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 162, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 69, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 163, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 164, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 70, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 25.0], "top_agents": [1, 0, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 165, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 166, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 71, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 167, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 168, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 72, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 169, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 170, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 171, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 73, "rounds": 3, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 172, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 173, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 74, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 174, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 175, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 75, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 176, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 177, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 76, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 178, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 179, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 77, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 180, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 181, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 78, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 182, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 183, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 79, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 184, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 185, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 186, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 80, "rounds": 3, "rewards": [25.0, 0.0, 25.0, 25.0], "top_agents": [1, 0, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 187, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 188, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 189, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 25.0]}
+{"type": "episode", "episode": 81, "rounds": 3, "rewards": [0.0, 25.0, 25.0, 25.0], "top_agents": [0, 1, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 190, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 191, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 192, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 82, "rounds": 3, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 193, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 194, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 83, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 195, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 196, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 84, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 197, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 198, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 85, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 199, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 200, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 86, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 201, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 202, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 87, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 203, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 204, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 88, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 205, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 206, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 89, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 207, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 208, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 209, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 210, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 90, "rounds": 4, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 211, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 212, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 91, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 213, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 214, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 92, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 215, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 216, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 93, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 217, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 218, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 94, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 25.0], "top_agents": [1, 1, 0, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 219, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 220, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 221, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 95, "rounds": 3, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 222, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 223, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 96, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 224, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 225, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 97, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 226, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 227, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 98, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 228, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 229, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 99, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 230, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 231, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 100, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 232, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 233, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 101, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 234, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 235, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 102, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 236, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 237, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 103, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 238, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 239, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 104, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 240, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 241, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 105, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 242, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 243, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 106, "rounds": 2, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 244, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 245, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 107, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 25.0], "top_agents": [1, 0, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 246, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 247, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 108, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 248, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 249, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 109, "rounds": 2, "rewards": [25.0, 25.0, 25.0, 0.0], "top_agents": [1, 1, 1, 0], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 250, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 251, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 110, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 252, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 253, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 111, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 254, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 255, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 112, "rounds": 2, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 256, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 257, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 258, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 259, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 260, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 113, "rounds": 5, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 261, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 262, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [25.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 114, "rounds": 2, "rewards": [25.0, 25.0, 25.0, 0.0], "top_agents": [1, 1, 1, 0], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 263, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 264, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 115, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 265, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 266, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 116, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 267, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 268, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 117, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 269, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 270, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 118, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 271, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 272, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 119, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 273, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 274, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 275, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 120, "rounds": 3, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 276, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 277, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 121, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 278, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 279, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 122, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 280, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 281, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 123, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 282, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 283, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 284, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 124, "rounds": 3, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 285, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 286, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 125, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 287, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 288, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 126, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 289, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 290, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 127, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 291, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 292, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 128, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 25.0], "top_agents": [1, 1, 0, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 293, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 294, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 295, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 129, "rounds": 3, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 296, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 297, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 130, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 298, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 299, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 131, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 25.0], "top_agents": [1, 0, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 300, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 301, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 132, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 302, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 303, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 304, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 133, "rounds": 3, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 305, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 306, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 134, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 307, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 308, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 135, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 309, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 310, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 136, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 311, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 312, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 137, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 0.0], "top_agents": [1, 1, 1, 1], "terminal_occurrences": 4, "timed_out": false}
+{"type": "round", "round": 313, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 314, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 138, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 315, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 316, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 317, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 139, "rounds": 3, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 318, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 319, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 320, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 140, "rounds": 3, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 321, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 322, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 141, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 323, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 324, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 142, "rounds": 2, "rewards": [25.0, 25.0, 25.0, 0.0], "top_agents": [1, 1, 1, 0], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 325, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 326, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 327, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 328, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 329, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 143, "rounds": 5, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 330, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 331, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 144, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 332, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 333, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 334, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 25.0]}
+{"type": "episode", "episode": 145, "rounds": 3, "rewards": [0.0, 25.0, 25.0, 25.0], "top_agents": [0, 1, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 335, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 336, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 146, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 337, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 338, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 147, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 25.0], "top_agents": [1, 1, 0, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 339, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 340, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 341, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 148, "rounds": 3, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 342, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 343, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 149, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 344, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 345, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 346, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 150, "rounds": 3, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 347, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 348, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 151, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 349, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 350, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 25.0]}
+{"type": "episode", "episode": 152, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 25.0], "top_agents": [0, 1, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 351, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 352, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 153, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 353, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 354, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 355, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 154, "rounds": 3, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 356, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 357, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 358, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 155, "rounds": 3, "rewards": [25.0, 0.0, 25.0, 25.0], "top_agents": [1, 0, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 359, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 360, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 156, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 361, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 362, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 157, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 363, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 364, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 158, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 365, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 366, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 159, "rounds": 2, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 367, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 368, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 160, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 369, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 370, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 161, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 371, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 372, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 162, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 373, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 374, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 163, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 375, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 376, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 164, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 377, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 378, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 165, "rounds": 2, "rewards": [25.0, 25.0, 25.0, 0.0], "top_agents": [1, 1, 1, 0], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 379, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 380, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 166, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 381, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 382, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 167, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 383, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 384, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [25.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 168, "rounds": 2, "rewards": [25.0, 25.0, 25.0, 0.0], "top_agents": [1, 1, 1, 0], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 385, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 386, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 25.0]}
+{"type": "episode", "episode": 169, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 25.0], "top_agents": [0, 1, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 387, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 388, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 389, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [25.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 170, "rounds": 3, "rewards": [25.0, 25.0, 25.0, 0.0], "top_agents": [1, 1, 1, 0], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 390, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 391, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 171, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 392, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 393, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 172, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 394, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 395, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 396, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 173, "rounds": 3, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 397, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 398, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 174, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 399, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 400, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 175, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 401, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 402, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 403, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 176, "rounds": 3, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 404, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 405, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 177, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 406, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 407, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 178, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 408, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 409, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 179, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 410, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 411, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 180, "rounds": 2, "rewards": [25.0, 25.0, 25.0, 0.0], "top_agents": [1, 1, 1, 0], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 412, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 413, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 181, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 414, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 415, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 182, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 0.0], "top_agents": [1, 1, 1, 1], "terminal_occurrences": 4, "timed_out": false}
+{"type": "round", "round": 416, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 417, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 418, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 183, "rounds": 3, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 419, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 420, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 184, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 421, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 422, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 185, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 423, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 424, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 186, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 425, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 426, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 187, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 427, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 428, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 429, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 188, "rounds": 3, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 430, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 431, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 189, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 25.0], "top_agents": [1, 1, 0, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 432, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 433, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 25.0, 25.0, 25.0]}
+{"type": "episode", "episode": 190, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 25.0], "top_agents": [0, 1, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 434, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 435, "actions": [1, 0, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 436, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 191, "rounds": 3, "rewards": [25.0, 25.0, 25.0, 0.0], "top_agents": [1, 1, 1, 0], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 437, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 438, "actions": [0, 0, 0, 0], "cooperators": 4, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 439, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 25.0, 25.0, 25.0]}
+{"type": "episode", "episode": 192, "rounds": 3, "rewards": [0.0, 25.0, 25.0, 25.0], "top_agents": [0, 1, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 440, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 441, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 193, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 442, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 443, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 194, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 444, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 445, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [25.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 195, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 25.0], "top_agents": [1, 0, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 446, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 447, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 196, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 0.0], "top_agents": [0, 1, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 448, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 449, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 0.0, 0.0]}
+{"type": "episode", "episode": 197, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 0.0], "top_agents": [1, 1, 0, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 450, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 451, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 198, "rounds": 2, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 452, "actions": [0, 1, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 453, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 199, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 454, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 455, "actions": [0, 0, 0, 1], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 100.0]}
+{"type": "episode", "episode": 200, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 100.0], "top_agents": [0, 0, 0, 1], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 456, "actions": [1, 0, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 457, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 201, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 458, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 459, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 100.0, 0.0, 0.0]}
+{"type": "episode", "episode": 202, "rounds": 2, "rewards": [0.0, 100.0, 0.0, 0.0], "top_agents": [0, 1, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 460, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 461, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 462, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 203, "rounds": 3, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 463, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 464, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 204, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 465, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 466, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 205, "rounds": 2, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 467, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 468, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [100.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 206, "rounds": 2, "rewards": [100.0, 0.0, 0.0, 0.0], "top_agents": [1, 0, 0, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 469, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 470, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 207, "rounds": 2, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 471, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 472, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "episode", "episode": 208, "rounds": 2, "rewards": [0.0, 0.0, 0.0, 0.0], "top_agents": [1, 1, 1, 1], "terminal_occurrences": 4, "timed_out": false}
+{"type": "round", "round": 473, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 474, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 25.0, 25.0, 25.0]}
+{"type": "episode", "episode": 209, "rounds": 2, "rewards": [0.0, 25.0, 25.0, 25.0], "top_agents": [0, 1, 1, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 475, "actions": [1, 1, 0, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 476, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 477, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 25.0, 0.0]}
+{"type": "episode", "episode": 210, "rounds": 3, "rewards": [25.0, 25.0, 25.0, 0.0], "top_agents": [1, 1, 1, 0], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 478, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 479, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 211, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 480, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 481, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 212, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 25.0], "top_agents": [1, 1, 0, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 482, "actions": [1, 1, 1, 0], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 483, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 213, "rounds": 2, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 484, "actions": [0, 1, 1, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 485, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 214, "rounds": 2, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 486, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 487, "actions": [0, 0, 1, 1], "cooperators": 2, "rewards": [0.0, 0.0, 25.0, 25.0]}
+{"type": "episode", "episode": 215, "rounds": 2, "rewards": [0.0, 0.0, 25.0, 25.0], "top_agents": [0, 0, 1, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 488, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 489, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 216, "rounds": 2, "rewards": [25.0, 25.0, 0.0, 25.0], "top_agents": [1, 1, 0, 1], "terminal_occurrences": 3, "timed_out": false}
+{"type": "round", "round": 490, "actions": [1, 0, 0, 1], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 491, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [25.0, 0.0, 0.0, 25.0]}
+{"type": "episode", "episode": 217, "rounds": 2, "rewards": [25.0, 0.0, 0.0, 25.0], "top_agents": [1, 0, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 492, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 493, "actions": [0, 1, 0, 1], "cooperators": 2, "rewards": [0.0, 25.0, 0.0, 25.0]}
+{"type": "episode", "episode": 218, "rounds": 2, "rewards": [0.0, 25.0, 0.0, 25.0], "top_agents": [0, 1, 0, 1], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 494, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 495, "actions": [0, 1, 0, 0], "cooperators": 3, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 496, "actions": [0, 0, 1, 0], "cooperators": 3, "rewards": [0.0, 0.0, 100.0, 0.0]}
+{"type": "episode", "episode": 219, "rounds": 3, "rewards": [0.0, 0.0, 100.0, 0.0], "top_agents": [0, 0, 1, 0], "terminal_occurrences": 1, "timed_out": false}
+{"type": "round", "round": 497, "actions": [1, 0, 1, 0], "cooperators": 2, "rewards": [0.0, 0.0, 0.0, 0.0]}
+{"type": "round", "round": 498, "actions": [1, 1, 1, 1], "cooperators": 0, "rewards": [25.0, 0.0, 25.0, 0.0]}
+{"type": "episode", "episode": 220, "rounds": 2, "rewards": [25.0, 0.0, 25.0, 0.0], "top_agents": [1, 0, 1, 0], "terminal_occurrences": 2, "timed_out": false}
+{"type": "round", "round": 499, "actions": [1, 1, 0, 1], "cooperators": 1, "rewards": [0.0, 0.0, 0.0, 0.0]}

@@ -39,6 +39,19 @@ T: dict[str, tuple[str, str]] = {
     # ---- chrome -------------------------------------------------------------------------
     "app.tagline":        ("Αρχιτεκτονικές που παίζουν επαναλαμβανόμενα παιχνίδια",
                            "Architectures that play repeated games"),
+    "field.genome_origin": ("Από πού προκύπτει αυτό το κύκλωμα", "Where this circuit comes from"),
+    "opt.genome_random":   ("Καινούργιο τυχαίο", "A fresh random one"),
+    "opt.genome_cid":      ("Από κωδικό εξελιγμένου", "From an evolved circuit's identifier"),
+    "agent.human":         ("Άνθρωπος (εσύ)", "Human (you)"),
+    "h.play":              ("Η σειρά σου", "Your move"),
+    "btn.concede":         ("Υποχώρησε", "Concede"),
+    "btn.claim":           ("Διεκδίκησε", "Claim"),
+    "w.round_n":           ("Γύρος", "Round"),
+    "w.your_moves":        ("Οι κινήσεις σου ως τώρα", "Your moves so far"),
+    "w.waiting_others":    ("Περιμένω τους άλλους παίκτες…", "Waiting for the other players…"),
+    "nav.group.run":       ("Δοκιμή", "Run"),
+    "nav.group.results":   ("Αποτελέσματα", "Results"),
+    "nav.group.synthesis": ("Μεγάλη εικόνα", "Big picture"),
     "nav.match":          ("Παρτίδα", "Match"),
     "nav.evolve":         ("Εξέλιξη", "Evolutionary"),
     "nav.analytics":      ("Αναλύσεις", "Analytics"),
@@ -741,6 +754,24 @@ H: dict[str, tuple[str, str]] = {
         "What exactly the text sent to the model says. minimal-v1 gives only the rules, "
         "informed-v1 also gives what the others did. It is a choice from a list rather than "
         "free text, because two models given different instructions are not being compared."),
+    "agent.human": (
+        "Μια θέση που την παίζεις εσύ. Σου δείχνεται η κατάσταση και διαλέγεις με λέξεις, όχι με "
+        "αριθμούς, όπως ακριβώς και το γλωσσικό μοντέλο. Η παρτίδα περιμένει εσένα, οπότε "
+        "κράτα τους γύρους λίγους. Ένα τρέξιμο με άνθρωπο μέσα δεν επαναλαμβάνεται, και αυτό "
+        "καταγράφεται ρητά στην εγγραφή.",
+        "A seat you play yourself. You are shown the situation and choose in words rather than "
+        "numbers, exactly as the language model does. The match waits for you, so keep the "
+        "rounds few. A run with a person in it does not repeat, and the record says so."),
+    "field.genome_origin": (
+        "Το κύκλωμα δεν μαθαίνει μέσα στην παρτίδα: παίζει όπως είναι φτιαγμένο. Ένα καινούργιο "
+        "τυχαίο θα παίξει σχεδόν στην τύχη, που είναι χρήσιμο μόνο ως σημείο αναφοράς. Για να "
+        "δεις τι μπορεί να κάνει, πρέπει πρώτα να το εξελίξεις στη σελίδα Εξέλιξη και μετά να "
+        "φέρεις εδώ τον κωδικό του. Η εξέλιξη είναι προετοιμασία πριν την παρτίδα, δεν τρέχει "
+        "μέσα σε αυτήν.",
+        "The circuit does not learn during a match: it plays as it was built. A fresh random one "
+        "plays close to randomly, which is useful only as a baseline. To see what it can do you "
+        "first evolve it on the Evolution page and then bring its identifier here. Evolution is "
+        "preparation before a match, not something that runs inside one."),
     "param.genome_cid": (
         "Προαιρετικό. Όταν τρέξεις εξέλιξη, το καλύτερο κύκλωμα που θα προκύψει παίρνει έναν "
         "μοναδικό κωδικό. Αν τον αντιγράψεις εδώ, θα παίξει εκείνο αντί για ένα καινούργιο "
@@ -1307,6 +1338,18 @@ N: dict[str, tuple[str, str]] = {
         "heterogeneity tests, since a point estimate with no spread cannot contribute to them."),
     "note.download_both": ("Κατέβασε SVG · Κατέβασε CSV", "Download SVG · Download CSV"),
     "note.svg_link": ("Κατέβασε το γράφημα ως SVG", "Download this chart as an SVG"),
+    "note.match_gone": (
+        "Αυτή η παρτίδα δεν υπάρχει πια. Είτε την πήρες ήδη, είτε έκλεισε επειδή δεν απάντησε "
+        "κανείς για πολλή ώρα. Ξεκίνα καινούργια από τη σελίδα της Παρτίδας.",
+        "This match is no longer here. Either you already collected it, or it ended because "
+        "nobody answered for a long time. Start a new one from the Match page."),
+    "note.play_intro": (
+        "Η παρτίδα τρέχει και περιμένει εσένα. Οι υπόλοιποι παίκτες αποφασίζουν στιγμιαία· ό,τι "
+        "αργεί είναι δικό σου. Αν φύγεις, η παρτίδα τερματίζεται μόνη της αντί να παίξει κάποιος "
+        "στη θέση σου.",
+        "The match is running and waiting for you. The other players decide instantly; whatever "
+        "takes time is yours. If you leave, the match ends itself rather than letting something "
+        "play in your place."),
     "note.ollama_absent": (
         "Το Ollama δεν απαντά, οπότε δεν μπορώ να δω τι μοντέλα έχεις. Ξεκίνα το με "
         "ollama serve και ανανέωσε τη σελίδα για να εμφανιστούν.",

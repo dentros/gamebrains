@@ -44,6 +44,7 @@ ALIASES = {
     "row_reciprocity": "param.reciprocity",
     "row_markov_hidden": "param.n_hidden",
     "row_genome_cid": "param.genome_cid",
+    "row_genome_origin": "field.genome_origin",
     "row_epsilon_decay": "param.epsilon_pair",
     "row_epsilon_min": "param.epsilon_pair",
     "include_kind": "field.roster_has",

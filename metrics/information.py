@@ -536,6 +536,114 @@ def transfer_entropy_pairwise(
     }
 
 
+def _conditional_te_bits(x_prev: np.ndarray, y_prev: np.ndarray, y_t: np.ndarray,
+                         z_prev: np.ndarray, n_z: int) -> float:
+    """T(X->Y | Z) at lag 1 = H(Y_t|Y_prev,Z) - H(Y_t|Y_prev,X_prev,Z), in bits.
+
+    The conditioning variable Z is a discretisation of training time, so the statistic asks what
+    the source adds about the target's next move *beyond what the round number already explains*.
+    Both agents learning on the same schedule is the confound this removes, and it removes it
+    without discarding a single round.
+
+    Each of the four joint tables is encoded as mixed-radix integer symbols and handed to this
+    module's own Miller-Madow estimator, rather than to a second one written here. The two
+    conditional entropies are then differences of joint entropies, so the correction lands on each
+    joint table, which is where the bias it corrects actually arises.
+    """
+    x_prev = x_prev.astype(np.int64)
+    y_prev = y_prev.astype(np.int64)
+    y_t = y_t.astype(np.int64)
+    z_prev = z_prev.astype(np.int64)
+    h_yz = _entropy_bits_mm(y_prev + 2 * z_prev)
+    h_yyz = _entropy_bits_mm(y_t + 2 * y_prev + 4 * z_prev)
+    h_xyz = _entropy_bits_mm(x_prev + 2 * y_prev + 4 * z_prev)
+    h_xyyz = _entropy_bits_mm(y_t + 2 * y_prev + 4 * x_prev + 8 * z_prev)
+    return (h_yyz - h_yz) - (h_xyyz - h_xyz)
+
+
+def conditional_transfer_entropy_pairwise(
+    records: dict[str, np.ndarray], seed: int = 0, n_surrogates: int = 200,
+    n_blocks: int = N_BLOCKS,
+) -> dict[str, Any]:
+    """T(i -> j | training time) for every ordered pair, with a within-block surrogate test.
+
+    **Why this exists as a second route.** The blockwise surrogate in
+    `transfer_entropy_pairwise` keeps the statistic honest by refusing to report when its own
+    precondition fails, which on a short default run means reporting nothing at all. Conditioning
+    answers the same question differently: rather than cutting the transient away or declining,
+    it puts the known driver into the statistic. The companion study measured both on a null
+    control where every flag is a false positive by construction, over the full untrimmed series:
+
+        1 block (unconditional)   12,000 rounds/block   100.0% false positives
+        4 blocks                   3,000                 65.0%
+        8 blocks                   1,500                 12.0%
+        32 blocks                    375                  6.0%
+
+    So the number of blocks is not a tuning knob, it is the resolution at which training time is
+    held constant, and too few blocks leaves most of the drift inside each one. The default here
+    is the same 32 the module already uses for its surrogate segments.
+
+    **The surrogate permutes within blocks, for the same reason the unconditional one does.**
+    Permuting across blocks would put the drift back in by hand and the test would then be
+    measuring the confound it was built to remove.
+
+    Reported alongside the unconditional statistic rather than in place of it. The two answer
+    different questions, and a reader who sees only one cannot tell which they are getting.
+    """
+    actions = records["actions"]
+    rounds, n_agents = actions.shape
+    if rounds < 3 or n_agents < 2:
+        return {"by_pair": {}, "mean_bits": 0.0, "mean_significant_bits": 0.0,
+                "n_significant_pairs": 0, "n_pairs": 0, "n_blocks": n_blocks,
+                "status": "too few rounds or agents for a conditional estimate"}
+
+    rng = np.random.default_rng(seed)
+    z = _blocks(rounds, n_blocks)[:-1]
+    n_z = int(z.max()) + 1
+    # Segments of equal training time. The surrogate shuffles the source inside each of these and
+    # nowhere else, which is what keeps the conditioning meaningful.
+    segments = [np.flatnonzero(z == b) for b in range(n_z)]
+
+    by_pair: dict[tuple[int, int], dict[str, Any]] = {}
+    for i in range(n_agents):
+        for j in range(n_agents):
+            if i == j:
+                continue
+            x_prev, y_prev, y_t = actions[:-1, i], actions[:-1, j], actions[1:, j]
+            observed = _conditional_te_bits(x_prev, y_prev, y_t, z, n_z)
+            surrogates = np.empty(n_surrogates)
+            x_s = np.array(x_prev, dtype=np.int64)
+            for s in range(n_surrogates):
+                for seg in segments:
+                    if len(seg) > 1:
+                        x_s[seg] = x_prev[rng.permutation(seg)]
+                surrogates[s] = _conditional_te_bits(x_s, y_prev, y_t, z, n_z)
+            by_pair[(i, j)] = {
+                "bits": observed,
+                "p_value": float((np.sum(surrogates >= observed) + 1) / (n_surrogates + 1)),
+                "n_surrogates": n_surrogates,
+                "surrogate_mean_bits": float(surrogates.mean()),
+                "surrogate_std_bits": float(surrogates.std()),
+            }
+
+    all_bits = [r["bits"] for r in by_pair.values()]
+    sig_bits = [r["bits"] for r in by_pair.values() if r["p_value"] < 0.05]
+    return {
+        "by_pair": by_pair,
+        "mean_bits": float(np.mean(all_bits)) if all_bits else 0.0,
+        "mean_significant_bits": float(np.mean(sig_bits)) if sig_bits else 0.0,
+        "n_significant_pairs": len(sig_bits),
+        "n_pairs": len(by_pair),
+        "estimator": "discrete plug-in + Miller-Madow, conditioned on training-time blocks",
+        "n_surrogates": n_surrogates,
+        "surrogate": "within-block",
+        "n_blocks": n_z,
+        "rounds_per_block": int(round(rounds / n_z)),
+        "rounds_analysed": int(rounds),
+        "conditions_on": "a contiguous block index standing for training time",
+    }
+
+
 def compute_all(records: dict[str, np.ndarray], seed: int = 0, n_surrogates: int = 200,
                 roster: list[Any] | None = None, surrogate: str = "blockwise",
                 n_blocks: int = N_BLOCKS, override_precondition: bool = False) -> dict[str, Any]:
@@ -615,6 +723,16 @@ def compute_all(records: dict[str, np.ndarray], seed: int = 0, n_surrogates: int
     else:
         headline, status = None, precondition["reason"]
 
+    # The second route, computed always and reported beside the first. Where the unconditional
+    # statistic can only refuse when its precondition fails, this one puts the known driver into
+    # the statistic rather than cutting it out of the data, so a short run that reports nothing
+    # above still has something defensible to say. Measured on a null control it collapses from
+    # 100% false positives unconditioned to the nominal rate at this block count, and it is
+    # reported as its own number rather than substituted for the headline: the two answer
+    # different questions and a reader who sees one cannot tell which.
+    cte = conditional_transfer_entropy_pairwise(
+        records, seed=seed, n_surrogates=n_surrogates, n_blocks=n_blocks)
+
     return {
         "transfer_entropy_precondition_overridden": overridden,
         "mutual_information_bits": mi["mean_bits"],
@@ -622,6 +740,8 @@ def compute_all(records: dict[str, np.ndarray], seed: int = 0, n_surrogates: int
         "transfer_entropy_bits": headline,
         "transfer_entropy_bits_status": status,
         "transfer_entropy_detail": te,
+        "conditional_transfer_entropy_bits": cte["mean_significant_bits"],
+        "conditional_transfer_entropy_detail": cte,
         "predictive_information_bits": pi["mean_bits"],
         "predictive_information_detail": pi,
     }

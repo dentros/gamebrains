@@ -1190,6 +1190,23 @@ class _PerThreadStdout:
     def isatty(self) -> bool:
         return getattr(self._real, "isatty", lambda: False)()
 
+    def __getattr__(self, name: str) -> Any:
+        """Anything else a caller expects of a stdout, answered by the real one.
+
+        Found by the test suite, not by the web interface: `tests/run_all.py` runs every module in
+        one process, so importing this module replaces `sys.stdout` for the modules that run
+        after it, and Ray reads `sys.stdout.encoding` at import time. Without this, `ray.rllib`
+        raised `AttributeError` and `test_interop_rllib` failed inside the suite while passing
+        standalone -- the worst shape for a failure, since the standalone run says the code is
+        fine.
+
+        The real stream answers rather than the per-thread buffer on purpose: `encoding`,
+        `fileno` and the rest describe the actual terminal, and a `StringIO` standing in for it
+        during one capture would answer for the process. Only `write` and `flush`, the two that
+        carry text, are dispatched per thread.
+        """
+        return getattr(self._real, name)
+
     @contextlib.contextmanager
     def capturing(self, buffer):
         previous = getattr(self._local, "buffer", None)

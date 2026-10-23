@@ -85,13 +85,25 @@ class Frozen(Agent):
         return self._agent.render_brain()
 
 
-def _game(rounds: int) -> PublicGoodsGame:
-    return PublicGoodsGame(n_agents=N_AGENTS, rounds=rounds, mpcr=MPCR)
+def _game(rounds: int, mpcr: float | None = None,
+          allow_non_dilemma: bool = False) -> PublicGoodsGame:
+    return PublicGoodsGame(n_agents=N_AGENTS, rounds=rounds,
+                           mpcr=MPCR if mpcr is None else mpcr,
+                           allow_non_dilemma=allow_non_dilemma)
 
 
-def pretrain(kind: str, seed: int, quiet: bool = False) -> Frozen:
-    """Train one architecture in self-play and return one frozen representative of it."""
-    game = _game(PRETRAIN_ROUNDS)
+def pretrain(kind: str, seed: int, quiet: bool = False, mpcr: float | None = None,
+             allow_non_dilemma: bool = False) -> Frozen:
+    """Train one architecture in self-play and return one frozen representative of it.
+
+    `mpcr` defaults to this module's own constant, which is what every bake-off in the paper used.
+    A caller evaluating at some other multiplier has to pass it, because a policy trained at one
+    multiplier and frozen into a match at another is answering the wrong game: at that point a
+    baseline failing to track the incentive says something about the training setup rather than
+    about the architecture, and nothing in the output would distinguish the two.
+    """
+    effective_mpcr = MPCR if mpcr is None else mpcr
+    game = _game(PRETRAIN_ROUNDS, mpcr, allow_non_dilemma)
 
     if kind == "classic":
         return Frozen(AllD("AllD"), "AllD")
@@ -99,12 +111,13 @@ def pretrain(kind: str, seed: int, quiet: bool = False) -> Frozen:
     if kind == "fep":
         # No trained parameters, only beliefs formed online, so a fresh agent is the honest
         # representative. Reported in the paper as not comparable to the RL rows in the same way.
-        return Frozen(FEPAgent("FEP", n_agents=N_AGENTS, mpcr=MPCR, seed=seed), "FEP")
+        return Frozen(FEPAgent("FEP", n_agents=N_AGENTS, mpcr=effective_mpcr, seed=seed), "FEP")
 
     if kind == "markov_brain":
         config = EvolutionConfig(population_size=20, generations=15, match_rounds=200,
                                  matches_per_generation=3, seed=seed)
-        result = evolve(lambda: _game(200), config, spawn=mb_spawn, crossover=mb_crossover)
+        result = evolve(lambda: _game(200, mpcr, allow_non_dilemma), config,
+                        spawn=mb_spawn, crossover=mb_crossover)
         best = result.population[int(np.argmax(result.fitness))]
         return Frozen(best, "MarkovBrain")
 

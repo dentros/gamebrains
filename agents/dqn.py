@@ -68,8 +68,14 @@ class DQNAgent(Agent):
         state_labels: Optional[list[str]] = None,
         action_labels: Optional[list[str]] = None,
         device: Optional[str] = None,
+        lifetime_learning: bool = True,
+        learning_rule: str = "dqn",
     ) -> None:
         self.name = name
+        # Both default to the ordinary online learner, so every existing caller gets the agent it
+        # got before. Only `spawn` sets them otherwise. See this module's neuroevolution section.
+        self.lifetime_learning = lifetime_learning
+        self.learning_rule = learning_rule
         self.n_states = n_states
         self.n_actions = n_actions
         self.gamma = gamma
@@ -139,6 +145,11 @@ class DQNAgent(Agent):
         next_observation: int,
         done: bool,
     ) -> None:
+        if not self.lifetime_learning:
+            # Under Darwinian evolution the weights are what selection acts on, so a match has to
+            # leave them as it found them. Returning here rather than relying on each caller to
+            # skip the call keeps the guarantee with the agent.
+            return
         self.buffer.append((self._one_hot(observation), action, reward,
                             self._one_hot(next_observation), float(done)))
         self.steps += 1
@@ -201,3 +212,110 @@ class DQNAgent(Agent):
             "action_labels": self.action_labels,
             "device": str(self.device),
         }
+
+    # --- The Evolvable protocol (engine/evolution.py) ------------------------------------------
+    #
+    # Searching over these weights with a genetic algorithm is neuroevolution, not deep
+    # Q-learning: no gradient is taken and the Bellman target plays no part. Such an agent
+    # reports `learning_rule="evolved"`, because a bake-off row that called it DQN would be
+    # naming the architecture while the reader hears a claim about the learning rule.
+
+    def reset_state(self) -> None:
+        """Clear what belongs to the previous grouping, keep what selection acts on.
+
+        The weights are the genome and survive. The replay buffer is the opposite: it holds
+        transitions against opponents this individual will not face again, and carrying it over
+        would let one grouping's experience train the agent during the next one's measurement.
+        Empty under the Darwinian default anyway, since `update` returns before filling it.
+        """
+        self.buffer.clear()
+
+    def _respawn(self, state_dict: dict, name: Optional[str], seed: int) -> "DQNAgent":
+        """One constructor call for clone and mutate, so a field cannot be carried by one and
+        dropped by the other."""
+        twin = DQNAgent(
+            name=name or self.name, n_states=self.n_states, n_actions=self.n_actions,
+            hidden=self.hidden, lr=self.lr, gamma=self.gamma, epsilon=self.epsilon,
+            epsilon_min=self.epsilon_min, epsilon_decay=self.epsilon_decay,
+            buffer_size=self.buffer_size, batch_size=self.batch_size,
+            train_every=self.train_every, target_sync_every=self.target_sync_every, seed=seed,
+            state_labels=list(self.state_labels), action_labels=list(self.action_labels),
+            device=str(self.device), lifetime_learning=self.lifetime_learning,
+            learning_rule=self.learning_rule,
+        )
+        twin.policy.load_state_dict(state_dict)
+        # The target net is a lagged copy of the policy, so an inherited genome has to reach both.
+        # Leaving the target at its own random initialisation would make a cloned elite behave
+        # differently from its parent the moment it trained.
+        twin.target.load_state_dict(state_dict)
+        return twin
+
+    def clone(self, name: Optional[str] = None, seed: Optional[int] = None) -> "DQNAgent":
+        """The identical network under a new name and RNG. Used to carry elites over."""
+        new_seed = seed if seed is not None else int(self.rng.integers(1 << 30))
+        return self._respawn({k: v.clone() for k, v in self.policy.state_dict().items()},
+                             name, new_seed)
+
+    def mutate(self, rng: np.random.Generator, rate: float = 0.15, scale: float = 0.4,
+               name: Optional[str] = None, seed: int = 0) -> "DQNAgent":
+        """A Gaussian-perturbed copy of every weight tensor.
+
+        `rng` is the GA's own generator rather than torch's, deliberately: it is what makes the
+        whole run reproducible from `EvolutionConfig.seed`, and drawing the perturbation from
+        torch's global state would reintroduce exactly the defect this file's replay-sampling
+        comment describes.
+        """
+        genome = {}
+        for key, tensor in self.policy.state_dict().items():
+            values = tensor.detach().cpu().numpy().copy()
+            mask = rng.random(values.shape) < rate
+            values[mask] += rng.normal(scale=scale, size=int(mask.sum()))
+            genome[key] = torch.from_numpy(values).to(tensor.dtype)
+        return self._respawn(genome, name, seed)
+
+
+def crossover(parent_a: "DQNAgent", parent_b: "DQNAgent", rng: np.random.Generator,
+              name: str, seed: int) -> "DQNAgent":
+    """Uniform crossover, element by element, over every weight tensor.
+
+    Recombination rather than averaging, for the same reason as the tabular case: the mean of two
+    networks is a genome neither parent had. Note what this inherits from the architecture, since
+    it is the standard objection to crossing networks -- two parents can compute the same function
+    through differently ordered hidden units, and recombining them cell by cell then produces a
+    child that matches neither. Here both parents descend from one spawned population at a fixed
+    hidden width, which narrows that mismatch without removing it. Reported, not solved.
+    """
+    a_state, b_state = parent_a.policy.state_dict(), parent_b.policy.state_dict()
+    if [(k, tuple(v.shape)) for k, v in a_state.items()] != \
+            [(k, tuple(v.shape)) for k, v in b_state.items()]:
+        raise ValueError(
+            "crossover requires parents with identical genome shape; these two networks differ "
+            "in their parameter tensors, so they were built for different games or widths")
+    genome = {}
+    for key, tensor in a_state.items():
+        a_values = tensor.detach().cpu().numpy()
+        b_values = b_state[key].detach().cpu().numpy()
+        picked = np.where(rng.random(a_values.shape) < 0.5, a_values, b_values)
+        genome[key] = torch.from_numpy(picked).to(tensor.dtype)
+    return parent_a._respawn(genome, name, seed)
+
+
+def spawn(name: str, game, seed: int, config) -> "DQNAgent":
+    """Build one random network individual for `engine.evolution.evolve`.
+
+    Variation across the population comes free here, unlike the tabular case: each individual is
+    constructed under its own seed and `_MLP`'s initialisation reads it, so the first generation
+    already differs. `lifetime_learning` decides the same thing it decides for a Q-table, and
+    means more here, since under `"lamarckian"` the GA is searching over starting points for
+    gradient descent rather than over policies.
+    """
+    darwinian = getattr(config, "lifetime_learning", "off") != "lamarckian"
+    knobs = getattr(config, "genome", None) or {}
+    return DQNAgent(
+        name, n_states=game.n_states, n_actions=game.n_actions, seed=seed,
+        hidden=int(knobs.get("hidden", 64)),
+        epsilon=0.0 if darwinian else float(knobs.get("epsilon", 0.1)),
+        epsilon_min=0.0 if darwinian else float(knobs.get("epsilon_min", 0.01)),
+        lr=float(knobs.get("lr", 1e-3)), gamma=float(knobs.get("gamma", 0.95)),
+        lifetime_learning=not darwinian, learning_rule="evolved",
+    )

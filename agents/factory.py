@@ -157,3 +157,35 @@ def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "
             "decision, and keeps a decision journal that only the process running it holds. The "
             "interface constructs it in its own branch, where a missing server can be explained.")
     raise ValueError(f"unknown kind {kind!r}, expected one of {', '.join(KINDS)}")
+
+
+#: The architectures `engine.evolution.evolve` can search over. Ordered oldest first, which is
+#: also least surprising: `markov_brain` is the genome the GA was written for and stays the
+#: default everywhere, so adding the other two cannot change an existing run.
+#:
+#: Not every kind can be here. `classic` has no parameters to vary, and `fep` carries beliefs it
+#: forms online rather than anything inherited, so neither has a genome for selection to act on.
+#: `llm` has weights nobody here can mutate.
+EVOLVABLE_KINDS = ("markov_brain", "qlearning", "dqn")
+
+
+def evolvable(kind: str):
+    """The `(spawn, crossover)` pair for `kind`, imported only when asked for.
+
+    Lazy on purpose. `dqn` pulls in torch at import, and listing or offering the evolvable
+    architectures must not require having it installed -- the same rule the bake-off follows
+    when it imports DQN inside a branch rather than at the top of the file.
+    """
+    if kind == "markov_brain":
+        from .markov_brain import crossover, spawn
+    elif kind == "qlearning":
+        from .qlearning import crossover, spawn
+    elif kind == "dqn":
+        from .dqn import crossover, spawn
+    else:
+        raise ValueError(
+            f"{kind!r} has no genome the GA can search over. Evolvable kinds are "
+            f"{list(EVOLVABLE_KINDS)}; a classic strategy has no parameters to vary, an FEP "
+            f"agent's beliefs are formed online rather than inherited, and a language model's "
+            f"weights are not ours to mutate")
+    return spawn, crossover

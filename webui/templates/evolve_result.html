@@ -6,8 +6,10 @@
   <h2><svg class="glyph"><use href="#glyph-evolve"/></svg>Evolution summary</h2>
   <p class="meta">
     population={{ cfg.population_size }} &middot; generations={{ cfg.generations }} &middot;
-    match_rounds={{ cfg.match_rounds }} &middot; n_hidden={{ cfg.n_hidden }} &middot;
-    n_agents={{ n_agents }} &middot; seed={{ cfg.seed }}
+    match_rounds={{ cfg.match_rounds }}{% if architecture == 'markov_brain' %} &middot;
+    n_hidden={{ cfg.n_hidden }}{% endif %} &middot;
+    n_agents={{ n_agents }} &middot; seed={{ cfg.seed }} &middot;
+    architecture={{ architecture }} &middot; lifetime_learning={{ cfg.lifetime_learning }}
   </p>
   <table>
     <tr><th>Best fitness</th><th>Avg fitness</th></tr>
@@ -32,11 +34,27 @@
 </div>
 {% endif %}
 
+{% if phi_note %}
+<div class="panel">
+  <h2>Integrated information</h2>
+  <p class="meta">{{ phi_note }}</p>
+</div>
+{% endif %}
+
+{% if genome_cid %}
 <div class="panel">
   <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>Genome hand-off</h2>
   <p class="meta">{{ n('note.best_genome_cid') }}</p>
   <p><code>{{ genome_cid }}</code></p>
 </div>
+{% else %}
+<div class="panel">
+  <h2>Genome hand-off</h2>
+  <p class="meta">Not offered for this architecture. The store format and its loader were written
+  for the Markov-brain genome, and handing back an identifier that cannot be rebuilt into an agent
+  would be worse than offering none.</p>
+</div>
+{% endif %}
 
 {% if bakeoff %}
 <div class="panel">

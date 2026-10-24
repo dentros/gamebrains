@@ -270,6 +270,8 @@ T: dict[str, tuple[str, str]] = {
     "field.cap":          ("Κελιά ανά πάτημα", "Cells to run this click"),
 
     # ---- evolution ----------------------------------------------------------------------
+    "field.architecture":            ("Αρχιτεκτονική", "Architecture"),
+    "field.lifetime_learning":       ("Μάθηση μέσα στην παρτίδα", "Lifetime learning"),
     "field.population_size":         ("population_size", "population_size"),
     "field.generations":             ("generations", "generations"),
     "field.mutation_rate":           ("mutation_rate", "mutation_rate"),
@@ -1079,6 +1081,23 @@ H: dict[str, tuple[str, str]] = {
         "keep it small if the map includes DQN, which is the slowest."),
 
     # ---- evolution --------------------------------------------------------------------------
+    "field.architecture": (
+        "Τι είναι το γονιδίωμα που εξελίσσεται: η καλωδίωση ενός μικρού κυκλώματος, ένας "
+        "πίνακας τιμών, ή τα βάρη ενός δικτύου. Ο ίδιος γενετικός αλγόριθμος ψάχνει και τα "
+        "τρία, οπότε μια σύγκριση μεταξύ τους κρατάει σταθερό τον κανόνα μάθησης και αλλάζει "
+        "μόνο το υπόβαθρο.",
+        "What the evolving genome is: the wiring of a small circuit, a table of values, or the "
+        "weights of a network. The same genetic algorithm searches all three, so a comparison "
+        "across them holds the learning rule fixed and varies only the substrate."),
+    "field.lifetime_learning": (
+        "Αν ένα άτομο κρατάει όσα έμαθε μέσα στην παρτίδα που μετράει την απόδοσή του. Στο "
+        "«off» η απόδοση μετράει το γονιδίωμα που του έδωσε η επιλογή. Στο «lamarckian» "
+        "μαθαίνει και κληροδοτεί όσα έμαθε, που είναι άλλο πείραμα και όχι ισχυρότερη εκδοχή "
+        "του πρώτου. Το κύκλωμα δεν έχει κανόνα μάθησης, άρα η ρύθμιση δεν το αγγίζει.",
+        "Whether an individual keeps what the match measuring its fitness taught it. Under "
+        "\"off\" fitness measures the genome selection handed it. Under \"lamarckian\" it learns "
+        "and passes that on, which is a different experiment and not a stronger version of the "
+        "first. A circuit has no learning rule, so the setting cannot reach it."),
     "field.population_size": (
         "Πόσα διαφορετικά κυκλώματα υπάρχουν ταυτόχρονα σε κάθε γενιά. Μεγαλύτερος πληθυσμός "
         "ψάχνει περισσότερες πιθανές λύσεις, άρα βρίσκει καλύτερα αποτελέσματα, αλλά κάθε "

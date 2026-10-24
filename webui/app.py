@@ -38,6 +38,7 @@ from ..agents.classic import AllC, AllD, MajorityTFT, RandomAgent
 # The prompt profiles, not the LLM agent: this module is imported at start-up and the
 # agent pulls in the Ollama client, which is why that import stays inside _make_agent.
 from ..agents import factory as agent_factory, llm_prompt
+from ..agents.factory import EVOLVABLE_KINDS, evolvable
 from ..agents.qlearning import QLearningAgent
 from ..engine.agent import Agent
 from ..engine.console import LiveConsole
@@ -1580,6 +1581,11 @@ def evolve_run():
     n_agents = int(f.get("n_agents_evo", 4))
     mpcr_raw = f.get("mpcr", "").strip()
     mpcr = float(mpcr_raw) if mpcr_raw else None
+    architecture = f.get("architecture", "markov_brain")
+    if architecture not in EVOLVABLE_KINDS:
+        return render_template("error.html", message=(
+            f"{architecture!r} has no genome the GA can search over. Evolvable architectures "
+            f"are {list(EVOLVABLE_KINDS)}.")), 400
     cfg = EvolutionConfig(
         population_size=int(f.get("population_size", 20)),
         generations=int(f.get("generations", 30)),
@@ -1591,6 +1597,8 @@ def evolve_run():
         mutation_scale=float(f.get("mutation_scale", 0.4)),
         elite_count=int(f.get("elite_count", 2)),
         seed=int(f.get("seed", 0)),
+        lifetime_learning=f.get("lifetime_learning", "off"),
+        name_prefix={"markov_brain": "MB", "qlearning": "QL", "dqn": "DQ"}[architecture],
     )
     do_bakeoff = f.get("bakeoff") == "on"
     pretrain_rounds = int(f.get("pretrain_rounds", 4000) or 4000)
@@ -1606,33 +1614,50 @@ def evolve_run():
 
     buf = io.StringIO()
     with _STDOUT.capturing(buf):
-        print(f"Evolving: population={cfg.population_size} generations={cfg.generations} "
-             f"match_rounds={cfg.match_rounds} n_hidden={cfg.n_hidden} seed={cfg.seed}")
-        from ..agents.markov_brain import crossover as mb_crossover, spawn as mb_spawn
-        result = evolve(game_factory, cfg, spawn=mb_spawn, crossover=mb_crossover)
+        print(f"Evolving {architecture}: population={cfg.population_size} "
+             f"generations={cfg.generations} match_rounds={cfg.match_rounds} "
+             f"n_hidden={cfg.n_hidden} seed={cfg.seed} "
+             f"lifetime_learning={cfg.lifetime_learning}")
+        spawn, crossover = evolvable(architecture)
+        result = evolve(game_factory, cfg, spawn=spawn, crossover=crossover)
     evo_log = buf.getvalue()
 
     best = result.best
-    best.act(best.start_state)  # settle into one concrete, reachable state (see run_evolution.py)
+    is_markov = architecture == "markov_brain"
+    if is_markov:
+        # Settle into one concrete, reachable state (see run_evolution.py). Markov-brain only:
+        # it is the one genome here with hidden state, and `start_state` is its own attribute.
+        best.act(best.start_state)
 
     phi_info = None
-    if do_phi:
+    phi_note = None
+    if do_phi and is_markov:
         phi_result, autonomy = _compute_phi_sequential(best, n_t=3)
         phi_info = {"phi": phi_result["phi"], "autonomy": autonomy,
                    "max_autonomy": best.n_hidden + best.n_motor}
+    elif do_phi:
+        # Refused rather than attempted. Phi is exponential in system size, so it is restricted
+        # to the small Markov brains throughout this platform; a Q-table has no node-level
+        # dynamics to partition at all, and a network has far too many.
+        phi_note = (f"Integrated information was not computed: it is defined here over the "
+                    f"node-level dynamics of a small Markov brain, and {architecture} has no "
+                    f"such decomposition to partition.")
 
     bakeoff = None
     if do_bakeoff:
         bakeoff = _run_bakeoff(n_agents, mpcr, best, pretrain_rounds,
                                eval_rounds=cfg.match_rounds, seed=cfg.seed)
 
-    genome_cid = _save_genome(best)
+    # Only the Markov-brain genome has a store format and a loader. Saving a Q-table or a weight
+    # dict under the same mechanism would write something `_load_genome_agent` cannot rebuild,
+    # and a hand-off that hands back nothing usable is worse than an absent one.
+    genome_cid = _save_genome(best) if is_markov else None
 
     return render_template(
-        "evolve_result.html", cfg=cfg, n_agents=n_agents,
+        "evolve_result.html", cfg=cfg, n_agents=n_agents, architecture=architecture,
         best_fitness=float(result.fitness.max()), avg_fitness=float(result.fitness.mean()),
         fitness_svg=fitness_svg(result.fitness_history), evo_log=evo_log, phi_info=phi_info,
-        bakeoff=bakeoff, genome_cid=genome_cid,
+        phi_note=phi_note, bakeoff=bakeoff, genome_cid=genome_cid,
     )
 
 

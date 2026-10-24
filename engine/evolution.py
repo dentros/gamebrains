@@ -30,6 +30,11 @@ from .game import Game
 from .runner import run_match
 
 
+#: The values `EvolutionConfig.lifetime_learning` accepts. Named here rather than inside the
+#: check so a spawner can state which ones its genome actually distinguishes.
+LIFETIME_LEARNING_MODES = frozenset({"off", "lamarckian"})
+
+
 class Evolvable(Protocol):
     """What the GA needs of a genome. Any agent offering these can be evolved by this module."""
 
@@ -68,6 +73,25 @@ class EvolutionConfig:
     seed: int = 0
     #: Prefix for individual names. Default keeps historical "MB0, MB1, ..." naming.
     name_prefix: str = "MB"
+    #: What a genome may learn while its own fitness is being measured. Genome-specific in the
+    #: same sense as `n_hidden`: this module never reads it, the spawner does, because only the
+    #: spawner knows whether its genome has a learning rule at all.
+    #:
+    #: `"off"` is Darwinian and is the default. The individual acts on the genome selection gave
+    #: it and discards what the match would have taught, so fitness measures the genome.
+    #: `"lamarckian"` lets it learn during evaluation and pass on what it learned, which is a
+    #: real and different experiment rather than a stronger version of the first.
+    #:
+    #: A Markov brain has no learning rule, so the setting cannot reach it and either value gives
+    #: the identical run. For a Q-table or a network it decides what the GA is searching over,
+    #: and leaving it implicit would have made the Lamarckian reading the accidental default:
+    #: `runner.run_match` calls `update` on every agent every round, and `_next_generation` then
+    #: clones whatever that left behind.
+    lifetime_learning: str = "off"
+    #: Knobs belonging to one genome rather than to the GA, read by the spawner. Here so that
+    #: adding an architecture stops meaning adding a field to this dataclass, the way `n_hidden`
+    #: did. `n_hidden` stays where it is, because moving it would change every existing caller.
+    genome: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -158,6 +182,16 @@ def evolve(
     For Markov brains, pass `agents.markov_brain.spawn` and `agents.markov_brain.crossover`.
     """
     rng = np.random.default_rng(config.seed)
+    # Checked here although only the spawner reads it. A typo would otherwise be silently
+    # treated as "not lamarckian" by every spawner that tests for one value, and the run would
+    # finish and report numbers for the mode nobody asked for.
+    if config.lifetime_learning not in LIFETIME_LEARNING_MODES:
+        raise ValueError(
+            f"lifetime_learning={config.lifetime_learning!r} is not one of "
+            f"{sorted(LIFETIME_LEARNING_MODES)}. It decides whether a genome keeps what it learns "
+            f"during its own fitness match, which is a difference in what the GA searches over, "
+            f"so an unrecognised value is refused rather than read as the default"
+        )
     game0 = game_factory()
     if config.population_size % game0.n_agents != 0:
         raise ValueError(

@@ -11,6 +11,26 @@
   <div class="panel">
     <h2><svg class="glyph"><use href="#glyph-evolve"/></svg><span class="step">1</span>{{ t('h.ga_params') }}</h2>
     <div class="grid">
+      <div><label>{{ t('field.architecture') }}{{ info('field.architecture') }}</label>
+        <select name="architecture">
+          <option value="markov_brain" selected>Markov brain &mdash; evolved wiring</option>
+          <option value="qlearning">Tabular policy &mdash; evolved Q-table</option>
+          <option value="dqn">Network &mdash; evolved weights</option>
+        </select>
+        <p class="meta">What a genome is. The same genetic algorithm searches all three, so a
+        comparison across them holds the learning rule fixed and varies only the substrate.
+        Integrated information and the genome hand-off are offered for the Markov brain only.</p>
+      </div>
+      <div><label>{{ t('field.lifetime_learning') }}{{ info('field.lifetime_learning') }}</label>
+        <select name="lifetime_learning">
+          <option value="off" selected>Off &mdash; Darwinian, the genome is what is measured</option>
+          <option value="lamarckian">Lamarckian &mdash; learn during evaluation and inherit it</option>
+        </select>
+        <p class="meta">Whether an individual keeps what its own fitness match taught it. The
+        Markov brain has no learning rule, so this cannot reach it. For the other two it decides
+        what the search is over, and the two settings are different experiments rather than a
+        weaker and a stronger version of one.</p>
+      </div>
       <div><label>{{ t('field.population_size') }}{{ info('field.population_size') }}</label><input type="number" name="population_size" value="20" min="2"></div>
       <div><label>{{ t('field.generations') }}{{ info('field.generations') }}</label><input type="number" name="generations" value="30" min="1"></div>
       <div><label>{{ t('field.match_rounds') }}{{ info('field.match_rounds') }}</label><input type="number" name="match_rounds" value="200" min="10"></div>

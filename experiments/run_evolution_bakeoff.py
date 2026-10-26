@@ -50,6 +50,11 @@ LABELS = {"markov_brain": "Markov brain", "qlearning": "Evolved Q-table",
           "dqn": "Evolved network"}
 #: Name prefixes keep the individuals in one run distinguishable in a log. Cosmetic only.
 PREFIXES = {"markov_brain": "MB", "qlearning": "QL", "dqn": "DQ"}
+#: A seed counts as having found the equilibrium when its best individual earns less than this
+#: fraction of what universal contribution pays. Loose on purpose: the question is which of two
+#: widely separated outcomes a run landed on, and a tight threshold would turn that into a
+#: judgement about near-equilibrium play, which this experiment does not measure.
+EQUILIBRIUM_BAND = 0.10
 
 
 def _ci95(values: Any) -> tuple[float, float]:
@@ -59,8 +64,41 @@ def _ci95(values: Any) -> tuple[float, float]:
     return float(a.mean()), float(1.96 * a.std(ddof=1) / math.sqrt(a.size))
 
 
-def one_run(kind: str, seed: int, args: argparse.Namespace) -> tuple[float, float]:
-    """Evolve one architecture once. Returns (best fitness, population mean fitness)."""
+def genome_size(kind: str, agent: Any) -> int:
+    """How many free numbers selection is searching over, per individual.
+
+    Stated explicitly per kind rather than discovered by scanning attributes, because a wrong
+    count here would quietly misreport the one caveat this table most needs: the three substrates
+    do not present the GA with comparably sized spaces.
+    """
+    if kind == "qlearning":
+        return int(agent.Q.size)
+    if kind == "markov_brain":
+        return int(agent.W.size + agent.bias.size)
+    if kind == "dqn":
+        return int(sum(t.numel() for t in agent.policy.state_dict().values()))
+    raise ValueError(f"no genome size defined for {kind!r}")
+
+
+def still_climbing(history: list[dict], tail: float = 0.25, margin: float = 0.02) -> bool:
+    """Was the population still improving when the run was stopped?
+
+    Compares the mean best fitness over the last `tail` of generations against the block before
+    it. A run that is still climbing has not converged, and its final number says where the search
+    had got to rather than where it ends up -- which is exactly how a short run produces a ranking
+    that a longer one reverses.
+    """
+    n = len(history)
+    window = max(1, int(n * tail))
+    if n < 2 * window:
+        return True
+    late = float(np.mean([h["best"] for h in history[-window:]]))
+    earlier = float(np.mean([h["best"] for h in history[-2 * window:-window]]))
+    return late > earlier + margin * max(1.0, abs(earlier))
+
+
+def one_run(kind: str, seed: int, args: argparse.Namespace) -> dict[str, Any]:
+    """Evolve one architecture once, with the diagnostics the headline numbers need."""
     spawn, crossover = evolvable(kind)
     config = EvolutionConfig(
         population_size=args.population, generations=args.generations,
@@ -74,7 +112,12 @@ def one_run(kind: str, seed: int, args: argparse.Namespace) -> tuple[float, floa
         return PublicGoodsGame(n_agents=args.n_agents, rounds=args.match_rounds, mpcr=args.mpcr)
 
     result = evolve(game_factory, config, spawn=spawn, crossover=crossover)
-    return float(result.fitness.max()), float(result.fitness.mean())
+    return {
+        "best": float(result.fitness.max()),
+        "mean": float(result.fitness.mean()),
+        "genome": genome_size(kind, result.best),
+        "still_climbing": still_climbing(result.fitness_history),
+    }
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -114,30 +157,70 @@ def main(argv: Optional[list[str]] = None) -> int:
           f"{args.seeds} seed(s) per substrate\n"
           f"  lifetime learning: {args.lifetime_learning}\n")
 
+    # The game's own two reference points, which is what makes the split below a reading of the
+    # game rather than a clustering choice. Universal defection is the unique Nash equilibrium and
+    # pays 0; universal contribution pays (mpcr*n - 1) per round to everyone.
+    coop_payoff = args.match_rounds * (args.mpcr * args.n_agents - 1.0)
+    at_equilibrium = EQUILIBRIUM_BAND * coop_payoff
+    print(f"  reference points: universal defection pays 0, universal contribution pays "
+          f"{coop_payoff:.1f}\n  a seed counts as having found the equilibrium below "
+          f"{at_equilibrium:.1f}\n")
+
     results: dict[str, Any] = {}
     for kind in args.kinds:
-        bests, means = [], []
+        runs = []
         for seed in range(1, args.seeds + 1):
-            best, mean = one_run(kind, seed, args)
-            bests.append(best)
-            means.append(mean)
-            print(f"  {LABELS[kind]:18} seed {seed:2d}   best {best:8.3f}   mean {mean:8.3f}")
-        results[kind] = {"label": LABELS[kind], "best": bests, "mean": means}
+            run = one_run(kind, seed, args)
+            runs.append(run)
+            flag = "  still climbing" if run["still_climbing"] else ""
+            print(f"  {LABELS[kind]:18} seed {seed:2d}   best {run['best']:8.3f}   "
+                  f"mean {run['mean']:8.3f}{flag}")
+        results[kind] = {"label": LABELS[kind], "runs": runs,
+                         "genome": runs[0]["genome"],
+                         "best": [r["best"] for r in runs],
+                         "mean": [r["mean"] for r in runs]}
         print()
 
-    print(f"  {'substrate':18} {'best fitness':>22} {'population mean':>22}")
-    print("  " + "-" * 64)
+    print(f"  {'substrate':18} {'genome':>8} {'best fitness':>22} {'population mean':>22}")
+    print("  " + "-" * 74)
     for kind in args.kinds:
         bm, bh = _ci95(results[kind]["best"])
         mm, mh = _ci95(results[kind]["mean"])
-        print(f"  {LABELS[kind]:18} {f'{bm:+.3f} +/- {bh:.3f}':>22} "
-              f"{f'{mm:+.3f} +/- {mh:.3f}':>22}")
+        print(f"  {LABELS[kind]:18} {results[kind]['genome']:>8} "
+              f"{f'{bm:+.3f} +/- {bh:.3f}':>22} {f'{mm:+.3f} +/- {mh:.3f}':>22}")
         results[kind]["summary"] = {"best": [bm, bh], "mean": [mm, mh]}
 
-    print("\n  Universal defection is the unique Nash equilibrium of this configuration and pays "
-          "exactly 0.\n  A substrate converging there has found it; one sitting above it is the "
-          "row worth examining.\n  Read the spread before the ordering: these are different "
-          "search spaces under one set of\n  GA constants, not a like-for-like contest.")
+    # The part that decides whether the row above means anything. A set of seeds that lands in two
+    # places has no centre, so its mean describes neither; `run_bakeoff.py` already reports the
+    # tabular split this way rather than averaging over it.
+    print()
+    for kind in args.kinds:
+        bests = np.asarray(results[kind]["best"], dtype=float)
+        found = bests < at_equilibrium
+        results[kind]["found_equilibrium"] = int(found.sum())
+        if found.any() and (~found).any():
+            print(f"  {LABELS[kind]}: SPLIT, {int(found.sum())}/{len(bests)} seeds found the "
+                  f"equilibrium (mean {bests[found].mean():.2f}); the other "
+                  f"{int((~found).sum())} sustained contribution (mean {bests[~found].mean():.2f}).")
+            print(f"    The interval above is averaging over two outcomes and describes neither. "
+                  f"Report the split.")
+        elif found.all():
+            print(f"  {LABELS[kind]}: every seed found the equilibrium.")
+        else:
+            print(f"  {LABELS[kind]}: no seed found the equilibrium.")
+
+    climbing = {kind: sum(r["still_climbing"] for r in results[kind]["runs"])
+                for kind in args.kinds}
+    if any(climbing.values()):
+        print(f"\n  NOT CONVERGED: " + ", ".join(
+            f"{LABELS[k]} {climbing[k]}/{args.seeds}" for k in args.kinds if climbing[k]))
+        print(f"  Those runs were still improving at generation {args.generations}, so their "
+              f"numbers say where the\n  search had reached, not where it settles. A ranking "
+              f"taken here can reverse with more generations.")
+
+    print("\n  Genome sizes above are per individual. One generation of mutation at a fixed rate "
+          "explores a\n  very different fraction of each space, so a slower substrate may have a "
+          "larger space and not a\n  worse one. Nothing in this table separates those.")
 
     results["_config"] = {
         "kinds": args.kinds, "seeds": args.seeds, "population": args.population,

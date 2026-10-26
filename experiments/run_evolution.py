@@ -19,7 +19,7 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-from ..agents.markov_brain import crossover as mb_crossover, spawn as mb_spawn
+from ..agents.factory import EVOLVABLE_KINDS, evolvable
 from ..engine.console import LiveConsole
 from ..engine.eventlog import EventLog
 from ..engine.evolution import EvolutionConfig, evolve
@@ -28,7 +28,14 @@ from ..games.public_goods import PublicGoodsGame
 
 def main() -> None:
     ap = argparse.ArgumentParser(
-        description="GameBrains — evolve Markov-brain animats on the Public Goods Game")
+        description="GameBrains — evolve one architecture on the Public Goods Game")
+    ap.add_argument("--architecture", default="markov_brain", choices=list(EVOLVABLE_KINDS),
+                    help="what a genome is. The default keeps this script's historical "
+                         "behaviour; the others search a Q-table or a network under the "
+                         "identical GA")
+    ap.add_argument("--lifetime-learning", default="off", choices=["off", "lamarckian"],
+                    help="whether an individual keeps what its own fitness match taught it. "
+                         "A Markov brain has no learning rule, so this cannot reach it")
     ap.add_argument("--agents", type=int, default=4, help="game.n_agents; must divide --population")
     ap.add_argument("--population", type=int, default=20)
     ap.add_argument("--generations", type=int, default=30)
@@ -45,6 +52,8 @@ def main() -> None:
     config = EvolutionConfig(
         population_size=args.population, generations=args.generations,
         match_rounds=args.match_rounds, n_hidden=args.n_hidden, seed=args.seed,
+        lifetime_learning=args.lifetime_learning,
+        name_prefix={"markov_brain": "MB", "qlearning": "QL", "dqn": "DQ"}[args.architecture],
     )
 
     results_dir = Path(__file__).resolve().parents[1] / "results"
@@ -53,14 +62,15 @@ def main() -> None:
 
     console = LiveConsole()
     console.rule("═")
-    print(f"  GameBrains · evolving Markov-brain animats · Public Goods Game n={args.agents}")
+    print(f"  GameBrains · evolving {args.architecture} · Public Goods Game n={args.agents}")
     print(f"  population={args.population}  generations={args.generations}  "
           f"match_rounds={args.match_rounds}  n_hidden={args.n_hidden}  seed={args.seed}")
     console.rule("═")
 
     with EventLog(path=log_path) as log:
         log.meta(game=game_factory().describe(), config=vars(config))
-        result = evolve(game_factory, config, spawn=mb_spawn, crossover=mb_crossover,
+        spawn, crossover = evolvable(args.architecture)
+        result = evolve(game_factory, config, spawn=spawn, crossover=crossover,
                         console=console, eventlog=log)
 
     print()
@@ -70,7 +80,14 @@ def main() -> None:
     print(f"  best fitness: {result.fitness.max():.2f}   avg fitness: {result.fitness.mean():.2f}")
     print(f"  event-log: {log_path}")
 
-    if not args.skip_phi:
+    # Phi is defined here over the node-level dynamics of a small Markov brain, and is
+    # exponential in system size. A Q-table has no such decomposition to partition and a
+    # network has far too many nodes, so this is skipped by architecture rather than attempted.
+    if args.architecture != "markov_brain":
+        print(f"  Phi and causal autonomy are not computed for {args.architecture}: they are "
+              f"defined over a small Markov brain's node-level dynamics, which this genome "
+              f"does not have.")
+    elif not args.skip_phi:
         from ..metrics.phi_autonomy import causal_autonomy, compute_phi  # lazy: only needs pyphi here
 
         print()

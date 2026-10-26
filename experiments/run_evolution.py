@@ -44,6 +44,12 @@ def main() -> None:
     ap.add_argument("--mpcr", type=float, default=None)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--skip-phi", action="store_true", help="skip the Phi/autonomy step at the end")
+    ap.add_argument("--repo", type=str, default=None,
+                    help="repository root to record the outcome into (default: "
+                         "gamebrains/repo_store; pass '' to skip recording). The search itself "
+                         "is not a record: the fittest genome is frozen and seated against "
+                         "copies of itself for one evaluation match, and that match is what "
+                         "the ledger holds. See experiments/evolution_record.py")
     args = ap.parse_args()
 
     def game_factory():
@@ -79,6 +85,22 @@ def main() -> None:
     console.rule()
     print(f"  best fitness: {result.fitness.max():.2f}   avg fitness: {result.fitness.mean():.2f}")
     print(f"  event-log: {log_path}")
+
+    if args.repo != "":
+        from .evolution_record import record_evolution
+        repo_root = Path(args.repo) if args.repo else Path(__file__).resolve().parents[1] / "repo_store"
+        eval_log = results_dir / f"evolution_eval_n{args.agents}_{stamp}.jsonl"
+        record = record_evolution(repo_root, result, config, args.architecture,
+                                  game_factory, eval_log)
+        print()
+        console.rule()
+        print("  RECORDED (the frozen best genome in self-play, not the search)")
+        print(f"  config_hash: {record['config_hash']}")
+        print(f"  content_cid: {record['content_cid']}")
+        print(f"  cooperation: {record['metrics_summary']['cooperation_rate']:.4f}")
+        lineage = {k: v for k, v in record.get("lineage", {}).items() if v}
+        print(f"  lineage: {lineage or 'first run of this design'}")
+        print(f"  eval event-log: {eval_log}")
 
     # Phi is defined here over the node-level dynamics of a small Markov brain, and is
     # exponential in system size. A Q-table has no such decomposition to partition and a

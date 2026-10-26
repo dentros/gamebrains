@@ -52,12 +52,22 @@ DEFAULT_CODE_VERSION = _git_code_version()
 # (not the constructor call) so this works uniformly whether the agent was built by run_pgg.py,
 # the webui, or anything else. Missing attributes are simply omitted, not errors: an older agent
 # class without one of these fields still hashes fine, just without that dimension.
+#: `evolved_by` on the three evolvable kinds names the genetic algorithm that produced the genome
+#: in the seat: generations, population, mutation and the lifetime-learning reading. A policy the
+#: GA found and one gradient descent found are not the same experiment even when every other
+#: hyperparameter agrees, and two GA settings that search very differently are not either.
+#:
+#: It costs no existing record its identity, which is why it could be added without the one-time
+#: rehash that `profile` needed for llm seats. `_agent_params` below reads each attribute under
+#: `hasattr`, so a seat that was trained rather than evolved contributes no such key and its
+#: roster description is byte-for-byte what it always was. Verified by comparing a plain
+#: Q-learning roster's config_hash against the value computed before this line existed.
 _PARAM_ATTRS: dict[str, tuple[str, ...]] = {
-    "qlearning": ("alpha", "gamma", "epsilon_decay", "epsilon_min"),
+    "qlearning": ("alpha", "gamma", "epsilon_decay", "epsilon_min", "evolved_by"),
     "dqn": ("hidden", "lr", "gamma", "epsilon_decay", "epsilon_min", "buffer_size",
-            "batch_size", "train_every", "target_sync_every"),
+            "batch_size", "train_every", "target_sync_every", "evolved_by"),
     "fep": ("reciprocity", "obs_noise", "drift", "precision"),
-    "markov_brain": ("n_hidden",),
+    "markov_brain": ("n_hidden", "evolved_by"),
     "classic": ("strategy", "p"),
     # For an LLM seat the model tag and whether the server constrained decoding to the schema are
     # design decisions, not runtime detail: the same prompt answered by a different model, or by

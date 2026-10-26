@@ -50,6 +50,7 @@ from ..games.congestion import from_preset as congestion_from_preset
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import equilibrium, graph, information, social, social_alt
 from ..experiments import sweep
+from ..experiments.evolution_record import record_evolution
 from ..repository import coverage, meta_analysis
 from ..repository.bundle import (
     BundleRejected, export_bundle, import_bundle, list_sources, load_records, untag,
@@ -1653,11 +1654,26 @@ def evolve_run():
     # and a hand-off that hands back nothing usable is worse than an absent one.
     genome_cid = _save_genome(best) if is_markov else None
 
+    # The search's outcome enters the repository the way every other outcome does, so lineage, the
+    # Smart Filter, /compare and /meta cover evolution too. Until this call existed, an
+    # evolutionary run reached none of them. The record is one evaluation match of the frozen best
+    # genome against copies of itself; see experiments/evolution_record.py for why not the search.
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    eval_log = _RESULTS_DIR / f"webui_evo_n{n_agents}_{stamp}.jsonl"
+    evo_record = record_evolution(_REPO_ROOT, result, cfg, architecture, game_factory, eval_log)
+    repo_info = {
+        "config_hash": evo_record["config_hash"][:12],
+        "content_cid": evo_record["content_cid"][:12],
+        "cooperation_rate": evo_record["metrics_summary"].get("cooperation_rate"),
+        "lineage": [k for k, v in evo_record["lineage"].items() if v],
+        "reproducibility": evo_record["reproducibility"]["tier"],
+    }
+
     return render_template(
         "evolve_result.html", cfg=cfg, n_agents=n_agents, architecture=architecture,
         best_fitness=float(result.fitness.max()), avg_fitness=float(result.fitness.mean()),
         fitness_svg=fitness_svg(result.fitness_history), evo_log=evo_log, phi_info=phi_info,
-        phi_note=phi_note, bakeoff=bakeoff, genome_cid=genome_cid,
+        phi_note=phi_note, bakeoff=bakeoff, genome_cid=genome_cid, repo_info=repo_info,
     )
 
 

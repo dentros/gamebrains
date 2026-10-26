@@ -34,6 +34,25 @@
 </div>
 {% endif %}
 
+{% if repo_info %}
+<div class="panel">
+  <h2>In the repository</h2>
+  <p class="meta">The search itself is not a record. The fittest genome was frozen, seated against
+  copies of itself for one evaluation match, and that match is what the ledger holds &mdash; so this
+  run is visible to lineage detection, the Smart Filter, Compare and Meta-analysis like any other.
+  The search parameters ride along as <code>evolved_by</code>, which means a genome this GA found
+  never shares an identity with one gradient descent found.</p>
+  <table>
+    <tr><th>config_hash</th><th>content_cid</th><th>cooperation</th><th>reproducibility</th><th>lineage</th></tr>
+    <tr><td><code>{{ repo_info.config_hash }}</code></td>
+        <td><code>{{ repo_info.content_cid }}</code></td>
+        <td>{{ "%.4f"|format(repo_info.cooperation_rate) }}</td>
+        <td>{{ repo_info.reproducibility }}</td>
+        <td>{{ repo_info.lineage|join(', ') if repo_info.lineage else 'first run of this design' }}</td></tr>
+  </table>
+</div>
+{% endif %}
+
 {% if phi_note %}
 <div class="panel">
   <h2>Integrated information</h2>

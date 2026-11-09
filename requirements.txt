@@ -14,7 +14,9 @@ pygambit
 # Optional downstream consumers, for tests/test_interop_*.py only. Not needed to use the platform;
 # each of those test modules skips cleanly when its library is absent. Costs measured, not assumed
 # (see CLAUDE.md 9c): SB3 works as-is, RLlib needs interop.wrappers.OneHotObs, MLPro needs
-# interop.wrappers.register_gym_env, and MLPro's PettingZoo route cannot accept a third-party env.
+# interop.wrappers.register_gym_env, and MLPro's PettingZoo route needs
+# interop.wrappers.to_mlpro_pettingzoo (an earlier note here called that route impossible; running
+# it showed otherwise, see CLAUDE.md 9i).
 # stable-baselines3
 # ray[rllib]
 # mlpro
@@ -22,11 +24,27 @@ pygambit
 # mlpro-int-pettingzoo
 # dill            # undeclared MLPro requirement; its bridges do not import without it
 # multiprocess    # same
+# matplotlib      # only experiments/inspect_log.py and experiments/make_paper1_figure.py
 
-# Later phases (install when we reach them):
-# pyphi is NOT installed from PyPI as-is — see gamebrains/vendor/pyphi/FORK_NOTES.md.
-# The vendored fork lives in gamebrains/vendor/pyphi/; add gamebrains/vendor to sys.path.
-# networkx     # Phase 4 — graph-theoretic metrics (ships as a pyphi/pygambit transitive dep already)
+# Phi and causal autonomy (vendor/pyphi/). pyphi is NOT installed from PyPI as-is, see
+# gamebrains/vendor/pyphi/FORK_NOTES.md; the fork lives in gamebrains/vendor/pyphi/, and code that
+# imports it directly adds gamebrains/vendor to sys.path. These are its own runtime dependencies,
+# and it imports every one of them when it loads, the two database clients included, whether or not
+# a cache backend is configured. Found missing by installing from a clean clone, where the fork
+# failed to import.
+joblib
+pyyaml
+psutil
+tblib
+decorator
+tqdm
+pymongo
+redis
+# networkx     # graph-theoretic metrics (ships as a pyphi/pygambit transitive dep already)
+
+# Transfer-entropy stationarity diagnostic (metrics/information.py, ADF and KPSS). Without it the
+# diagnostic reports that it could not run, and its test fails.
+statsmodels
 
 # Repository-lite (Ed25519-signed ledger + content store).
 cryptography

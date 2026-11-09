@@ -35,8 +35,10 @@ that relates to co-authorship on the accompanying papers.
 - **Agents** (`agents/`), all sharing one `Agent` contract (`act`/`update`/`inspect`/`render_brain`):
   tabular Q-learning, a Deep Q-Network (PyTorch), a Free-Energy-Principle / active-inference agent
   (Theory-of-Mind-relevant belief tracking), an evolvable Markov-brain animat (genetic algorithm
-  plus Φ and causal autonomy via a maintained PyPhi compatibility fork, `vendor/pyphi/`), and
-  classic fixed strategies (AllC/AllD/Random/Majority-TFT).
+  plus Φ and causal autonomy via a maintained PyPhi compatibility fork, `vendor/pyphi/`), classic
+  fixed strategies (AllC/AllD/Random/Majority-TFT), and a language-model agent that decides through
+  a model served locally by Ollama, with a replay backend that reproduces its recorded decisions.
+  A person can also take a seat from the browser, under the same contract as every agent.
 - **Metrics** (`metrics/`): social (cooperation rate, efficiency, payoff Gini, action entropy),
   Nash equilibrium detection (`pygambit`), Φ and causal autonomy (`vendor/pyphi/`),
   information-theoretic measures (mutual information, transfer entropy with a blockwise surrogate
@@ -75,6 +77,15 @@ python -m gamebrains.experiments.run_evolution                                  
 python -m gamebrains.webui.app   # -> http://127.0.0.1:5000/
 ```
 
+**Play a seat yourself.** In the web UI, add a row of kind *Human (you)* to the roster and run the
+match. The browser moves to a board that asks you for each move, while every other seat plays as
+usual. A run with a person in it is recorded as not reproducible, because a person does not repeat
+themselves.
+
+**Language-model seat.** It needs [Ollama](https://ollama.com) running locally with a model
+pulled, for example `ollama serve` and then `ollama pull llama3.2:1b`. The *LLM (Ollama)* row
+offers the models the server reports. Nothing else in the platform needs Ollama.
+
 Event-logs are written to `gamebrains/results/*.jsonl` (JSON-Lines: a `meta` header, then `round`,
 `episode`, `brain_snapshot` and `generation` events). Every consumer reads the same stream, the
 terminal console, the web UI and the post-hoc metrics alike.
@@ -82,7 +93,7 @@ terminal console, the web UI and the post-hoc metrics alike.
 ## Tests
 
 ```bash
-python -m gamebrains.tests.run_all              # all 23 modules
+python -m gamebrains.tests.run_all              # every test module
 python -m gamebrains.tests.run_all --skip-slow  # omits the two slow ones
 ```
 

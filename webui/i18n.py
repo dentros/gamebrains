@@ -26,8 +26,8 @@ from __future__ import annotations
 from typing import Optional
 
 #: Language codes this interface serves, the first being the default.
-LANGS = ("el", "en")
-DEFAULT_LANG = "el"
+LANGS = ("en", "el")
+DEFAULT_LANG = "en"
 
 #: Labels that are a canonical name rather than a description: a parameter as the code and the
 #: ledger spell it, a measure as the papers name it, an architecture as its literature calls it.

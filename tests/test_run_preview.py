@@ -137,8 +137,9 @@ def test_the_analytics_table_opens_and_selects_runs() -> None:
 def test_meta_pools_by_design_and_reports_the_seeds_it_pooled() -> None:
     with _Repo() as root:
         _record_runs(root, seeds=(0, 1, 2))
-        # Pinned to English, since the interface defaults to Greek and this assertion is about
-        # the page's wording. The arithmetic below is language-independent and is the real subject.
+        # Pinned to English, so the assertion holds whatever the interface's default language is,
+        # since it is about the page's wording. The arithmetic below is language-independent and
+        # is the real subject.
         page = webui.app.test_client().get(
             "/meta?metric=cooperation_rate&lang=en").get_data(as_text=True)
 

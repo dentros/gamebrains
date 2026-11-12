@@ -32,23 +32,28 @@ keywords:
 references:
   - type: conference-paper
     title: >-
-      Rotational Periodicity: a scalable metric for turn-taking evaluation in
-      multi-agent systems
+      A comprehensive framework for turn-taking evaluation in multi-agent
+      systems: rotational periodicity for scalable coordination analysis
     authors:
       - family-names: Papadopoulos
         given-names: Nikolaos Al.
       - family-names: Taratori
-        given-names: Rafaela
+        given-names: Rallou
       - family-names: Sanchez-Fibla
         given-names: Marti
       - family-names: Psannis
         given-names: Konstantinos E.
     collection-title: >-
-      Proceedings of the 22nd International Conference on Modelling Decisions
-      for Artificial Intelligence (MDAI 2025)
+      Artificial Intelligence and Soft Computing (ICAISC 2025), Lecture Notes in
+      Computer Science 15950
     publisher:
       name: Springer
-    year: 2025
+    year: 2026
+    start: 191
+    end: 203
+    conference:
+      name: MDAI 2025 (presented)
+      city: Valencia
     doi: 10.1007/978-3-032-03711-4_16
     notes: >-
       The turn-taking measures reimplemented in metrics/social_alt.py. Cite this

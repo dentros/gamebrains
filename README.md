@@ -129,24 +129,20 @@ that project's own license.
 
 This is active research software. Please cite the most specific publication available at the time:
 
-1. **Preprint** (arXiv), not yet posted for this platform. Single-authored (N. Al. Papadopoulos
-   only). Check back or open an issue.
-2. **Conference paper**, *GameBrains: A Platform for Cognitive Agent Interaction in Game-Theoretic
-   Scenarios*. Citation details to be added once accepted or published. Lists additional co-authors
-   for supervision and review, see "Authorship" above.
-3. **Journal paper** (software venue, in submission). Citation details to be added once accepted
-   or published. Same co-authorship basis as the conference paper.
+1. **Journal paper** (software venue, in preparation). Citation details will be added once it is
+   published.
 
-Until all three exist, citing this repository with a commit hash is acceptable.
+Until then, citing this repository with a commit hash is acceptable.
 
 The temporal-fairness measures implemented in `metrics/social_alt.py`, and the congestion game
 family in `games/congestion.py`, are the author's own prior published work, reimplemented here
 rather than devised here. Please cite the originals when those are used:
 
-> N. Al. Papadopoulos, R. Taratori, M. Sanchez-Fibla, and K. E. Psannis, "Rotational Periodicity: a
-> scalable metric for turn-taking evaluation in multi-agent systems," in *Proc. 22nd Int. Conf. on
-> Modelling Decisions for Artificial Intelligence (MDAI 2025)*, Valencia, Spain, 2025. Springer
-> LNCS vol. 15950. [doi:10.1007/978-3-032-03711-4_16](https://doi.org/10.1007/978-3-032-03711-4_16)
+> N. Al. Papadopoulos, R. Taratori, M. Sanchez-Fibla, and K. E. Psannis, "A comprehensive framework
+> for turn-taking evaluation in multi-agent systems: rotational periodicity for scalable coordination
+> analysis," in *Artificial Intelligence and Soft Computing (ICAISC 2025)*, LNCS vol. 15950,
+> pp. 191-203. Cham: Springer, 2026. Presented at MDAI 2025, Valencia.
+> [doi:10.1007/978-3-032-03711-4_16](https://doi.org/10.1007/978-3-032-03711-4_16)
 
 > N. Al. Papadopoulos and M. Sanchez-Fibla, "Alternation measures for the evaluation of selfish
 > agents' turn-taking," in *Artificial Intelligence Research and Development*, IOS Press, 2021,

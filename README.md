@@ -18,8 +18,14 @@ author's prior alternation-metrics project, per-phase build notes).
 **Nikolaos Al. Papadopoulos**
 PhD candidate, Department of Applied Informatics, University of Macedonia, Thessaloniki, Greece
 
+He works on coordination, turn-taking and temporal fairness among learning agents in repeated
+games, a line of research that began with his MSc in Cognitive Systems and Interactive Media at
+Universitat Pompeu Fabra and continues in his doctoral work, of which this platform is part.
+
 - ORCID: [0000-0003-1842-8227](https://orcid.org/0000-0003-1842-8227)
 - Google Scholar: [XkunCRsAAAAJ](https://scholar.google.com/citations?user=XkunCRsAAAAJ)
+- LinkedIn: [nikos-al-papadopoulos](https://www.linkedin.com/in/nikos-al-papadopoulos)
+- ResearchGate: [Nikolaos-Papadopoulos](https://www.researchgate.net/profile/Nikolaos-Papadopoulos)
 - GitHub: [@dentros](https://github.com/dentros)
 - Email: nikolaos.papadopoulos@uom.edu.gr
 

@@ -192,6 +192,18 @@ def test_the_measure_refuses_records_without_a_count() -> None:
     raise AssertionError("cooperation_rate accepted records with no count and read index 1")
 
 
+def test_the_policy_panel_counts_the_concede_action() -> None:
+    """The results page's "policy vs behavior" line counted `a == 1` in the greedy policy as
+    cooperating, which in the congestion family is the number of states where it claims."""
+    from ..webui.app import _policy_vs_behavior_html
+    brain = {"greedy_policy": [0, 0, 1], "epsilon": 0.0}
+    text = _policy_vs_behavior_html(brain, 0.5, concede=0)
+    assert "2/3 states" in text, f"a policy conceding in 2 of 3 states was described as: {text}"
+    assert _policy_vs_behavior_html(brain, 0.5) == "", (
+        "with no declared concede action the panel still claimed to know what cooperating is")
+    print("OK: the policy panel counts the game's concede action, and says nothing without one")
+
+
 if __name__ == "__main__":
     failures = 0
     for fn_name, fn in sorted(globals().items()):
@@ -201,5 +213,8 @@ if __name__ == "__main__":
             except AssertionError as exc:
                 failures += 1
                 print(f"FAIL {fn_name}\n     {exc}")
+            except Exception as exc:  # a changed signature is a failure, not a crash
+                failures += 1
+                print(f"ERROR {fn_name}\n     {type(exc).__name__}: {exc}")
     print(f"\n{'all cooperation-semantics tests passed' if not failures else f'{failures} failed'}")
     sys.exit(1 if failures else 0)

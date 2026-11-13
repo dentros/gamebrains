@@ -1102,8 +1102,10 @@ games report the count, so the fallback never ran, no test reached it, and a gam
 with a message naming both fixes. `social.cooperation_rate` lost its matching fallback and refuses
 records without a count. The guide has a "Who cooperated" subsection and a checklist line.
 `run_bakeoff.one_bakeoff` had a fourth copy, `(actions == 1).mean(axis=0)` per seat; it reads the
-declared role now. Tests: three new cases in `test_cooperation_semantics.py`, all failing on the old
-code.
+declared role now, and so do the two webui copies found afterwards: the per-seat rate on each
+creature card (`actions.mean(axis=0)`) and the "policy vs behavior" line, which counted `a == 1`
+in the greedy policy. In the congestion family both described claiming as cooperating. Tests: four
+new cases in `test_cooperation_semantics.py`, all failing on the old code.
 
 ### The bake-off wrapper misdescribed every frozen agent (`agents/frozen.py`, new)
 

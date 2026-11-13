@@ -687,16 +687,20 @@ def _llm_html(brain: dict) -> str:
     )
 
 
-def _policy_vs_behavior_html(brain: dict, coop_rate: float | None) -> str:
+def _policy_vs_behavior_html(brain: dict, coop_rate: float | None,
+                             concede: int | None = None) -> str:
     """Explainability correlation for RL agents: what the learned greedy policy WOULD do (how many
     states it picks Cooperate in) next to what the agent ACTUALLY did this match. A large gap with
     high epsilon is exploration, not a bug; a large gap with epsilon near its floor means the
     policy shifted late in the match and the run-average no longer reflects it."""
+    # `concede` is the game's own index for the cooperative act. Counting `a == 1` here, as this
+    # panel used to, reported the claim count as cooperation in the congestion family. Without the
+    # game's declaration the panel says nothing rather than guess.
     policy = brain.get("greedy_policy")
-    if policy is None or coop_rate is None:
+    if policy is None or coop_rate is None or concede is None:
         return ""
     n_states = len(policy)
-    n_coop = int(sum(1 for a in policy if a == 1))
+    n_coop = int(sum(1 for a in policy if a == concede))
     eps = brain.get("epsilon")
     eps_note = f" with &epsilon; = {eps:.3f} still forcing random moves" if eps and eps > 0.1 else ""
     return (f"<p class='meta'><b>Policy vs behavior:</b> the greedy policy cooperates in "
@@ -745,17 +749,18 @@ _HELP_TOPICS["dqn"] = ("Deep Q-Network", (
 ))
 
 
-def render_creature(agent: Any, coop_rate: float | None = None) -> dict[str, Any]:
+def render_creature(agent: Any, coop_rate: float | None = None,
+                    concede: int | None = None) -> dict[str, Any]:
     brain = agent.render_brain()
     kind = brain.get("kind")
     if kind == "qlearning":
-        body = (_qtable_html(brain, "q_table") + _policy_vs_behavior_html(brain, coop_rate)
+        body = (_qtable_html(brain, "q_table") + _policy_vs_behavior_html(brain, coop_rate, concede)
                 + _help_trigger("qlearning"))
     elif kind == "dqn":
         net = f"<p class='meta'>net {'-'.join(map(str, brain.get('layers', [])))} " \
              f"&middot; loss={brain.get('last_loss', 0):.4f} &middot; {brain.get('device')}</p>"
         body = (net + _dqn_network_html(agent) + _qtable_html(brain, "q_values")
-                + _policy_vs_behavior_html(brain, coop_rate) + _help_trigger("dqn"))
+                + _policy_vs_behavior_html(brain, coop_rate, concede) + _help_trigger("dqn"))
     elif kind == "fep":
         body = _fep_html(brain) + _help_trigger("fep")
     elif kind == "markov_brain":
@@ -1332,8 +1337,13 @@ def _execute_single_run(f, roster_sink: Optional[list] = None) -> dict[str, Any]
         # quantity, so the alternation one is renamed rather than silently overwriting it.
         alt_detail["alt_efficiency"] = alt_detail.pop("efficiency")
         metrics.update({k: v for k, v in alt_detail.items() if not k.startswith("detail_")})
-    per_agent_coop = records["actions"].mean(axis=0)
-    creatures = [render_creature(a, coop_rate=float(per_agent_coop[i]))
+    # Per seat, by the role the game declares. `actions.mean(axis=0)` read index 1 as cooperating,
+    # which in the congestion family is claiming the jar.
+    concede = game.action_roles.get("concede")
+    per_agent_coop = ((records["actions"] == concede).mean(axis=0) if concede is not None
+                      else [None] * len(roster))
+    creatures = [render_creature(a, coop_rate=None if per_agent_coop[i] is None
+                                 else float(per_agent_coop[i]), concede=concede)
                  for i, a in enumerate(roster)]
     chart_svg = cooperation_svg(metrics["cooperation_series"])
 

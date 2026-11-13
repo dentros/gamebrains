@@ -9,7 +9,7 @@ length) and the full measure set in its Appendix C.
     python -m gamebrains.experiments.run_multiseed --json results.json
 
 Each master seed derives its own per-agent seeds, so runs are independent samples rather than slices
-of one trajectory. Reported as mean with a 95% interval of 1.96*s/sqrt(N), plus, where a direction of
+of one trajectory. Reported as mean with a 95% t interval, t(N-1)*s/sqrt(N), plus, where a direction of
 effect is claimed, the count of seeds showing it: a mean can hide a split population and a count
 cannot.
 
@@ -45,6 +45,7 @@ from ..engine.runner import run_match
 from ..games.congestion import from_preset
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import social
+from ..repository.meta_analysis import t95
 from ..metrics.social_alt import compute_all, coordination_score
 
 EPS_DECAY = 0.9997
@@ -56,7 +57,7 @@ def ci95(values) -> tuple[float, float]:
     a = np.asarray(values, dtype=float)
     if a.size < 2:
         return float(a.mean()), 0.0
-    return float(a.mean()), float(1.96 * a.std(ddof=1) / math.sqrt(a.size))
+    return float(a.mean()), float(t95(a.size - 1) * a.std(ddof=1) / math.sqrt(a.size))
 
 
 def fmt(mean: float, half: float) -> str:

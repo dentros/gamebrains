@@ -42,6 +42,8 @@ from typing import Any, Optional
 
 import numpy as np
 
+from ..repository.meta_analysis import t95
+
 from ..agents.factory import EVOLVABLE_KINDS, evolvable
 from ..engine.evolution import EvolutionConfig, evolve
 from ..games.public_goods import PublicGoodsGame
@@ -61,7 +63,7 @@ def _ci95(values: Any) -> tuple[float, float]:
     a = np.asarray(values, dtype=float)
     if a.size < 2:
         return float(a.mean()), 0.0
-    return float(a.mean()), float(1.96 * a.std(ddof=1) / math.sqrt(a.size))
+    return float(a.mean()), float(t95(a.size - 1) * a.std(ddof=1) / math.sqrt(a.size))
 
 
 def genome_size(kind: str, agent: Any) -> int:

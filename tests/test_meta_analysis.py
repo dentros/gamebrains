@@ -169,6 +169,18 @@ def test_design_key_reads_the_two_tiers_that_define_an_experiment() -> None:
     assert design_key({"config_hash": "aaa"}) == ("aaa", "")
 
 
+def test_the_t_multiplier_is_never_below_the_true_one():
+    """Between tabulated degrees of freedom the multiplier must round up, or the interval is too
+    narrow. It used to take the next tabulated df up, which read 2.060 at df 21 (true 2.080)."""
+    from gamebrains.repository.meta_analysis import t95
+    exact = {9: 2.262, 21: 2.080, 29: 2.045, 33: 2.035, 45: 2.014, 90: 1.987}
+    for df, true in exact.items():
+        assert t95(df) >= true - 5e-4, f"df={df}: {t95(df)} is below the true {true}"
+    values = [t95(df) for df in range(1, 400)]
+    assert all(a >= b for a, b in zip(values, values[1:])), "the multiplier grew with df somewhere"
+    print("OK: the t multiplier never falls below the true value and falls with df")
+
+
 if __name__ == "__main__":
     test_the_interval_uses_the_right_multiplier_for_the_sample_size()
     test_one_run_gets_no_interval_rather_than_a_zero_one()
@@ -178,4 +190,5 @@ if __name__ == "__main__":
     test_shared_designs_are_the_ones_worth_comparing()
     test_a_group_reports_whether_every_run_in_it_could_be_reproduced()
     test_design_key_reads_the_two_tiers_that_define_an_experiment()
+    test_the_t_multiplier_is_never_below_the_true_one()
     print("\nall meta-analysis tests passed")

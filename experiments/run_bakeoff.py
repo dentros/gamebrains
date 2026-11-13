@@ -36,6 +36,7 @@ from ..engine.evolution import EvolutionConfig, evolve
 from ..engine.runner import run_match
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import social
+from ..repository.meta_analysis import t95
 
 N_AGENTS = 5
 MPCR = 0.5
@@ -120,7 +121,7 @@ def ci95(values) -> tuple[float, float]:
     a = np.asarray(values, dtype=float)
     if a.size < 2:
         return float(a.mean()), 0.0
-    return float(a.mean()), float(1.96 * a.std(ddof=1) / math.sqrt(a.size))
+    return float(a.mean()), float(t95(a.size - 1) * a.std(ddof=1) / math.sqrt(a.size))
 
 
 def main(argv: Optional[list[str]] = None) -> None:

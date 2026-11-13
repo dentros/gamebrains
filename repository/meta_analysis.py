@@ -40,19 +40,29 @@ from typing import Any, Iterable, Optional
 #: interval by nearly a factor of two.
 _T95 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306,
         9: 2.262, 10: 2.228, 11: 2.201, 12: 2.179, 13: 2.160, 14: 2.145, 15: 2.131,
-        16: 2.120, 17: 2.110, 18: 2.101, 19: 2.093, 20: 2.086, 25: 2.060, 30: 2.042,
+        16: 2.120, 17: 2.110, 18: 2.101, 19: 2.093, 20: 2.086, 21: 2.080, 22: 2.074,
+        23: 2.069, 24: 2.064, 25: 2.060, 26: 2.056, 27: 2.052, 28: 2.048, 29: 2.045, 30: 2.042,
         40: 2.021, 60: 2.000, 120: 1.980}
 
 
-def _t95(df: int) -> float:
+def t95(df: int) -> float:
+    """The two-sided 95% t multiplier for `df` degrees of freedom, never smaller than the true one.
+
+    Between two tabulated values it takes the one for the smaller df, which is the larger
+    multiplier. It used to take the next tabulated df up, so df = 21 read 2.060 where the true value
+    is 2.080 and every interval in that gap came out slightly too narrow. The experiment scripts
+    use this too: they used to apply the normal 1.96 at N = 10, which understates a 95% interval
+    by about 13%.
+    """
     if df <= 0:
         return float("nan")
     if df in _T95:
         return _T95[df]
-    for key in sorted(_T95):
-        if df <= key:
-            return _T95[key]
-    return 1.960
+    below = [key for key in _T95 if key < df]
+    return _T95[max(below)] if below else _T95[min(_T95)]
+
+
+_t95 = t95
 
 
 def design_key(record: dict[str, Any]) -> tuple[str, str]:

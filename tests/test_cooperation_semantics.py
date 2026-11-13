@@ -199,6 +199,11 @@ def test_the_policy_panel_counts_the_concede_action() -> None:
     brain = {"greedy_policy": [0, 0, 1], "epsilon": 0.0}
     text = _policy_vs_behavior_html(brain, 0.5, concede=0)
     assert "2/3 states" in text, f"a policy conceding in 2 of 3 states was described as: {text}"
+    # A tie is not a preference: argmax reports index 0 for it, and the agent plays either.
+    tied = {"greedy_policy": [0, 0, 1], "q_table": [[0.0, 0.0], [1.0, 0.0], [0.0, 2.0]],
+            "epsilon": 0.0}
+    text = _policy_vs_behavior_html(tied, 0.5, concede=0)
+    assert "1/2 states" in text and "1 tied" in text, f"a tied state was counted: {text}"
     assert _policy_vs_behavior_html(brain, 0.5) == "", (
         "with no declared concede action the panel still claimed to know what cooperating is")
     print("OK: the policy panel counts the game's concede action, and says nothing without one")

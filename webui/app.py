@@ -457,11 +457,31 @@ def _mono_color(value: float, vmax: float) -> str:
     return f"background:rgba(46,204,113,{0.15 + 0.7 * t:.2f})"
 
 
+def _greedy_with_ties(brain: dict) -> Optional[list[Optional[int]]]:
+    """The greedy action per state, with None where the best values tie.
+
+    The agents' own `greedy_policy` is an `argmax`, which returns the first index on a tie, while
+    the tabular agent breaks ties at random when it acts. Shown as is, every unvisited state read
+    as a preference for action 0: "Defect" in the Public Goods Game and "Stay" in the congestion
+    family, for an agent that would in fact play either half the time.
+    """
+    policy = brain.get("greedy_policy")
+    q_raw = brain.get("q_table", brain.get("q_values"))
+    if policy is None or q_raw is None:
+        return policy
+    q = np.asarray(q_raw, dtype=float)
+    out: list[Optional[int]] = []
+    for s, row in enumerate(q):
+        best = row.max()
+        out.append(None if int(np.sum(np.abs(row - best) <= 1e-12)) > 1 else int(policy[s]))
+    return out
+
+
 def _qtable_html(brain: dict, q_key: str) -> str:
     q = np.asarray(brain[q_key])
     states = brain.get("state_labels") or [f"s{i}" for i in range(len(q))]
     actions = brain.get("action_labels") or [f"a{j}" for j in range(q.shape[1])]
-    policy = brain.get("greedy_policy")
+    policy = _greedy_with_ties(brain)
     vmax = float(np.abs(q).max()) if q.size else 1.0
     head = "".join(f"<th>{a}</th>" for a in actions)
     rows = []
@@ -469,7 +489,12 @@ def _qtable_html(brain: dict, q_key: str) -> str:
         cells = "".join(
             f"<td style='{_heat_color(v, vmax)}'>{v:+.2f}</td>" for v in row
         )
-        pick = f"<td class='pick'>&rarr; {actions[policy[s]]}</td>" if policy is not None else ""
+        if policy is None:
+            pick = ""
+        elif policy[s] is None:
+            pick = "<td class='pick'>tie</td>"
+        else:
+            pick = f"<td class='pick'>&rarr; {actions[policy[s]]}</td>"
         rows.append(f"<tr><th>{states[s]}</th>{cells}{pick}</tr>")
     eps = brain.get("epsilon")
     eps_txt = f"<p class='meta'>&epsilon; = {eps:.3f}</p>" if eps is not None else ""
@@ -724,16 +749,18 @@ def _policy_vs_behavior_html(brain: dict, coop_rate: float | None,
     # `concede` is the game's own index for the cooperative act. Counting `a == 1` here, as this
     # panel used to, reported the claim count as cooperation in the congestion family. Without the
     # game's declaration the panel says nothing rather than guess.
-    policy = brain.get("greedy_policy")
+    policy = _greedy_with_ties(brain)
     if policy is None or coop_rate is None or concede is None:
         return ""
-    n_states = len(policy)
-    n_coop = int(sum(1 for a in policy if a == concede))
+    decided = [a for a in policy if a is not None]
+    n_coop = int(sum(1 for a in decided if a == concede))
+    ties = len(policy) - len(decided)
+    tie_note = f" ({ties} tied, played either way)" if ties else ""
     eps = brain.get("epsilon")
     eps_note = f" with &epsilon; = {eps:.3f} still forcing random moves" if eps and eps > 0.1 else ""
     return (f"<p class='meta'><b>Policy vs behavior:</b> the greedy policy cooperates in "
-           f"{n_coop}/{n_states} states; this agent actually cooperated in "
-           f"{coop_rate * 100:.1f}% of rounds{eps_note}.</p>")
+           f"{n_coop}/{len(decided)} states where it prefers a move{tie_note}; this agent "
+           f"actually cooperated in {coop_rate * 100:.1f}% of rounds{eps_note}.</p>")
 
 
 _HELP_TOPICS["qlearning"] = ("Q-learning", (

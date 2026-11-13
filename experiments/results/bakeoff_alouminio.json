@@ -1,0 +1,68 @@
+{
+  "qlearning": {
+    "label": "Tabular Q",
+    "payoff": [
+      -0.06944999999999998,
+      0.0627294334919599
+    ],
+    "cooperation": [
+      0.30979999999999996,
+      0.13265813879458901
+    ]
+  },
+  "dqn": {
+    "label": "DQN",
+    "payoff": [
+      0.24035,
+      0.07047390256447181
+    ],
+    "cooperation": [
+      0.0,
+      0.0
+    ]
+  },
+  "fep": {
+    "label": "FEP (active inf.)",
+    "payoff": [
+      0.09665,
+      0.05730427038963927
+    ],
+    "cooperation": [
+      0.1437,
+      0.01554343025203896
+    ]
+  },
+  "markov_brain": {
+    "label": "Markov brain (GA)",
+    "payoff": [
+      0.21315,
+      0.07604264657560403
+    ],
+    "cooperation": [
+      0.027200000000000002,
+      0.011315310846616435
+    ]
+  },
+  "classic": {
+    "label": "AllD (reference)",
+    "payoff": [
+      0.24035,
+      0.07047390256447181
+    ],
+    "cooperation": [
+      0.0,
+      0.0
+    ]
+  },
+  "_match_cooperation": [
+    0.09614,
+    0.028189561025788727
+  ],
+  "_config": {
+    "n_agents": 5,
+    "mpcr": 0.5,
+    "pretrain_rounds": 3000,
+    "eval_rounds": 1000,
+    "seeds": 10
+  }
+}

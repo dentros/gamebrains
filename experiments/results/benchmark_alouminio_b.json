@@ -1,0 +1,308 @@
+{
+  "config": {
+    "n_agents": 4,
+    "rounds": 500,
+    "repeats": 2,
+    "versions": {
+      "python": "3.11.9",
+      "numpy": "2.4.6",
+      "platform": "Windows-10-10.0.26300-SP0",
+      "machine": "AMD64",
+      "processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+      "cpu_count": 12,
+      "torch": "2.12.1+cpu",
+      "networkx": "3.6.1",
+      "scipy": "1.17.1",
+      "statsmodels": "0.14.6",
+      "code_version": "git:fb4018d"
+    }
+  },
+  "architectures": {
+    "classic": {
+      "match": {
+        "runs": [
+          8038,
+          8038
+        ],
+        "mean": 8038.0,
+        "spread": 0
+      },
+      "construction": {
+        "runs": [
+          12,
+          12
+        ],
+        "mean": 12.0,
+        "spread": 0
+      },
+      "calls_per_agent_step": 4.019,
+      "construction_calls_per_agent": 3.0,
+      "peak_kib": 56.02734375,
+      "relative_to_classic": 1.0
+    },
+    "qlearning": {
+      "match": {
+        "runs": [
+          21904,
+          21904
+        ],
+        "mean": 21904.0,
+        "spread": 0
+      },
+      "construction": {
+        "runs": [
+          52,
+          52
+        ],
+        "mean": 52.0,
+        "spread": 0
+      },
+      "calls_per_agent_step": 10.952,
+      "construction_calls_per_agent": 13.0,
+      "peak_kib": 63.72265625,
+      "relative_to_classic": 2.7250559840756408
+    },
+    "markov_brain": {
+      "match": {
+        "runs": [
+          38896,
+          38896
+        ],
+        "mean": 38896.0,
+        "spread": 0
+      },
+      "construction": {
+        "runs": [
+          72,
+          72
+        ],
+        "mean": 72.0,
+        "spread": 0
+      },
+      "calls_per_agent_step": 19.448,
+      "construction_calls_per_agent": 18.0,
+      "peak_kib": 71.61328125,
+      "relative_to_classic": 4.839014680268724
+    },
+    "fep": {
+      "match": {
+        "runs": [
+          109014,
+          109014
+        ],
+        "mean": 109014.0,
+        "spread": 0
+      },
+      "construction": {
+        "runs": [
+          100,
+          100
+        ],
+        "mean": 100.0,
+        "spread": 0
+      },
+      "calls_per_agent_step": 54.507,
+      "construction_calls_per_agent": 25.0,
+      "peak_kib": 73.73828125,
+      "relative_to_classic": 13.562328937546653
+    },
+    "dqn": {
+      "match": {
+        "runs": [
+          1936010,
+          1936010
+        ],
+        "mean": 1936010.0,
+        "spread": 0
+      },
+      "construction": {
+        "runs": [
+          16154,
+          16154
+        ],
+        "mean": 16154.0,
+        "spread": 0
+      },
+      "calls_per_agent_step": 968.005,
+      "construction_calls_per_agent": 4038.5,
+      "peak_kib": 1174.6416015625,
+      "relative_to_classic": 240.8571784025877
+    }
+  },
+  "adapters": {
+    "native_runner": {
+      "runs": [
+        21904,
+        21904
+      ],
+      "mean": 21904.0,
+      "spread": 0,
+      "calls_per_round": 43.808,
+      "extra_calls_per_round": 0.0,
+      "overhead_vs_native": 0.0
+    },
+    "pettingzoo_adapter": {
+      "runs": [
+        24899,
+        24899
+      ],
+      "mean": 24899.0,
+      "spread": 0,
+      "calls_per_round": 49.798,
+      "extra_calls_per_round": 5.99,
+      "overhead_vs_native": 0.13673301680058436
+    },
+    "gymnasium_adapter": {
+      "runs": [
+        25413,
+        25413
+      ],
+      "mean": 25413.0,
+      "spread": 0,
+      "calls_per_round": 50.826,
+      "extra_calls_per_round": 7.018,
+      "overhead_vs_native": 0.1601990504017531
+    }
+  },
+  "metrics": {
+    "public_goods": {
+      "match": {
+        "runs": [
+          21904,
+          21904
+        ],
+        "mean": 21904.0,
+        "spread": 0
+      },
+      "families": {
+        "social": {
+          "runs": [
+            564,
+            564
+          ],
+          "mean": 564.0,
+          "spread": 0
+        },
+        "information": {
+          "runs": [
+            838628,
+            838628
+          ],
+          "mean": 838628.0,
+          "spread": 0
+        },
+        "graph": {
+          "runs": [
+            751,
+            751
+          ],
+          "mean": 751.0,
+          "spread": 0
+        }
+      },
+      "analysis_calls": 839943.0,
+      "analysis_as_fraction_of_match": 38.34655770635501,
+      "episodes": 1
+    },
+    "congestion_hjg": {
+      "match": {
+        "runs": [
+          23015,
+          23015
+        ],
+        "mean": 23015.0,
+        "spread": 0
+      },
+      "families": {
+        "social": {
+          "runs": [
+            564,
+            564
+          ],
+          "mean": 564.0,
+          "spread": 0
+        },
+        "information": {
+          "runs": [
+            838722,
+            838722
+          ],
+          "mean": 838722.0,
+          "spread": 0
+        },
+        "graph": {
+          "runs": [
+            751,
+            751
+          ],
+          "mean": 751.0,
+          "spread": 0
+        },
+        "alternation": {
+          "runs": [
+            5218,
+            5218
+          ],
+          "mean": 5218.0,
+          "spread": 0
+        }
+      },
+      "analysis_calls": 845255.0,
+      "analysis_as_fraction_of_match": 36.72626547903541,
+      "episodes": 222
+    }
+  },
+  "table_sizes": {
+    "congestion_q_table": [
+      {
+        "agents": 3,
+        "memory_episodes": 0,
+        "states": 27,
+        "kib_per_agent": 0.421875,
+        "kib_per_roster": 1.265625,
+        "accepted": true
+      },
+      {
+        "agents": 3,
+        "memory_episodes": 1,
+        "states": 216,
+        "kib_per_agent": 3.375,
+        "kib_per_roster": 10.125,
+        "accepted": true
+      },
+      {
+        "agents": 5,
+        "memory_episodes": 0,
+        "states": 243,
+        "kib_per_agent": 3.796875,
+        "kib_per_roster": 18.984375,
+        "accepted": true
+      },
+      {
+        "agents": 5,
+        "memory_episodes": 1,
+        "states": 7776,
+        "kib_per_agent": 121.5,
+        "kib_per_roster": 607.5,
+        "accepted": true
+      },
+      {
+        "agents": 10,
+        "memory_episodes": 0,
+        "states": 59049,
+        "kib_per_agent": 922.640625,
+        "kib_per_roster": 9226.40625,
+        "accepted": true
+      },
+      {
+        "agents": 10,
+        "memory_episodes": 1,
+        "states": 60466176,
+        "kib_per_agent": 944784.0,
+        "kib_per_roster": 9447840.0,
+        "accepted": false
+      }
+    ]
+  },
+  "states": null
+}

@@ -54,10 +54,12 @@ that relates to co-authorship on the accompanying papers.
   test, predictive information), graph-theoretic measures over the co-cooperation and influence
   networks, and the **ALT and RP temporal-fairness families**, reimplemented from the author's own
   published work and validated against its worked examples.
-- **Interoperability** (`interop/`): thin PettingZoo and Gymnasium adapters, plus the shims three
-  downstream ecosystems turned out to need. An external RL framework (RLlib, Stable-Baselines3,
-  MLPro) can train or evaluate against GameBrains's own cognitive agents without either side
-  knowing the other's implementation. All five routes are tested rather than asserted.
+- **Interoperability** (`interop/`): thin PettingZoo and Gymnasium adapters, through which five
+  ecosystems (PettingZoo, Gymnasium, Stable-Baselines3, RLlib, MLPro) reach the platform over six
+  routes. Three routes cost nothing, and three, into RLlib and MLPro, run through a documented shim
+  in `interop/wrappers.py`. An external RL framework can train or evaluate against GameBrains's own
+  cognitive agents without either side knowing the other's implementation. All six routes are
+  tested rather than asserted.
 - **Repository-lite** (`repository/`): a local, signed (Ed25519), append-only, content-addressed
   ledger with automatic `extends`/`replicates` lineage detection, plus a Smart Filter (exact and
   k-NN-similarity lookup). A "blockchain-lite" implementation of the decentralized-repository

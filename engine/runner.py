@@ -97,7 +97,7 @@ def run_match(
 
         actions_hist[t] = actions
         rewards_hist[t] = result.rewards
-        coop_hist[t] = result.info.get("cooperators", int(sum(actions)))
+        coop_hist[t] = _cooperators(game, actions, result.info)
         ep_rewards += result.rewards
         ep_rounds += 1
 
@@ -164,6 +164,33 @@ def run_match(
     return {"actions": actions_hist, "rewards": rewards_hist, "cooperators": coop_hist,
             "episodes": episodes, "partial_episode_rounds": ep_rounds,
             "partial_episode_policy": partial_episode}
+
+
+def _cooperators(game: Game, actions: Sequence[int], info: dict[str, Any]) -> int:
+    """How many players cooperated this round, by the game's own account and never by an index.
+
+    The game's own per-round count comes first. A game that reports none but declares a `concede`
+    role is counted by that role, since conceding is what the universal vocabulary means by
+    cooperating. A game with neither is refused.
+
+    This used to fall back to `sum(actions)`, which reads action 1 as cooperating. That is the
+    platform's own headline defect in its third location: right in the Public Goods Game, the
+    claim count in the congestion family, and nothing at all in a game with no concede axis. Both
+    shipped games report a count, so the fallback never fired and no test reached it, while a
+    third-party game written to `docs/adding-a-game.md` would have hit it with no refusal.
+    """
+    if "cooperators" in info:
+        return int(info["cooperators"])
+    concede = getattr(game, "action_roles", {}).get("concede")
+    if concede is not None:
+        return sum(1 for a in actions if a == concede)
+    raise ValueError(
+        f"{type(game).__name__} neither reports info['cooperators'] from step() nor declares a "
+        f"'concede' action role, so this platform cannot say who cooperated, and every "
+        f"cooperation measure would be a reading of action indices. Declare 'concede' if the "
+        f"game has a give-way action, or report the count from step(). A game with no such axis "
+        f"(a pure coordination game) has no cooperation rate, and the runner does not yet support "
+        f"one. See docs/adding-a-game.md section 2.")
 
 
 def _log_snapshots(eventlog: EventLog, agents: Sequence[Agent], rnd: int) -> None:

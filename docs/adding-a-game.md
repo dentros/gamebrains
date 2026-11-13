@@ -125,6 +125,25 @@ The runner calls `on_match_start` once before play. Both helpers raise a message
 game *does* declare, so the failure is actionable at setup rather than a wrong number at round
 40,000.
 
+### Who cooperated
+
+Every match reports a cooperation rate, and the runner takes the per-round count from your game,
+never from an action index. It uses, in order:
+
+1. `info["cooperators"]` from `step()`, if you report it, which is the right choice whenever your
+   game has its own definition of who cooperated;
+2. otherwise the number of players who played your declared `concede` action;
+3. otherwise nothing, and the match is refused with a message saying so.
+
+The runner used to fall back to counting action `1`, which is the defect described above in a third
+place. The two shipped games both report the count, so the fallback never ran and nothing caught
+it. A game written from this guide that declared neither would have had its claim count, or a
+meaningless number, reported as cooperation.
+
+A pure coordination game, with no concede axis, has no cooperation rate. Do not report an invented
+count to get past the refusal; the runner does not support such a game yet, and saying so is more
+useful than a number that means nothing.
+
 ## 3. Episodes
 
 If your game ends episodes early, set `done=True` and the runner restarts it with `reset()` until
@@ -195,6 +214,7 @@ Run one file with `python -m gamebrains.tests.test_my_game` from the project roo
 - [ ] observations are integers in `range(n_states)`
 - [ ] `action_roles` declared, universal roles included if they apply
 - [ ] `observation_kind` declared, `opaque` unless you really promise more
+- [ ] who cooperated: `info["cooperators"]` from `step()`, or a declared `concede` role
 - [ ] `describe()` calls `super()` and reports every parameter that changes play
 - [ ] episodic games: `info["episode"]` on the done round, and a cap that cannot hang
 - [ ] tests assert the intended arithmetic

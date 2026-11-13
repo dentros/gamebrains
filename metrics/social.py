@@ -40,15 +40,18 @@ def cooperation_rate(actions: np.ndarray,
     the one place that stopped reading it. Found by `repository/verify.py` recomputing stored
     records from their own event logs, not by a test.
 
-    The fallback to `actions` is kept for a game that declares no count, and it is only correct
-    for a game whose cooperative action is index 1. A game should declare the count instead.
+    There is no fallback to `actions` any more. It was correct only for a game whose cooperative
+    action is index 1, and `engine/runner.py` now always supplies the count or refuses the game,
+    so a caller without one is holding records that did not come from the runner.
     """
-    if cooperators is not None:
-        n_agents = actions.shape[1]
-        per_round = np.asarray(cooperators, dtype=float) / float(n_agents)
-        return {"overall": float(per_round.mean()), "series": per_round}
-    per_round = actions.mean(axis=1)
-    return {"overall": float(actions.mean()), "series": per_round}
+    if cooperators is None:
+        raise ValueError(
+            "cooperation_rate needs the game's own per-round count of cooperators; reading "
+            "action index 1 as cooperation is right in some games and backwards in others. "
+            "Pass the 'cooperators' series that engine.runner.run_match returns.")
+    n_agents = actions.shape[1]
+    per_round = np.asarray(cooperators, dtype=float) / float(n_agents)
+    return {"overall": float(per_round.mean()), "series": per_round}
 
 
 def efficiency(rewards: np.ndarray, max_welfare_per_round: float) -> float:

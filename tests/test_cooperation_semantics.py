@@ -27,6 +27,8 @@ import sys
 import numpy as np
 
 from ..agents.classic import AllC, AllD
+from ..engine.agent import Agent
+from ..engine.game import Game, StepResult
 from ..engine.runner import run_match
 from ..games.congestion import CongestionGame
 from ..games.public_goods import PublicGoodsGame
@@ -104,6 +106,90 @@ def test_the_series_matches_the_headline() -> None:
         assert abs(float(series.mean()) - out["cooperation_rate"]) < 1e-9, (
             f"{name}: the chart and the headline number disagree")
     print("OK: the per-round series agrees with the headline rate")
+
+
+# --- The runner's own count, for a game that reports none ----------------------------------------
+#
+# Both shipped games report `info["cooperators"]`, so the runner's fallback never ran in any test
+# and read action 1 as cooperating for as long as it existed. These two games are what a third-party
+# author following docs/adding-a-game.md could plausibly write: one declares only its roles, the
+# other declares nothing.
+
+
+class _ConcedeAtZero(Game):
+    """Declares `concede` at index 0 and reports no count, so only the role can say who conceded."""
+
+    name = "concede_at_zero"
+    n_agents = 3
+    n_actions = 2
+    action_names = ["Give way", "Take"]
+    n_states = 1
+    action_roles = {"concede": 0, "claim": 1}
+
+    def reset(self) -> list[int]:
+        return [0] * self.n_agents
+
+    def step(self, actions: list[int]) -> StepResult:
+        return StepResult(observations=[0] * self.n_agents,
+                          rewards=[float(a) for a in actions], done=False)
+
+    def max_welfare_per_round(self) -> float:
+        return float(self.n_agents)
+
+
+class _Undeclared(_ConcedeAtZero):
+    """Declares nothing at all, so nobody can say who cooperated."""
+
+    name = "undeclared"
+    action_roles = {}
+
+
+class _IndexPlayer(Agent):
+    """Plays one fixed index without interpreting it, which is all an undeclared game admits."""
+
+    kind = "test"
+    semantics = "index-agnostic"
+    information = "none"
+
+    def __init__(self, name: str, index: int) -> None:
+        self.name, self._index = name, index
+
+    def act(self, observation: int) -> int:
+        return self._index
+
+
+def test_a_game_reporting_no_count_is_counted_by_its_concede_role() -> None:
+    game = _ConcedeAtZero()
+    records = run_match(game, [AllC(f"C{i}") for i in range(3)], rounds=ROUNDS, seed=0)
+    assert set(np.asarray(records["actions"]).flatten().tolist()) == {0}, (
+        "AllC did not play the declared concede action, so this case tests nothing")
+    rate = social.compute_all(records, game.max_welfare_per_round())["cooperation_rate"]
+    assert abs(rate - 1.0) < 1e-9, (
+        f"every player conceded in every round and the rate reads {rate:.3f}. The runner counted "
+        f"an action index instead of the role the game declared")
+    print("OK: a game with no count of its own is counted by the concede role it declares")
+
+
+def test_a_game_declaring_neither_is_refused() -> None:
+    try:
+        run_match(_Undeclared(), [_IndexPlayer(f"P{i}", 1) for i in range(3)], rounds=5, seed=0)
+    except ValueError as exc:
+        assert "concede" in str(exc) and "cooperators" in str(exc), (
+            f"refused, but the message does not say what to declare: {exc}")
+        print("OK: a game that cannot say who cooperated is refused, and told how to fix it")
+        return
+    raise AssertionError("a game declaring neither a count nor a concede role ran, so its "
+                         "cooperation rate was a reading of action indices")
+
+
+def test_the_measure_refuses_records_without_a_count() -> None:
+    actions = np.ones((4, 3), dtype=int)
+    try:
+        social.cooperation_rate(actions, None)
+    except ValueError:
+        print("OK: the cooperation measure refuses to read action indices as cooperation")
+        return
+    raise AssertionError("cooperation_rate accepted records with no count and read index 1")
 
 
 if __name__ == "__main__":

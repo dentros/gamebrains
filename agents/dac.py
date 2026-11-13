@@ -9,7 +9,11 @@ Verschure, Kröse and Pfeifer (1992) and stated as a theory of the mind-brain-bo
 of experience and replays the ones that led to reward. Two descendants of it shape this file most
 directly. Freire et al. (2020, PLoS ONE 15:e0234434) built a reactive plus adaptive DAC agent for a
 multi-agent turn-taking game, the Battle of the Exes, which is the direct ancestor of this platform's
-congestion family, and found that the reactive layer alone already produces some turn-taking. The
+congestion family. In their two-agent game it was the complete agent that formed turn-taking
+conventions and reached human-level efficiency and fairness, while each layer alone was less
+efficient and less stable, its rounds ending more often in ties. (An earlier version of this
+docstring said their reactive layer alone produced turn-taking. It did not; the claim was checked
+against the paper and removed.) The
 contextual layer here follows Sequential Episodic Control (Freire, Amil and Verschure, arXiv:2112.14734):
 a short-term memory of state-action couplets is consolidated into long-term memory when it ends in
 reward, and retrieved by matching the current state, with a bias toward the couplet that follows the

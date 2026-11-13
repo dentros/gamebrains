@@ -1217,7 +1217,12 @@ full agent's CALT is 0.11 to 0.14 over three seeds, the tabular learners' 0.185,
 layer alone reaches 0.75 to 0.76** (AALT about 0.70, reward fairness 0.99, at an efficiency of 0.40,
 since agents wait). The turn-taking comes from the homeostatic reflexes and is destroyed by the layer
 that learns from individual payoff, which is the platform's coordination-gap result reappearing
-inside one architecture. In the Public Goods Game the contextual layer decides 99% of rounds and the
+inside one architecture. **It runs against Freire et al. (2020)**, where the complete reactive plus
+adaptive agent formed the turn-taking conventions in a two-agent continuous game and each layer alone
+was less efficient (about 0.46 to 0.51 against 0.88), so it is a contrast to explain, not a
+replication. An earlier note here and in `agents/dac.py` said their reactive layer alone produced
+turn-taking; that was checked against the paper (PMC7307740) and was wrong. In the Public Goods Game
+the contextual layer decides 99% of rounds and the
 agent is a conditional cooperator (1.00 among AllC, 0.00 among AllD); removing it changes the play,
 and a contextual layer that never takes control can be removed without changing a single move.
 

@@ -129,8 +129,10 @@ def test_turn_taking_in_the_honey_jar_game_comes_from_the_reactive_layer() -> No
     """The finding the paper reports about this agent, pinned so that a change of defaults has to
     face it. With all three layers the agent's coordination collapses as a tabular learner's does;
     with the reflexes alone, a deficit that rises with every contest lost and a withdrawal after
-    every fruitless one, three agents take turns. Freire et al. (2020) report that a reactive
-    layer alone produces turn-taking in the Battle of the Exes."""
+    every fruitless one, three agents take turns. This runs against Freire et al. (2020), where in
+    a two-agent continuous version of the game it was the complete reactive plus adaptive agent
+    that formed turn-taking conventions and each layer alone was less efficient. The difference
+    between the two settings is a question this result raises, and it is not a replication."""
     from ..agents.dac import DACAgent
     from ..games.congestion import from_preset
     from ..metrics import social_alt

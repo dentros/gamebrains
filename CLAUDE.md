@@ -1073,6 +1073,26 @@ hiding the game's declaration, which reproduces 0.000 exactly.
 sweep. Their event logs are intact and correct, so the number is recoverable by recomputation;
 nothing in the paper's tables uses them (every reported table is Public Goods).
 
+## 9o. Fixes from the November external review (2026-11-13)
+
+### The payoff Gini was translation invariant (`metrics/social.py`)
+
+`payoff_gini` shifted the vector up by its own minimum before computing, to cope with negative
+payoffs. That turns 100 and 100.01 into 0 and 0.01, so two almost level players read **0.5**. The
+measure is now the Raffinetti, Siletti and Vernizzi (2015) normalisation, the mean absolute
+difference over the mean absolute value: the ordinary Gini when no payoff is negative, bounded by
+(n-1)/n when some are. Formula checked against `Gini_RSV` in the authors' R package GiniWegNeg.
+
+**Stored records keep the definition they were made with.** Every new record carries
+`payoff_gini_definition: "rsv-2015"` in its `metrics_summary`. A record without it was computed under
+`min-shift`, and `repository/verify.py` checks each record under the definition it names, so the 127
+local records still verify on Gini (118 in all; the other 9 are the congestion records of 9n). An
+unknown definition is reported by name rather than checked as another. `verify.py` had no tests
+before this; `tests/test_gini.py` (10 cases) covers it as well, and 8 of the 10 fail on the old code.
+The 2 that pass there (equal payoffs read 0, the upper bound) hold under both definitions.
+
+No paper table reports a Gini value, so no reported number moves.
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see

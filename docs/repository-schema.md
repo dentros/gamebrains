@@ -55,7 +55,9 @@ package/
   "code_version": "git:abcdef1",      // reproducibility anchor
 
   "metrics_summary": {                // CACHE only; source of truth = raw log in the package
-    "cooperation_rate": 0.223, "efficiency": 0.223, "payoff_gini": 0.346, "action_entropy": 0.549
+    "cooperation_rate": 0.223, "efficiency": 0.223, "payoff_gini": 0.346, "action_entropy": 0.549,
+    "payoff_gini_definition": "rsv-2015"   // which Gini; absent on records before 2026-11-13,
+                                           // which used the min-shift (see repository/verify.py)
   },
   "feature_vector": [5, 0.5, 1.0, 5000, 2, 1, 0, 2],  // [n, mpcr, cost, rounds, #ql, #dqn, #fep, #classic] → k-NN similarity
 

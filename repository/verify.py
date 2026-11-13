@@ -101,20 +101,37 @@ def _binary_entropy(p: float) -> float:
     return -(p * math.log2(p) + (1 - p) * math.log2(1 - p))
 
 
-def _gini(values: list[float]) -> float:
+#: The Gini definition a record without a `payoff_gini_definition` field was computed under.
+LEGACY_GINI = "min-shift"
+
+
+def _gini(values: list[float], definition: str = "rsv-2015") -> float:
     """The same Gini the platform reports, rewritten here rather than imported.
 
     Importing `metrics/social.py` would make this check agree with that module by construction,
     including if that module were ever wrong. An independent implementation is the point: two
-    routes to the same number is evidence, one route computed twice is not.
+    routes to the same number is evidence, one route computed twice is not. So this one works
+    over pairs directly, where `social.py` uses the sorted closed form.
+
+    `definition` is whatever the record says produced its number. Records written from 2026-11-13
+    say `rsv-2015`, the Raffinetti, Siletti and Vernizzi (2015) normalisation: the mean absolute
+    difference over the mean absolute value. Records written before carry no field and were
+    computed with `min-shift`, which moved the vector up by its own minimum first and so read two
+    players on 100 and 100.01 as 0.5. Checking an old record against the new definition would
+    report every one of them as altered when nothing was; checking it against the old one says
+    truthfully that its number is the one its log produces under the definition it was made with.
     """
     if not values:
         return 0.0
-    # Payoffs go negative in a social dilemma, and the Gini coefficient is undefined there, so
-    # the platform's measure shifts the whole vector up by its own minimum before computing. That
-    # is part of what the published number *means*, not an implementation detail, so this check
-    # shares it. Leaving it out made this function disagree with every stored record on the first
-    # run, which is how the convention got found and written down here.
+    if definition == "rsv-2015":
+        scale = sum(abs(v) for v in values)
+        if scale == 0:
+            return 0.0
+        pairwise = sum(abs(a - b) for a in values for b in values)
+        return pairwise / (2 * len(values) * scale)
+    if definition != LEGACY_GINI:
+        raise ValueError(f"unknown Gini definition {definition!r}; this checker knows "
+                         f"'rsv-2015' and {LEGACY_GINI!r}")
     floor = min(values)
     ordered = sorted(value - floor for value in values)
     n = len(ordered)
@@ -125,8 +142,12 @@ def _gini(values: list[float]) -> float:
     return (2 * weighted) / (n * total) - (n + 1) / n
 
 
-def recompute_metrics(package: dict[str, Any]) -> dict[str, float]:
-    """The measures this log produces, computed from the log alone."""
+def recompute_metrics(package: dict[str, Any],
+                      gini_definition: str = "rsv-2015") -> dict[str, float]:
+    """The measures this log produces, computed from the log alone.
+
+    `gini_definition` is the one the record names; see `_gini` for why it has to come from there.
+    """
     rounds = _rounds(package)
     if not rounds:
         return {}
@@ -153,7 +174,7 @@ def recompute_metrics(package: dict[str, Any]) -> dict[str, float]:
     if coop_fractions:
         out["cooperation_rate"] = sum(coop_fractions) / len(coop_fractions)
     if any(totals):
-        out["payoff_gini"] = _gini(totals)
+        out["payoff_gini"] = _gini(totals, gini_definition)
     if entropies:
         out["action_entropy_bits"] = sum(entropies) / len(entropies)
     return out
@@ -202,14 +223,21 @@ def verify(record: dict[str, Any], package: Optional[dict[str, Any]],
                    f"the record declares {declared_agents} players and the log has rounds with "
                    f"{sorted(widths)}")
 
-    recomputed = recompute_metrics(package)
     claimed = record.get("metrics_summary") or {}
+    gini_definition = claimed.get("payoff_gini_definition") or LEGACY_GINI
+    try:
+        recomputed = recompute_metrics(package, gini_definition)
+    except ValueError as exc:
+        report.add("payoff_gini definition known", False, str(exc))
+        recomputed = recompute_metrics(package)
+        recomputed.pop("payoff_gini", None)
     for name in RECHECKED:
         if name not in recomputed or claimed.get(name) is None:
             continue
         gap = abs(recomputed[name] - float(claimed[name]))
+        under = f" under the {gini_definition} definition" if name == "payoff_gini" else ""
         report.add(f"{name} recomputes", gap <= TOLERANCE,
-                   f"the log gives {recomputed[name]:.10f}, matching what is reported"
+                   f"the log gives {recomputed[name]:.10f}{under}, matching what is reported"
                    if gap <= TOLERANCE else
                    f"the record reports {float(claimed[name]):.10f} and this log produces "
                    f"{recomputed[name]:.10f}, a gap of {gap:.2e}")

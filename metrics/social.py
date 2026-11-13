@@ -9,7 +9,8 @@ Operates on the per-round records produced by engine.runner.run_match:
 Metrics:
   - cooperation_rate: overall fraction of Cooperate actions (+ per-round series)
   - efficiency:       realized total welfare / welfare under universal cooperation
-  - payoff_gini:      inequality of cumulative payoffs (0 = perfectly equal)
+  - payoff_gini:      inequality of cumulative payoffs (0 = perfectly equal), normalised for
+                      negative payoffs as in Raffinetti, Siletti and Vernizzi (2015)
   - action_entropy:   mean binary entropy of the per-round cooperation frequency (bits);
                       an information-theoretic teaser (0 = deterministic, 1 = maximally mixed)
 """
@@ -59,16 +60,38 @@ def efficiency(rewards: np.ndarray, max_welfare_per_round: float) -> float:
     return realized / ceiling
 
 
+#: Which Gini `payoff_gini` computes, stored next to the number in every record so that a reader,
+#: and `repository/verify.py`, can tell which definition produced it. Records written before this
+#: name existed carry no such field and were computed with the min-shift described below.
+GINI_DEFINITION = "rsv-2015"
+
+
 def payoff_gini(cumulative_rewards: np.ndarray) -> float:
+    """Inequality of the cumulative payoffs, normalised for negative values as in Raffinetti,
+    Siletti and Vernizzi (2015, Statistical Methods & Applications 24:507-521).
+
+    The mean absolute difference is divided by the mean of the absolute values rather than by
+    the mean, G = sum_i sum_j |x_i - x_j| / (2 n (T+ + T-)), where T+ is the sum of the positive
+    payoffs and T- the absolute sum of the negative ones. With no negative payoff this is the
+    ordinary Gini coefficient, and with negatives it stays within [0, (n-1)/n], reaching the top
+    when one player holds all the gains and one all the losses.
+
+    The previous version shifted the vector up by its own minimum first. That made the measure
+    translation invariant, which a Gini must not be: two players on 100 and 100.01 read 0.5, the
+    same as two players on 0 and 1, because the shift turns the first pair into the second. The
+    defect was found by an external review of the code, not by a test, since no test checked a
+    vector whose minimum was not already near zero.
+    """
     x = np.asarray(cumulative_rewards, dtype=float)
-    # Shift so all values are non-negative (payoffs can be negative in a PGG).
-    x = x - x.min()
-    if x.sum() == 0:
+    scale = float(np.abs(x).sum())          # T+ + T-
+    if x.size == 0 or scale == 0.0:
         return 0.0
     x = np.sort(x)
     n = x.size
+    # sum_i sum_j |x_i - x_j| over sorted values is 2 * sum_i (2i - n - 1) x_i, with i from 1.
     index = np.arange(1, n + 1)
-    return float((2.0 * np.sum(index * x) / (n * x.sum())) - (n + 1.0) / n)
+    pairwise = 2.0 * float(np.sum((2.0 * index - n - 1.0) * x))
+    return pairwise / (2.0 * n * scale)
 
 
 def _binary_entropy(p: float) -> float:
@@ -94,6 +117,7 @@ def compute_all(records: dict[str, np.ndarray], max_welfare_per_round: float) ->
         "cooperation_series": coop["series"],
         "efficiency": efficiency(rewards, max_welfare_per_round),
         "payoff_gini": payoff_gini(cum),
+        "payoff_gini_definition": GINI_DEFINITION,
         "action_entropy_bits": action_entropy(actions),
         "cumulative_payoffs": cum,
     }

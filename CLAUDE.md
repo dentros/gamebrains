@@ -1093,6 +1093,34 @@ The 2 that pass there (equal payoffs read 0, the upper bound) hold under both de
 
 No paper table reports a Gini value, so no reported number moves.
 
+### The runner still read action 1 as cooperating (`engine/runner.py`)
+
+When a game reported no `info["cooperators"]`, the runner fell back to `sum(actions)`. Both shipped
+games report the count, so the fallback never ran, no test reached it, and a game written from
+`docs/adding-a-game.md` would have hit it with no refusal: the headline defect in a third place.
+`_cooperators` now takes the game's count, else counts the declared `concede` role, else refuses
+with a message naming both fixes. `social.cooperation_rate` lost its matching fallback and refuses
+records without a count. The guide has a "Who cooperated" subsection and a checklist line.
+`run_bakeoff.one_bakeoff` had a fourth copy, `(actions == 1).mean(axis=0)` per seat; it reads the
+declared role now. Tests: three new cases in `test_cooperation_semantics.py`, all failing on the old
+code.
+
+### The bake-off wrapper misdescribed every frozen agent (`agents/frozen.py`, new)
+
+Two copies of `Frozen` (the script's and the webui's) inherited `semantics` only. So the record of a
+bake-off declared `information: observation` for frozen FEP and Markov agents (both condition on
+memory) and for AllD (conditions on nothing); carried **no hyperparameters** for any frozen learner,
+because the recorder reads them off the live agent, so two frozen Q-learners at different learning
+rates shared a `config_hash`; and claimed the `byte` reproducibility tier whatever the wrapped agent
+declared. Play was unaffected. One shared class now inherits the declarations, forwards the
+reproducibility tier, and forwards attribute reads (reporting `epsilon` as 0, which is what it plays
+with). `tests/test_frozen.py` (6 cases); the five that apply to a single class all fail on the old
+one. Section 9f's note that the script "duplicates the webui's own construction" is superseded.
+
+**The stored Table 4 results carry the old declarations.** `experiments/results/llm_bakeoff_*.json`
+record `information: observation` for the frozen Markov brain and FEP seats. They are measurement
+records and are left as written; the paper notes the discrepancy.
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see

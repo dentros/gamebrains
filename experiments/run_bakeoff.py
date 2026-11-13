@@ -29,9 +29,9 @@ import numpy as np
 
 from ..agents.classic import AllD
 from ..agents.fep import FEPAgent
+from ..agents.frozen import Frozen
 from ..agents.qlearning import QLearningAgent
 from ..agents.markov_brain import crossover as mb_crossover, spawn as mb_spawn
-from ..engine.agent import Agent
 from ..engine.evolution import EvolutionConfig, evolve
 from ..engine.runner import run_match
 from ..games.public_goods import PublicGoodsGame
@@ -47,42 +47,6 @@ EPS_MIN = 0.02
 KINDS = ["qlearning", "dqn", "fep", "markov_brain", "classic"]
 LABELS = {"qlearning": "Tabular Q", "dqn": "DQN", "fep": "FEP (active inf.)",
           "markov_brain": "Markov brain (GA)", "classic": "AllD (reference)"}
-
-
-class Frozen(Agent):
-    """Acts greedily and never learns, so an evaluation match measures the final policy only."""
-
-    training_mode = "fixed"
-
-    def __init__(self, agent: Any, name: str) -> None:
-        self._agent = agent
-        self.name = name
-        self.kind = agent.kind
-        # Inherited, not restated -- see the same note on the webui's wrapper.
-        self.semantics = agent.semantics
-
-    def act(self, observation: int) -> int:
-        saved = getattr(self._agent, "epsilon", None)
-        if saved is not None:
-            self._agent.epsilon = 0.0
-        try:
-            return self._agent.act(observation)
-        finally:
-            if saved is not None:
-                self._agent.epsilon = saved
-
-    def on_match_start(self, game: Any) -> None:
-        # Forward, or a frozen role-defined strategy never learns which action plays its role.
-        self._agent.on_match_start(game)
-
-    def update(self, *args, **kwargs) -> None:
-        return None
-
-    def inspect(self) -> dict:
-        return self._agent.inspect()
-
-    def render_brain(self) -> dict:
-        return self._agent.render_brain()
 
 
 def _game(rounds: int, mpcr: float | None = None,
@@ -145,7 +109,10 @@ def one_bakeoff(seed: int) -> tuple[np.ndarray, np.ndarray, float]:
 
     payoff = np.asarray(records["rewards"], dtype=float).mean(axis=0)
     actions = np.asarray(records["actions"])
-    cooperation = (actions == 1).mean(axis=0)   # COOPERATE == 1 in the Public Goods Game
+    # Per seat, by the role the game declares rather than by index 1, which is cooperating here
+    # and claiming in the congestion family. Only the Public Goods Game runs here today, so no
+    # reported number moves, but this was the last place an index was read as a meaning.
+    cooperation = (actions == game.action_roles["concede"]).mean(axis=0)
     return payoff, cooperation, float(np.mean(metrics["cooperation_series"]))
 
 

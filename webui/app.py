@@ -39,6 +39,7 @@ from ..agents.classic import AllC, AllD, MajorityTFT, RandomAgent
 # agent pulls in the Ollama client, which is why that import stays inside _make_agent.
 from ..agents import factory as agent_factory, llm_prompt
 from ..agents.factory import EVOLVABLE_KINDS, evolvable
+from ..agents.frozen import Frozen
 from ..agents.qlearning import QLearningAgent
 from ..engine.agent import Agent
 from ..engine.console import LiveConsole
@@ -265,46 +266,8 @@ _REWARD_RULE_CHOICES = [
 
 # --- a frozen wrapper for the bake-off (Section /evolve) -----------------------------------------
 
-class _Frozen(Agent):
-    """Wraps an already-trained agent so it acts greedily (epsilon forced to 0 for the duration
-    of the call) and never learns further. Used only to build a fair bake-off evaluation match:
-    an agent that finished its own training/evolution process should not keep adapting *during*
-    the comparison, or the comparison would conflate "final policy quality" with "how much it
-    adapted mid-evaluation" -- the exact confound a bake-off is meant to avoid.
-    """
-    training_mode = "fixed"
-
-    def __init__(self, agent: Any, name: str) -> None:
-        self._agent = agent
-        self.name = name
-        self.kind = agent.kind
-        # Inherit the wrapped agent's declaration rather than restating one. A wrapper that
-        # answered for itself would let a frozen role-bound strategy through as index-agnostic,
-        # which is exactly the hole the declaration exists to close.
-        self.semantics = agent.semantics
-
-    def act(self, observation: int) -> int:
-        old_eps = getattr(self._agent, "epsilon", None)
-        if old_eps is not None:
-            self._agent.epsilon = 0.0
-        try:
-            return self._agent.act(observation)
-        finally:
-            if old_eps is not None:
-                self._agent.epsilon = old_eps
-
-    def on_match_start(self, game: Any) -> None:
-        # Forward, or a frozen classic strategy never learns which action plays its role.
-        self._agent.on_match_start(game)
-
-    def update(self, *args, **kwargs) -> None:
-        return None
-
-    def inspect(self) -> dict:
-        return self._agent.inspect()
-
-    def render_brain(self) -> dict:
-        return self._agent.render_brain()
+#: The bake-off wrapper, shared with experiments/run_bakeoff.py so the two cannot drift apart.
+_Frozen = Frozen
 
 
 # --- roster construction ---------------------------------------------------------------------

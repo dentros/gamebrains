@@ -1131,6 +1131,50 @@ one. Section 9f's note that the script "duplicates the webui's own construction"
 record `information: observation` for the frozen Markov brain and FEP seats. They are measurement
 records and are left as written; the paper notes the discrepancy.
 
+### The cost benchmark measured less than the paper said (`experiments/run_benchmark.py`)
+
+Four findings, all from rerunning it rather than reading it:
+
+- **Per-architecture counts included construction and ran with no warm-up**, so tabular Q read 13.1
+  calls per agent-step (52.4 per round) while the adapter section measured the same match at 44.9.
+  Construction is counted separately now, every path is warmed up, and the script checks that the
+  native runner and the Q-learning row agree (they do: 10.95 x 4 = 43.81).
+- **The warm-up has to reach the steady path.** At 30 warm-up rounds a DQN's replay buffer never
+  reaches its batch of 64, so the first counted match paid 152 calls of optimizer first-use the
+  second did not. The pair `[1936162, 1936010]` was identical across two processes, which is how it
+  was recognised as setup rather than noise. At 100 rounds three repeats give 1,936,010 exactly.
+  Garbage collection is also held off while counting.
+- **"The full metric suite" was `social.compute_all` alone.** Counting everything the results page
+  computes, the information-theoretic family (200 surrogates per ordered pair) costs about **38x the
+  match**, against 2.6% for the social measures. Still paid after the match, which is the
+  architectural claim; the paper's 2.6% figure was true of one family only.
+- **The state-count table had no script.** `--states` regenerates it; n = 8 traces about a gigabyte
+  and is opt-in (`--states-max-n 8`).
+
+Every count is repeated (`--repeats`, default 2) and printed with its spread, and the JSON records
+the Python, numpy, torch, networkx, scipy and statsmodels versions and the code version.
+
+### The FEP agent's belief never reached its action (`agents/fep.py`)
+
+With `reciprocity=0`, the default until now and the value of every reported FEP run, the two
+expected values differ by `mpcr*cost - cost` whatever the posterior says. The agent therefore
+conceded with probability `1/(1+exp(precision*cost*(1-mpcr)))` = 0.119 in every round while its
+panel showed a belief being updated: the 0.12 in the interface figure, the 0.116 in the bake-off
+table and the 5/40 in every row of the language-model table are that coin. Found by an external
+review from the arithmetic.
+
+- `DEFAULT_RECIPROCITY = 1.0` in `agents/fep.py`, read by the factory, the CLI and the web form
+  (whose empty field used to mean 0.0). At 1 the agent concedes when it believes at least a share
+  `1 - mpcr` of the others do: 0.900 among AllC, 0.083 among AllD.
+- The docstrings and the help text no longer say the agent minimises expected free energy. They say
+  what it does, a softmax over expected payoff under its belief, which is what expected free energy
+  reduces to when the agent's move cannot change what it observes.
+- **`tests/test_ablation.py` (new) is a lesion test**, after the perturbation tests of Verschure
+  (2026): replace the posterior and require the action to move, and place the agent among
+  cooperators and among defectors and require it to behave differently. Both fail on the old
+  default; a third case pins that at reciprocity 0 the move is exactly the closed-form coin, so the
+  lesion is known to detect an inert belief.
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see

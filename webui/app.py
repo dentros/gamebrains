@@ -39,6 +39,7 @@ from ..agents.classic import AllC, AllD, MajorityTFT, RandomAgent
 # agent pulls in the Ollama client, which is why that import stays inside _make_agent.
 from ..agents import factory as agent_factory, llm_prompt
 from ..agents.factory import EVOLVABLE_KINDS, evolvable
+from ..agents.fep import DEFAULT_RECIPROCITY
 from ..agents.frozen import Frozen
 from ..agents.qlearning import QLearningAgent
 from ..engine.agent import Agent
@@ -502,14 +503,16 @@ def _dqn_network_html(agent: Any) -> str:
 _HELP_TOPICS: dict[str, tuple[str, str]] = {
     "fep": ("FEP / Active Inference", (
         "<p><b>Theory.</b> The FEP agent holds a categorical belief over how many other players are "
-        "cooperating, updated by exact Bayesian filtering each round. It picks an action by minimizing "
-        "expected free energy: a softmax over expected value, not reward-maximizing learning like "
-        "Q-learning.</p>"
+        "cooperating, updated by exact Bayesian filtering each round. It picks an action by a softmax "
+        "over the payoff it expects under that belief, which is what expected free energy reduces to "
+        "when its own move cannot change what it will observe. It does not learn a policy the way "
+        "Q-learning does.</p>"
         "<p><b>Reading it.</b> Each bar is the probability the agent assigns to that many cooperators. "
         "E[others] is the expectation of that distribution. <code>reciprocity</code> controls how "
-        "social the agent is: 0 is purely selfish (maximizes only its own payoff); higher values make "
-        "it prefer cooperating when it believes others will too: a simple Theory-of-Mind rule, since "
-        "what I expect others to do shapes what I do.</p>"
+        "social the agent is. At 0 it is purely selfish, and in this game its belief then cannot change "
+        "its move, because cooperating costs the same whatever the others do. At the default of 1 it "
+        "cooperates when it believes enough of the others do, so what it expects of them shapes what "
+        "it does.</p>"
     )),
     "nash": ("Nash equilibrium (pygambit)", (
         "<p><b>Theory.</b> Computed analytically (via pygambit) on the single-round stage game: which "
@@ -1288,7 +1291,10 @@ def _execute_single_run(f, roster_sink: Optional[list] = None) -> dict[str, Any]
                            f"game (it may have evolved for a different n_states/n_actions)."), 400
                 roster.append(agent)
             else:
-                roster.append(_make_agent(kind, i, game, seed, strat, float(recip_s or 0.0),
+                # An empty field means the default, never 0: at 0 the FEP belief cannot reach
+                # the action in the Public Goods Game (agents/fep.py).
+                recip = float(recip_s) if str(recip_s).strip() else DEFAULT_RECIPROCITY
+                roster.append(_make_agent(kind, i, game, seed, strat, recip,
                                           int(mh_s or 2), eps_decay, eps_min, extra=extra))
             i += 1
 

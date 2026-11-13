@@ -638,11 +638,13 @@ H: dict[str, tuple[str, str]] = {
         "say how often that copy is refreshed. You rarely need to touch it."),
     "param.reciprocity": (
         "Πόσο τον επηρεάζει το τι έκαναν οι άλλοι. Στο 0 κοιτά μόνο το δικό του συμφέρον και "
-        "αγνοεί τη συμπεριφορά τους. Όσο το ανεβάζεις, τόσο γίνεται «συνεργάζομαι αν "
+        "αγνοεί τη συμπεριφορά τους, οπότε στο Public Goods Game η πεποίθησή του δεν αλλάζει "
+        "ποτέ την κίνησή του. Η προεπιλογή είναι 1. Όσο το ανεβάζεις, τόσο γίνεται «συνεργάζομαι αν "
         "συνεργάζεσαι»: δίνει όταν πιστεύει ότι δίνουν και οι άλλοι, και σταματά όταν "
         "πιστεύει ότι τον εκμεταλλεύονται.",
         "How much what the others did affects it. At 0 it looks only at its own interest and "
-        "ignores their behaviour. As you raise it, it becomes \"I cooperate if you cooperate\": "
+        "ignores their behaviour, so in the Public Goods Game its belief never changes its move. "
+        "The default is 1. As you raise it, it becomes \"I cooperate if you cooperate\": "
         "it gives when it believes the others are giving, and stops when it believes it is "
         "being taken advantage of."),
     "param.obs_noise": (

@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..agents.classic import AllC, AllD, MajorityTFT, RandomAgent
+from ..agents.fep import DEFAULT_RECIPROCITY
 from ..agents.qlearning import QLearningAgent
 from ..engine.console import LiveConsole
 from ..engine.eventlog import EventLog
@@ -42,7 +43,7 @@ def _classic_agent(strategy: str, i: int, n: int, seed: int):
 
 
 def build_roster(game: PublicGoodsGame, seed: int, all_kind: str | None = None,
-                 dqn_count: int = 0, fep_count: int = 0, reciprocity: float = 0.0,
+                 dqn_count: int = 0, fep_count: int = 0, reciprocity: float = DEFAULT_RECIPROCITY,
                  classic_strategy: str = "MajorityTFT", llm_count: int = 0,
                  llm_model: str = "", llm_profile: str = ""):
     n = game.n_agents
@@ -126,8 +127,9 @@ def main() -> None:
                     help="number of DQN agents in the mixed roster (rest Q-learners)")
     ap.add_argument("--fep", type=int, default=0,
                     help="number of FEP / active-inference agents in the mixed roster")
-    ap.add_argument("--reciprocity", type=float, default=0.0,
-                    help="FEP prosocial preference (>0 -> belief-driven conditional cooperator)")
+    ap.add_argument("--reciprocity", type=float, default=DEFAULT_RECIPROCITY,
+                    help="FEP prosocial preference; at 0 its belief cannot change its move in this "
+                         "game, so 1 (a belief-driven conditional cooperator) is the default")
     ap.add_argument("--llm", type=int, default=0,
                     help="number of language-model seats (needs Ollama running; seconds per move, "
                          "so keep --rounds small)")

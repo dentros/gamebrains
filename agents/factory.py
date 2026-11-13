@@ -28,6 +28,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from .classic import AllC, AllD, MajorityTFT, RandomAgent
+from .fep import DEFAULT_RECIPROCITY
 
 #: Every kind this factory builds. The language model is deliberately absent, see the module note.
 KINDS = ("qlearning", "dqn", "fep", "markov_brain", "classic")
@@ -80,7 +81,7 @@ def classic_agent(strategy: str, index: int, n_agents: int, seed: int,
 
 
 def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "AllD",
-          reciprocity: float = 0.0, markov_hidden: int = 2, epsilon_decay: float = 0.9995,
+          reciprocity: float = DEFAULT_RECIPROCITY, markov_hidden: int = 2, epsilon_decay: float = 0.9995,
           epsilon_min: float = 0.02, overrides: Optional[dict[str, Any]] = None):
     """One agent for seat `index`.
 

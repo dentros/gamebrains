@@ -9,12 +9,23 @@ This brain does two things, both straight from the FEP:
      multiply by the observation likelihood A and renormalize. That posterior *is* its little
      model of the others' minds, which is why this is our Theory-of-Mind brain.
 
-  2. Action = expected-free-energy minimization. For each action it computes expected value under
-     its beliefs (pragmatic value); because its own move does not change the others' disposition,
-     the epistemic term is action-independent here, so action selection reduces to a precision-
-     weighted softmax over expected value. With `reciprocity=0` the agent is purely self-interested
-     (and, correctly, free-rides — defection dominates the Public Goods Game); a positive
-     `reciprocity` turns it into a belief-driven conditional cooperator.
+  2. Action = a precision-weighted softmax over expected value under its beliefs. That is what
+     expected free energy reduces to in this model and nothing more: its own move does not change
+     the others' disposition, so the epistemic term is the same for both actions and drops out, and
+     the preferences are the payoffs. A full active-inference agent, with action-dependent
+     transitions and a planning horizon, is a different agent and is not this one.
+
+**With `reciprocity=0` the belief never reaches the action, in the Public Goods Game.** The two
+expected values differ by `mpcr*cost - cost` whatever the posterior says, because the share of the
+pool the others create is the same whichever way this agent moves. So the agent concedes with one
+fixed probability, `1 / (1 + exp(precision * cost * (1 - mpcr)))`, which is 0.119 at the defaults,
+in every round of every match, while its panel shows a belief being updated. That was the default
+until 2026-11-13, and every FEP result reported up to then is that coin, not inference. An external
+review found it from the arithmetic; nothing in the platform had checked it. The default is now
+`reciprocity=1`, under which the concede probability rises with the believed share of conceding
+others and crosses one half where that share reaches `1 - mpcr`, so the agent is a belief-driven
+conditional cooperator. `tests/test_ablation.py` replaces the posterior and requires the action
+to move, which is the check that would have caught it.
 
 We implement the active-inference math directly in numpy (rather than via pymdp's current
 JAX API) for robustness and full transparency; a pymdp backend can be added later.
@@ -48,6 +59,11 @@ from ..engine.agent import Agent
 _I_CLAIM = 0
 _I_CONCEDE = 1
 
+#: The one place the default lives; the factory, the CLI and the web form all read it. At 0 the
+#: belief cannot change the action in the Public Goods Game (module docstring), so 0 is a choice a
+#: caller makes on purpose, never what an empty field means.
+DEFAULT_RECIPROCITY = 1.0
+
 
 def _softmax(x: np.ndarray) -> np.ndarray:
     z = x - x.max()
@@ -75,7 +91,7 @@ class FEPAgent(Agent):
         obs_noise: float = 0.75,   # σ of the likelihood A over hidden "others cooperating"
         drift: float = 0.1,        # how fast others' disposition is assumed to drift (B)
         precision: float = 4.0,    # γ: how sharply value drives action
-        reciprocity: float = 0.0,  # >0 -> prefer cooperating when it believes others do
+        reciprocity: float = DEFAULT_RECIPROCITY,  # 0 makes the belief inert in the PGG
         seed: int = 0,
         start_state: Optional[int] = None,
     ) -> None:

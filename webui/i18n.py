@@ -98,6 +98,7 @@ T: dict[str, tuple[str, str]] = {
     "agent.fep":          ("FEP / Ενεργητική συμπερασματολογία", "FEP / Active Inference"),
     "agent.markov_brain": ("Markov-brain (εξελικτικό)", "Markov-brain (evolutionary)"),
     "agent.classic":      ("Κλασικές στρατηγικές (σταθερές)", "Classic (fixed)"),
+    "agent.dac":          ("DAC (έλεγχος σε στρώματα)", "DAC (layered control)"),
     "agent.llm":          ("Γλωσσικό μοντέλο (Ollama)", "LLM (Ollama)"),
     "param.alpha":            ("alpha (α)", "alpha (α)"),
     "param.gamma":            ("gamma (γ)", "gamma (γ)"),
@@ -126,6 +127,13 @@ T: dict[str, tuple[str, str]] = {
     "param.llm_model":        ("model", "model"),
     "param.llm_constrained":  ("constrained", "constrained"),
     "param.llm_profile":      ("profile", "profile"),
+    "param.urgency":          ("urgency", "urgency"),
+    "param.deficit_growth":   ("deficit_growth", "deficit_growth"),
+    "param.withdraw":         ("withdraw", "withdraw"),
+    "param.explore":          ("explore", "explore"),
+    "param.stm_length":       ("stm_length", "stm_length"),
+    "param.ltm_capacity":     ("ltm_capacity", "ltm_capacity"),
+    "param.trust_threshold":  ("trust_threshold", "trust_threshold"),
     "param.genome_cid":       ("genome CID", "genome CID"),
     "param.epsilon_pair":     ("epsilon_decay / epsilon_min", "epsilon_decay / epsilon_min"),
     "field.row_kind":         ("Αρχιτεκτονική", "Architecture"),
@@ -523,14 +531,28 @@ H: dict[str, tuple[str, str]] = {
         "network does not need to have seen every situation separately. The price is that what "
         "it learned is no longer clearly visible, and that it needs more rounds to settle."),
     "agent.fep": (
-        "Δεν κυνηγά ανταμοιβή όπως οι υπόλοιποι. Κρατά μια εικόνα για το τι πιστεύει ότι θα "
-        "κάνουν οι άλλοι, και διαλέγει την κίνηση που θα το εκπλήξει λιγότερο. Όταν πέφτει "
-        "έξω, διορθώνει την εικόνα του. Είναι ο μόνος εδώ που μοντελοποιεί ρητά τους άλλους, "
-        "οπότε είναι ο πιο κοντινός σε αυτό που λέμε «σκέφτεται τι σκέφτονται οι άλλοι».",
-        "It does not chase reward like the others. It keeps a picture of what it believes the "
-        "others will do, and picks the move that will surprise it least. When it is wrong, it "
-        "corrects the picture. It is the only one here that explicitly models the others, so it "
-        "is the closest to what we mean by \"thinking about what others are thinking\"."),
+        "Δεν μαθαίνει μια πολιτική όπως οι υπόλοιποι. Κρατά μια πεποίθηση για το πόσοι από "
+        "τους άλλους θα δώσουν, τη διορθώνει με Bayes σε κάθε γύρο, και διαλέγει κίνηση με "
+        "βάση το κέρδος που περιμένει από αυτή την πεποίθηση. Με την προεπιλεγμένη reciprocity "
+        "δίνει όταν πιστεύει ότι δίνουν αρκετοί από τους άλλους. Είναι ο μόνος εδώ που "
+        "μοντελοποιεί ρητά τους άλλους.",
+        "It does not learn a policy like the others. It keeps a belief about how many of the "
+        "others will give, corrects it by Bayes every round, and picks its move by the payoff it "
+        "expects under that belief. At the default reciprocity it gives when it believes enough "
+        "of the others do. It is the only one here that explicitly models the others."),
+    "agent.dac": (
+        "Ένας πράκτορας σε τρία στρώματα, από την παράδοση του Distributed Adaptive Control του "
+        "Verschure. Το κατώτερο έχει αντανακλαστικά: μια «πείνα» που ανεβαίνει με κάθε χαμένο "
+        "γύρο, που τον κάνει να διεκδικεί όταν πεινάει πολύ και να υποχωρεί αμέσως μετά από "
+        "σύγκρουση. Το μεσαίο μαθαίνει τι αποδίδει σε κάθε κατάσταση. Το ανώτερο θυμάται μικρές "
+        "ακολουθίες κινήσεων που έφεραν κέρδος και τις ξαναπαίζει όταν η κατάσταση ταιριάζει, "
+        "όσο τις εμπιστεύεται. Η κάρτα του δείχνει ποιο στρώμα αποφάσισε κάθε φορά.",
+        "An agent in three layers, from Verschure's Distributed Adaptive Control tradition. The "
+        "lowest holds reflexes: a hunger that rises with every lost round, which makes it claim "
+        "when very hungry and give way right after a collision. The middle one learns what pays "
+        "in each situation. The top one remembers short sequences of moves that brought a gain "
+        "and replays them when the situation matches, for as long as it trusts them. Its card "
+        "shows which layer decided each time."),
     "agent.markov_brain": (
         "Ένα μικρό κύκλωμα από λογικές πύλες που δεν μαθαίνει καθόλου μέσα στην παρτίδα: "
         "παίζει όπως είναι φτιαγμένο. Βελτιώνεται μόνο μέσω εξέλιξης, δηλαδή φτιάχνοντας "
@@ -740,6 +762,38 @@ H: dict[str, tuple[str, str]] = {
         "Οι υπόλοιπες στρατηγικές το αγνοούν.",
         "How likely it is to give, when the strategy is Random. 0.5 is a fair coin. The other "
         "strategies ignore it."),
+    "param.urgency": (
+        "Πόσο πρέπει να πεινάσει ο πράκτορας για να διεκδικήσει χωρίς να ρωτήσει κανένα άλλο "
+        "στρώμα. Η πείνα πάει από 0 έως 1. Χαμηλότερη τιμή σημαίνει ότι ορμά νωρίτερα.",
+        "How hungry the agent must be to claim without consulting any other layer. Hunger runs "
+        "from 0 to 1. A lower value means it rushes sooner."),
+    "param.deficit_growth": (
+        "Πόση πείνα προστίθεται κάθε φορά που χάνει έναν διαγωνισμό ή παθαίνει ζημιά. Μεγαλύτερη "
+        "τιμή τον κάνει ανυπόμονο.",
+        "How much hunger each lost contest or loss adds. A larger value makes it impatient."),
+    "param.withdraw": (
+        "Η πιθανότητα να υποχωρήσει στον γύρο αμέσως μετά από έναν διαγωνισμό που διεκδίκησε και "
+        "έχασε. Αυτό το αντανακλαστικό είναι που φέρνει την εναλλαγή στο Honey-Jar Game.",
+        "The probability that it gives way in the round right after a contest it claimed and lost. "
+        "This reflex is what produces the turn-taking in the Honey-Jar Game."),
+    "param.explore": (
+        "Πόσο συχνά το μεσαίο στρώμα δοκιμάζει μια τυχαία κίνηση αντί για αυτή που θεωρεί "
+        "καλύτερη.",
+        "How often the middle layer tries a random move instead of the one it thinks best."),
+    "param.stm_length": (
+        "Πόσες από τις τελευταίες κινήσεις κρατά στη βραχυπρόθεσμη μνήμη, για να τις αποθηκεύσει "
+        "ως ακολουθία όταν φέρουν κέρδος.",
+        "How many of its latest moves it keeps in short-term memory, to store as a sequence when "
+        "they bring a gain."),
+    "param.ltm_capacity": (
+        "Πόσες ακολουθίες χωράει η μακροπρόθεσμη μνήμη. Όταν γεμίσει, φεύγει η παλαιότερη.",
+        "How many sequences long-term memory holds. When it is full, the oldest goes."),
+    "param.trust_threshold": (
+        "Πόση εμπιστοσύνη πρέπει να έχει κερδίσει η μνήμη του για να αποφασίζει εκείνη. Η "
+        "εμπιστοσύνη ανεβαίνει αργά όταν οι αναμνήσεις του βγαίνουν σωστές και πέφτει γρήγορα "
+        "όταν βγαίνουν λάθος.",
+        "How much trust its memory must have earned before it decides. Trust rises slowly when "
+        "its memories prove right and falls fast when they prove wrong."),
     "param.llm_model": (
         "Ποιο μοντέλο θα ρωτηθεί, με το όνομα που έχει στο Ollama, π.χ. llama3.2:1b. Πρέπει να "
         "το έχεις κατεβάσει πρώτα με ollama pull.",

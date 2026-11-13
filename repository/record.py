@@ -26,8 +26,9 @@ from .ledger import Ledger
 # that keep their 9-element vectors and `smart_filter.nearest` skips them as incomparable, which is
 # its documented behaviour for a schema change and is the honest one: a shorter vector does not
 # state that no language model played, it states that the question was not asked. Append here
-# rather than insert, so at least the positions of the existing dimensions never move.
-_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "llm"]
+# rather than insert, so at least the positions of the existing dimensions never move. `dac` was
+# appended on 2026-11-13 on the same terms, lengthening the vector from 10 to 11.
+_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "llm", "dac"]
 
 
 def _git_code_version() -> str:
@@ -79,6 +80,12 @@ _PARAM_ATTRS: dict[str, tuple[str, ...]] = {
     # answer. Adding it lengthens the parameter set for llm seats only, so llm records written
     # before this line carry a different config_hash from equivalent ones written after it.
     "llm": ("backend_name", "model", "profile", "native_schema", "history", "persona"),
+    # `layers` above all: a lesioned DAC agent behaves differently from the full one by design, so
+    # the two must never share a config_hash (agents/dac.py, tests/test_ablation.py).
+    "dac": ("layers", "deficit_growth", "deficit_relief", "urgency", "withdraw", "alpha", "gamma",
+            "explore", "min_visits", "deficit_bands", "stm_length", "ltm_capacity",
+            "distance_decay", "succession_bonus", "trust_up", "trust_down", "trust_threshold",
+            "initial_trust", "baseline_rate"),
 }
 
 

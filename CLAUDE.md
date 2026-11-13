@@ -1175,6 +1175,62 @@ review from the arithmetic.
   default; a third case pins that at reciprocity 0 the move is exactly the closed-form coin, so the
   lesion is known to detect an inert belief.
 
+The final benchmark (`experiments/results/benchmark_alouminio_{a,b}.json`, two processes, two
+repeats each) reproduces every call count exactly, DQN included. Peak allocation repeats exactly for
+every kind but DQN (1,161 and 1,175 KiB), so the paper reports that column as approximate for DQN.
+FEP costs 54.5 calls per agent-step at reciprocity 1, against 46.1 at 0.
+
+## 9p. A seventh architecture: a compact DAC-style agent (`agents/dac.py`, 2026-11-13)
+
+Asked for by the user after reading Verschure (2026), "The architecture of Responsible Autonomy",
+Phil. Trans. R. Soc. B 381:20250156. The user's MSc (UPF) is in Verschure's Distributed Adaptive
+Control tradition, and Freire et al. (2020, PLoS ONE 15:e0234434), whose reactive plus adaptive DAC
+agents played the Battle of the Exes, is the direct ancestor of the congestion family here. **It is
+a compact DAC-style agent, never to be described as a full DAC implementation.**
+
+- Reactive: a deficit in [0, 1] that falls with a gain and rises with a loss or a contest ended
+  without a gain; an urgency reflex (claim) and a withdrawal reflex (concede after a fruitless
+  contest) that run beneath every other layer, as the avoidance reflexes do in Freire et al.
+- Adaptive: tabular Q over (observation, deficit band), epsilon-greedy, takes a state after
+  `min_visits` visits.
+- Contextual: Sequential Episodic Control (Freire, Amil, Verschure, arXiv:2112.14734), short-term
+  couplets consolidated into long-term memory after a gain above baseline, retrieved by matching
+  the observation with a succession bias.
+- Arbitration: the contextual layer acts while `trust >= trust_threshold`; trust is tested whenever
+  the move made was the one it proposed, against the sign of the TD error, and is lost faster than
+  gained (after the model-trust idea of Verschure 2026).
+- `layers` is a lesion and is in `_PARAM_ATTRS`, so a lesioned agent is a different design. Bound by
+  role, observation-agnostic, so one unchanged agent plays both game families.
+
+**Three design mistakes, found by running it, before the version that shipped.**
+
+1. The deficit first rose every round without a gain. In the congestion family gains come only at
+   episode ends, so the urgency reflex was in control 97% of the time and everyone rushed.
+2. With the reflexes overridable by the learned layers, the adaptive layer learned, as every
+   tabular learner here does, that all should rush. Moving the reflexes beneath the other layers
+   (as in Freire et al.) raised efficiency from 0.14 to 0.61 but left CALT near 0.13.
+3. A need-weighted reward for the adaptive layer was tried and changed nothing measurable, so it was
+   removed rather than kept as an extra claim to defend. The adaptive layer learns from the payoff.
+
+**The finding, pinned in `tests/test_ablation.py`.** In the Honey-Jar Game with three agents, the
+full agent's CALT is 0.11 to 0.14 over three seeds, the tabular learners' 0.185, and **the reactive
+layer alone reaches 0.75 to 0.76** (AALT about 0.70, reward fairness 0.99, at an efficiency of 0.40,
+since agents wait). The turn-taking comes from the homeostatic reflexes and is destroyed by the layer
+that learns from individual payoff, which is the platform's coordination-gap result reappearing
+inside one architecture. In the Public Goods Game the contextual layer decides 99% of rounds and the
+agent is a conditional cooperator (1.00 among AllC, 0.00 among AllD); removing it changes the play,
+and a contextual layer that never takes control can be removed without changing a single move.
+
+Wired into the factory (`dac`, seed offset 600), the record and the Smart Filter (`_KIND_ORDER` and
+`FEATURE_WEIGHTS` lengthen from 10 to 11, as they did for `llm`), and the webui (kind metadata, glyph
+and colours in both themes, seven advanced parameters with help in both languages, a creature card
+showing which layer decided and each layer's state, a help topic, a mascot). `tests/test_dac.py`
+(9 cases) checks each mechanism with its state set by hand.
+
+Found on the way: the webui's own bake-off built its FEP seat with `reciprocity` hardcoded to 0.0,
+and the FEP help text in both languages still said it picks the move that surprises it least. Both
+corrected.
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see
@@ -1187,6 +1243,14 @@ review from the arithmetic.
 - Terry et al., *PettingZoo: Gym for Multi-Agent Reinforcement Learning*; Towers et al., *Gymnasium*.
 - Moritz et al., *Ray/RLlib*; Raffin et al., *Stable-Baselines3*; Arend et al. (2022), *MLPro*.
 - McKelvey, McLennan & Turocy, *Gambit: Software Tools for Game Theory* (`pygambit`).
+- Distributed Adaptive Control, for `agents/dac.py`: Verschure, Kröse & Pfeifer (1992), RAS
+  9(3):181-196, doi:10.1016/0921-8890(92)90054-3; Verschure, Voegtlin & Douglas (2003), Nature
+  425:620-624, doi:10.1038/nature02024; Verschure (2012), BICA 1:55-72,
+  doi:10.1016/j.bica.2012.04.005; Freire et al. (2020), PLoS ONE 15(6):e0234434; Freire, Amil &
+  Verschure, Sequential Episodic Control, arXiv:2112.14734; Verschure (2026), Phil. Trans. R. Soc. B
+  381:20250156, doi:10.1098/rstb.2025.0156.
+- Raffinetti, Siletti & Vernizzi (2015), Statistical Methods & Applications 24:507-521, for the
+  payoff Gini's normalisation with negative values.
 - Existing paper sources: `../CONFERENCE PAPER GAMEBRAINS/death/root.tex` (venue submission,
   co-authored), `../CONFERENCE PAPER GAMEBRAINS/arxiv/root.tex` (preprint, single-authored). Fig. 1
   (architecture) is now a TikZ diagram in-source, not the old `gamebrains_architecture.png`.

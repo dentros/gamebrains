@@ -194,10 +194,11 @@ KIND_META = {
     "fep":          {"glyph": "glyph-fep",       "label": "FEP / Active Inference", "color": "#6b8a3d"},
     "markov_brain": {"glyph": "glyph-markov_brain", "label": "Markov-brain (evolutionary)", "color": "#b5541f"},
     "classic":      {"glyph": "glyph-classic",   "label": "Classic (fixed)",  "color": "#5c5346"},
+    "dac":          {"glyph": "glyph-dac",       "label": "DAC (layered control)", "color": "#b8913a"},
     "llm":          {"glyph": "glyph-llm",       "label": "LLM (Ollama)",     "color": "#4aa39a"},
     "human":        {"glyph": "glyph-classic",   "label": "Human (you)",      "color": "#c98a2b"},
 }
-_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "llm", "human"]
+_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "dac", "llm", "human"]
 
 _METRIC_META = [
     ("cooperation_rate", "Cooperation rate"),
@@ -331,6 +332,15 @@ _ADVANCED_PARAMS: dict[str, list[tuple[str, Any, str]]] = {
            ("drift", 0.1, "belief drift toward uniform per round"),
            ("precision", 4.0, "softmax precision over expected value")],
     "classic": [("p_cooperate", 0.5, "P(Cooperate) for the Random strategy only")],
+    # The DAC agent's knobs a reader is most likely to vary, one per layer and the arbitration.
+    # Defaults are agents/dac.py's own, so an untouched field reproduces the default agent.
+    "dac": [("urgency", 0.9, "deficit at which the reflex claims over every other layer"),
+            ("deficit_growth", 0.15, "deficit added by each lost contest"),
+            ("withdraw", 0.8, "P(concede) in the round after a fruitless contest"),
+            ("explore", 0.1, "adaptive layer's exploration rate"),
+            ("stm_length", 4, "couplets in short-term memory"),
+            ("ltm_capacity", 60, "sequences kept in long-term memory"),
+            ("trust_threshold", 0.5, "trust the contextual layer needs to take control")],
     # The model tag and the constraint are design decisions rather than tuning, and both reach
     # config_hash through record.py's _PARAM_ATTRS. `llm_constrained` is 1/0 rather than a
     # checkbox because every field here is one text input cast by the type of its default, and a
@@ -513,6 +523,21 @@ _HELP_TOPICS: dict[str, tuple[str, str]] = {
         "its move, because cooperating costs the same whatever the others do. At the default of 1 it "
         "cooperates when it believes enough of the others do, so what it expects of them shapes what "
         "it does.</p>"
+    )),
+    "dac": ("DAC: Distributed Adaptive Control", (
+        "<p><b>Theory.</b> A compact agent after Verschure's Distributed Adaptive Control: three "
+        "layers, each able to decide a move. The <i>reactive</i> layer holds a deficit that rises "
+        "with every contest lost and falls with every gain, and two reflexes that always run beneath "
+        "the others: claim when the deficit is urgent, and give way in the round after a contest "
+        "lost while claiming. The <i>adaptive</i> layer is a value table over the observation and "
+        "the deficit. The <i>contextual</i> layer stores short sequences of moves that ended in a "
+        "gain and replays the one that matches the current situation, but only while it has been "
+        "earning the agent's trust, which it loses faster than it gains. This is not a full DAC: "
+        "each layer is the smallest mechanism that does that layer's job here.</p>"
+        "<p><b>Reading it.</b> The bars say how often each layer decided. In the Honey-Jar Game the "
+        "reflexes alone take turns well, and the value table, when it takes over, learns that "
+        "everybody should rush, as any tabular learner does. Removing layers, in code, is how you "
+        "see which layer produces what.</p>"
     )),
     "nash": ("Nash equilibrium (pygambit)", (
         "<p><b>Theory.</b> Computed analytically (via pygambit) on the single-round stage game: which "
@@ -772,6 +797,8 @@ def render_creature(agent: Any, coop_rate: float | None = None,
         body = _classic_html(brain)
     elif kind == "llm":
         body = _llm_html(brain)
+    elif kind == "dac":
+        body = _dac_html(brain) + _help_trigger("dac")
     else:
         body = f"<pre>{brain}</pre>"
     meta = KIND_META.get(kind, {"glyph": "glyph-classic", "label": kind, "color": "#5c5346"})
@@ -878,6 +905,19 @@ def _mascot_svg(kind: str) -> str:
             f"<path d='M26 32 H74' stroke='{e}' stroke-width='2.4' stroke-linecap='round' opacity='.55'/>"
             "</svg>"
         )
+    if kind == "dac":
+        # Three stacked layers, the face on the middle one: reflexes below, memory above.
+        return (
+            "<svg viewBox='0 0 100 100'>"
+            f"<rect x='22' y='12' width='56' height='20' rx='9' fill='var(--piece-dac)' stroke='{e}' stroke-width='4' opacity='.85'/>"
+            f"<rect x='14' y='34' width='72' height='32' rx='13' fill='var(--piece-dac)' stroke='{e}' stroke-width='5'/>"
+            f"<rect x='22' y='68' width='56' height='20' rx='9' fill='var(--piece-dac)' stroke='{e}' stroke-width='4' opacity='.85'/>"
+            f"<circle cx='38' cy='48' r='6.5' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='62' cy='48' r='6.5' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='38' cy='49' r='2.7' fill='{e}'/><circle cx='62' cy='49' r='2.7' fill='{e}'/>"
+            f"<path d='M42 58 Q50 63 58 58' fill='none' stroke='{e}' stroke-width='3.6' stroke-linecap='round'/>"
+            "</svg>"
+        )
     return ""
 
 
@@ -900,6 +940,40 @@ def _fep_html(brain: dict) -> str:
              f"P({labels['claim']})={probs.get('claim', 0):.2f} &middot; "
              f"reciprocity={brain.get('reciprocity', 0):g}</p>")
     return f"<div class='beliefs'>{bars}</div>{footer}"
+
+
+_DAC_LAYER_LABEL = {"reactive-urgent": "reactive (urgent)", "reactive-withdraw": "reactive (withdraw)",
+                    "reactive": "reactive", "adaptive": "adaptive", "contextual": "contextual",
+                    "none": "none"}
+
+
+def _dac_html(brain: dict) -> str:
+    """Which layer decided the last move and how often each has decided, then each layer's state:
+    the deficit against its urgency, the adaptive values for the current state, and the
+    contextual layer's vote and trust against the threshold it must reach."""
+    labels = brain.get("role_labels") or {"concede": "Concede", "claim": "Claim"}
+    counts = brain.get("layer_counts", {})
+    total = max(sum(counts.values()), 1)
+    bars = "".join(
+        f"<div class='barrow'><span class='lab'>{escape(_DAC_LAYER_LABEL.get(k, k))}</span>"
+        f"<span class='bar'><span class='fill' style='width:{v / total * 100:.1f}%'></span></span>"
+        f"<span class='val'>{v / total:.2f}</span></div>"
+        for k, v in counts.items() if v)
+    q, vote = brain.get("q_values", {}), brain.get("contextual_vote", {})
+    present = ", ".join(brain.get("layers", []))
+    return (
+        f"<p class='meta'><b>Last move by:</b> "
+        f"{escape(_DAC_LAYER_LABEL.get(brain.get('layer', 'none'), '?'))} "
+        f"&middot; layers present: {escape(present)}</p>"
+        f"<div class='beliefs'>{bars}</div>"
+        f"<p class='meta'>deficit {brain.get('deficit', 0):.2f} (urgent at "
+        f"{brain.get('urgency', 0):.2f}) &middot; Q({labels['concede']})={q.get('concede', 0):.2f}, "
+        f"Q({labels['claim']})={q.get('claim', 0):.2f} over {brain.get('q_states', 0)} states</p>"
+        f"<p class='meta'>memory {brain.get('ltm_size', 0)}/{brain.get('ltm_capacity', 0)} "
+        f"sequences, {brain.get('matched_couplets', 0)} matching now &middot; vote "
+        f"{labels['concede']} {vote.get('concede', 0):.2f} / {labels['claim']} "
+        f"{vote.get('claim', 0):.2f} &middot; trust {brain.get('trust', 0):.2f} (acts at "
+        f"{brain.get('trust_threshold', 0):.2f})</p>")
 
 
 # --- cooperation-rate chart, as a plain server-rendered SVG polyline (no JS/CDN needed) ----------
@@ -1538,7 +1612,8 @@ def _run_bakeoff(n_agents: int, mpcr, best_genome, pretrain_rounds: int, eval_ro
             trained = _pretrain_representative(kind, n_agents, mpcr, seed + 700 + i, pretrain_rounds)
             roster.append(_Frozen(trained, name=f"{trained.name} (frozen)"))
         elif kind == "fep":
-            roster.append(_make_agent("fep", i, eval_game, seed + 800 + i, "MajorityTFT", 0.0, 2))
+            roster.append(_make_agent("fep", i, eval_game, seed + 800 + i, "MajorityTFT",
+                                      DEFAULT_RECIPROCITY, 2))
         else:
             roster.append(AllD(f"AllD-{i}"))
 
@@ -2038,6 +2113,8 @@ def _final_brains(event_log: list[dict[str, Any]]) -> list[dict[str, Any]]:
             body = _classic_html(brain)
         elif kind == "llm":
             body = _llm_html(brain)
+        elif kind == "dac":
+            body = _dac_html(brain)
         else:
             body = ""
         meta = KIND_META.get(kind, {"glyph": "glyph-classic", "label": kind, "color": "#5c5346"})

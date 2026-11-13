@@ -41,7 +41,10 @@ that relates to co-authorship on the accompanying papers.
 - **Agents** (`agents/`), all sharing one `Agent` contract (`act`/`update`/`inspect`/`render_brain`):
   tabular Q-learning, a Deep Q-Network (PyTorch), a Free-Energy-Principle / active-inference agent
   (Theory-of-Mind-relevant belief tracking), an evolvable Markov-brain animat (genetic algorithm
-  plus Φ and causal autonomy via a maintained PyPhi compatibility fork, `vendor/pyphi/`), classic
+  plus Φ and causal autonomy via a maintained PyPhi compatibility fork, `vendor/pyphi/`), a compact
+  agent in the Distributed Adaptive Control tradition (reactive, adaptive and contextual layers,
+  after Verschure's DAC, Freire et al. 2020 and Sequential Episodic Control, with the layer in
+  control shown every round), classic
   fixed strategies (AllC/AllD/Random/Majority-TFT), and a language-model agent that decides through
   a model served locally by Ollama, with a replay backend that reproduces its recorded decisions.
   A person can also take a seat from the browser, under the same contract as every agent.

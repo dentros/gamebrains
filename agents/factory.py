@@ -31,10 +31,11 @@ from .classic import AllC, AllD, MajorityTFT, RandomAgent
 from .fep import DEFAULT_RECIPROCITY
 
 #: Every kind this factory builds. The language model is deliberately absent, see the module note.
-KINDS = ("qlearning", "dqn", "fep", "markov_brain", "classic")
+KINDS = ("qlearning", "dqn", "fep", "markov_brain", "classic", "dac")
 
 #: Seed offsets per kind. Part of the reproducibility contract, not a tuning knob.
-_SEED_OFFSET = {"qlearning": 100, "dqn": 200, "fep": 300, "classic": 400, "markov_brain": 500}
+_SEED_OFFSET = {"qlearning": 100, "dqn": 200, "fep": 300, "classic": 400, "markov_brain": 500,
+                "dac": 600}
 
 #: What each kind will accept as an override, and therefore what a sweep may vary.
 #:
@@ -51,6 +52,12 @@ ACCEPTS: dict[str, tuple[str, ...]] = {
     "fep": ("obs_noise", "drift", "precision", "reciprocity"),
     "markov_brain": ("n_hidden",),
     "classic": ("strategy", "p_cooperate"),
+    # Everything the DAC agent records except `layers`, which is a lesion rather than a tuning knob
+    # and is set by constructing the agent directly (tests/test_ablation.py does).
+    "dac": ("deficit_growth", "deficit_relief", "urgency", "withdraw", "alpha", "gamma", "explore",
+            "min_visits", "deficit_bands", "stm_length", "ltm_capacity", "distance_decay",
+            "succession_bonus", "trust_up", "trust_down", "trust_threshold", "initial_trust",
+            "baseline_rate"),
 }
 
 
@@ -151,6 +158,11 @@ def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "
         _checked(kind, overrides)
         return classic_agent(str(overrides.get("strategy", classic_strategy)), index,
                              game.n_agents, seed, overrides)
+
+    if kind == "dac":
+        from .dac import DACAgent
+        _checked(kind, overrides)
+        return DACAgent(name=f"DAC {index}", seed=seed + _SEED_OFFSET["dac"] + index, **overrides)
 
     if kind == "llm":
         raise ValueError(

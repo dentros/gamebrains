@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 from gamebrains.repository.ledger import Ledger
-from gamebrains.repository.smart_filter import lookup, nearest
+from gamebrains.repository.smart_filter import FEATURE_WEIGHTS, lookup, nearest
 
 
 def _tmp_dir() -> Path:
@@ -121,8 +121,11 @@ def test_a_ledger_written_before_a_kind_was_added_still_ranks():
     ranked = nearest(legacy, [4, 0.5, 1.0, 1000, 4, 0, 0, 0, 0], k=2)
     assert len(ranked) == 2 and ranked[0][1] == 0.0
 
+    # One dimension past the weights, whatever their count today; a literal length here broke the
+    # first time a kind was appended after it was written.
+    too_long = len(FEATURE_WEIGHTS) + 1
     try:
-        nearest([{"feature_vector": [0] * 11}], [0] * 11, k=1)
+        nearest([{"feature_vector": [0] * too_long}], [0] * too_long, k=1)
     except ValueError as exc:
         assert "FEATURE_WEIGHTS" in str(exc) and "_KIND_ORDER" in str(exc), (
             "the refusal has to say where the missing weight goes")

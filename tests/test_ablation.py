@@ -92,6 +92,62 @@ def test_the_fep_agent_conditions_on_its_company() -> None:
           f"{among_defectors:.3f} among defectors")
 
 
+# --- The DAC-style agent: what removing a layer changes ------------------------------------------
+
+
+def _dac_pgg(**kwargs) -> tuple[np.ndarray, list]:
+    from ..agents.dac import DACAgent
+    game = PublicGoodsGame(n_agents=N)
+    roster = [DACAgent(f"D{i}", seed=i, **kwargs) for i in range(N)]
+    return np.asarray(run_match(game, roster, rounds=400, seed=0)["actions"]), roster
+
+
+def test_the_contextual_layer_changes_what_the_dac_agent_does() -> None:
+    full, roster = _dac_pgg()
+    lesioned, _ = _dac_pgg(layers=("reactive", "adaptive"))
+    share = roster[0].layer_counts["contextual"] / 400
+    assert share > 0.5, f"the contextual layer decided only {share:.2f} of the rounds"
+    assert not np.array_equal(full, lesioned), (
+        "removing a layer that decided most rounds left every move unchanged, so the moves were "
+        "not made by it")
+    print(f"OK: the contextual layer decides {share:.2f} of rounds, and removing it changes the play")
+
+
+def test_a_layer_that_never_decides_can_be_removed_without_trace() -> None:
+    """Guards the guard: if the contextual layer never takes control, removing it must change
+    nothing at all, so the difference above is the layer acting and not a side effect of removing
+    its bookkeeping."""
+    never, roster = _dac_pgg(trust_threshold=2.0)
+    lesioned, _ = _dac_pgg(layers=("reactive", "adaptive"), trust_threshold=2.0)
+    assert roster[0].layer_counts["contextual"] == 0
+    assert np.array_equal(never, lesioned), (
+        "a contextual layer that never decided still changed the play when removed")
+    print("OK: a contextual layer that never decides leaves the play identical when removed")
+
+
+def test_turn_taking_in_the_honey_jar_game_comes_from_the_reactive_layer() -> None:
+    """The finding the paper reports about this agent, pinned so that a change of defaults has to
+    face it. With all three layers the agent's coordination collapses as a tabular learner's does;
+    with the reflexes alone, a deficit that rises with every contest lost and a withdrawal after
+    every fruitless one, three agents take turns. Freire et al. (2020) report that a reactive
+    layer alone produces turn-taking in the Battle of the Exes."""
+    from ..agents.dac import DACAgent
+    from ..games.congestion import from_preset
+    from ..metrics import social_alt
+
+    def calt(**kwargs) -> float:
+        game = from_preset("hjg", 3)
+        roster = [DACAgent(f"D{i}", seed=i, **kwargs) for i in range(3)]
+        records = run_match(game, roster, rounds=3000, seed=0)
+        return social_alt.compute_all(records["episodes"], n_agents=3,
+                                      full_reward=game.full_reward)["CALT"]
+
+    full, reflexes = calt(), calt(layers=("reactive",))
+    assert reflexes > 0.5 and full < 0.3, (
+        f"CALT {full:.3f} with all layers and {reflexes:.3f} with the reflexes alone")
+    print(f"OK: CALT {full:.3f} with all three layers, {reflexes:.3f} with the reactive layer alone")
+
+
 if __name__ == "__main__":
     failures = 0
     for fn_name, fn in sorted(globals().items()):

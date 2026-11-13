@@ -45,7 +45,7 @@ def test_influence_graph_keeps_only_significant_pairs():
 def test_compute_all_headline_scalars_and_detail_shape():
     rounds, n = 100, 3
     actions = np.ones((rounds, n), dtype=int)  # everyone always cooperates
-    records = {"actions": actions}
+    records = {"actions": actions, "cooperated": actions}
     te_detail = {"by_pair": {(i, j): {"bits": 0.0, "p_value": 1.0}
                              for i in range(n) for j in range(n) if i != j}}
 
@@ -59,6 +59,31 @@ def test_compute_all_headline_scalars_and_detail_shape():
     assert result["graph_detail"]["n_agents"] == n
 
 
+def test_cooperation_is_read_from_the_game_not_from_index_one():
+    """In the congestion family conceding is STAY, action 0. A roster that concedes every round
+    must form a complete weight-1 graph there. Built from `actions`, the graph read it as a roster
+    that never cooperated, since nobody ever played index 1."""
+    from gamebrains.agents.classic import AllC
+    from gamebrains.engine.runner import run_match
+    from gamebrains.games.congestion import CongestionGame
+
+    game = CongestionGame(n_agents=3)
+    records = run_match(game, [AllC(f"C{i}") for i in range(3)], rounds=40, seed=0)
+    assert set(records["actions"].flatten().tolist()) == {0}, "AllC did not stay put"
+    result = compute_all(records, {"by_pair": {}})
+    assert result["coop_graph_weight"] == 1.0, (
+        f"a roster conceding every round reads co-cooperation {result['coop_graph_weight']}")
+
+
+def test_a_game_without_a_concede_role_has_no_co_cooperation_graph():
+    actions = np.ones((10, 3), dtype=int)
+    result = compute_all({"actions": actions}, {"by_pair": {}})
+    assert result["coop_graph_weight"] is None and result["coop_graph_clustering"] is None, (
+        "the co-cooperation graph was built from raw action indices")
+    assert "concede" in result["coop_graph_status"]
+    assert result["influence_graph_density"] == 0.0, "the influence graph should still be reported"
+
+
 if __name__ == "__main__":
     test_co_cooperation_weights_match_hand_computed_probabilities()
     print("OK: co-cooperation weights match hand-computed probabilities")
@@ -66,3 +91,7 @@ if __name__ == "__main__":
     print("OK: influence graph keeps only surrogate-significant TE pairs")
     test_compute_all_headline_scalars_and_detail_shape()
     print("OK: compute_all headline scalars and detail shape are correct")
+    test_cooperation_is_read_from_the_game_not_from_index_one()
+    print("OK: in the congestion family a conceding roster forms a complete co-cooperation graph")
+    test_a_game_without_a_concede_role_has_no_co_cooperation_graph()
+    print("OK: without a concede role the co-cooperation graph is withheld, the influence graph kept")

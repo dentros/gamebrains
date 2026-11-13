@@ -161,7 +161,13 @@ def run_match(
         if eventlog is not None:
             eventlog.log({"type": "episode", **record})
 
+    # Who cooperated, seat by seat, for measures that need more than the count (the co-cooperation
+    # graph). Only a declared `concede` role can say this; a game that reports its own count without
+    # one gets None, and those measures are withheld rather than read off an action index.
+    concede = getattr(game, "action_roles", {}).get("concede")
+    cooperated = (actions_hist == concede).astype(int) if concede is not None else None
     return {"actions": actions_hist, "rewards": rewards_hist, "cooperators": coop_hist,
+            "cooperated": cooperated,
             "episodes": episodes, "partial_episode_rounds": ep_rounds,
             "partial_episode_policy": partial_episode}
 

@@ -8,7 +8,8 @@ instrumentation, consistent with the "metrics are pure functions of the log" pri
 
 - The **co-cooperation graph** (undirected, weighted): nodes are agents; the weight of edge (i, j)
   is the fraction of rounds in which BOTH i and j cooperated. This is the literal
-  "who-cooperates-with-whom" network. Built from `records["actions"]` alone.
+  "who-cooperates-with-whom" network. Built from `records["cooperated"]`, the runner's per-seat
+  reading of the game's declared `concede` role, and withheld for a game that declares none.
 - The **influence graph** (directed, unweighted edges annotated with TE): nodes are agents; a
   directed edge i -> j exists iff the transfer entropy T(i -> j) passed its surrogate significance
   test (p < 0.05) in metrics/information.py. This deliberately reuses the already-computed,
@@ -28,8 +29,15 @@ import networkx as nx
 import numpy as np
 
 
-def co_cooperation_graph(actions: np.ndarray) -> nx.Graph:
-    """Undirected weighted graph; weight (i, j) = P(both i and j cooperate in the same round)."""
+def co_cooperation_graph(cooperated: np.ndarray) -> nx.Graph:
+    """Undirected weighted graph; weight (i, j) = P(both i and j cooperate in the same round).
+
+    `cooperated` is 1 where a seat cooperated and 0 where it did not, as the runner returns it under
+    `records["cooperated"]` from the game's declared `concede` role. It used to be handed the raw
+    `actions` matrix, which made the weight the rate at which both played index 1: cooperating in
+    the Public Goods Game and both claiming the jar in the congestion family.
+    """
+    actions = np.asarray(cooperated)
     rounds, n_agents = actions.shape
     g = nx.Graph()
     g.add_nodes_from(range(n_agents))
@@ -60,10 +68,28 @@ def compute_all(records: dict[str, np.ndarray], te_detail: dict[str, Any]) -> di
     isolated pairs?), and `influence_graph_density` (fraction of possible directed influence links
     that are surrogate-significant -- the graph reading of the TE panel's `n_significant_pairs`).
     """
-    actions = records["actions"]
-    n_agents = actions.shape[1]
+    n_agents = records["actions"].shape[1]
+    cooperated = records.get("cooperated")
 
-    coop_g = co_cooperation_graph(actions)
+    infl_g = influence_graph(te_detail, n_agents)
+    possible = n_agents * (n_agents - 1)
+    density = float(infl_g.number_of_edges() / possible) if possible else 0.0
+    influence_edges = [{"source": u, "target": v, "bits": d["bits"], "p_value": d["p_value"]}
+                       for u, v, d in infl_g.edges(data=True)]
+
+    if cooperated is None:
+        # No declared concede role, so nobody can say which seat cooperated. The influence graph
+        # does not depend on what an action means and is still reported.
+        return {
+            "coop_graph_weight": None, "coop_graph_clustering": None,
+            "coop_graph_status": ("withheld: the game declares no 'concede' action role, so there "
+                                  "is no per-seat cooperation to build the graph from"),
+            "influence_graph_density": density,
+            "graph_detail": {"coop_edges": [], "coop_weighted_degree": {},
+                             "influence_edges": influence_edges, "n_agents": n_agents},
+        }
+
+    coop_g = co_cooperation_graph(cooperated)
     weights = [d["weight"] for _, _, d in coop_g.edges(data=True)]
     mean_weight = float(np.mean(weights)) if weights else 0.0
     # nx.average_clustering(weight=...) needs at least one triangle to be meaningful; for n=2 it
@@ -80,10 +106,6 @@ def compute_all(records: dict[str, np.ndarray], te_detail: dict[str, Any]) -> di
     else:
         clustering = float(nx.average_clustering(coop_g, weight="weight"))
 
-    infl_g = influence_graph(te_detail, n_agents)
-    possible = n_agents * (n_agents - 1)
-    density = float(infl_g.number_of_edges() / possible) if possible else 0.0
-
     weighted_degree = dict(coop_g.degree(weight="weight"))
     return {
         "coop_graph_weight": mean_weight,
@@ -94,10 +116,7 @@ def compute_all(records: dict[str, np.ndarray], te_detail: dict[str, Any]) -> di
                 {"i": i, "j": j, "weight": d["weight"]} for i, j, d in coop_g.edges(data=True)
             ],
             "coop_weighted_degree": {int(k): float(v) for k, v in weighted_degree.items()},
-            "influence_edges": [
-                {"source": u, "target": v, "bits": d["bits"], "p_value": d["p_value"]}
-                for u, v, d in infl_g.edges(data=True)
-            ],
+            "influence_edges": influence_edges,
             "n_agents": int(n_agents),
         },
     }

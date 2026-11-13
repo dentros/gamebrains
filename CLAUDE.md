@@ -1107,6 +1107,14 @@ creature card (`actions.mean(axis=0)`) and the "policy vs behavior" line, which 
 in the greedy policy. In the congestion family both described claiming as cooperating. Tests: four
 new cases in `test_cooperation_semantics.py`, all failing on the old code.
 
+**And the co-cooperation graph (`metrics/graph.py`) was built from raw `actions`**, so its weight
+was the rate at which two seats both played index 1. In the congestion family a roster that
+conceded every round read **0.0**. The runner now returns `records["cooperated"]`, the per-seat
+reading of the declared `concede` role, and the graph is built from that, or withheld with a
+reason for a game with no such role (the influence graph is index-free and always reported).
+Stored congestion records carry the old `coop_graph_*` values; no paper number uses them. Two new
+cases in `test_graph.py`.
+
 ### The bake-off wrapper misdescribed every frozen agent (`agents/frozen.py`, new)
 
 Two copies of `Frozen` (the script's and the webui's) inherited `semantics` only. So the record of a

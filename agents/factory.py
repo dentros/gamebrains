@@ -37,6 +37,27 @@ KINDS = ("qlearning", "dqn", "fep", "markov_brain", "classic", "dac")
 _SEED_OFFSET = {"qlearning": 100, "dqn": 200, "fep": 300, "classic": 400, "markov_brain": 500,
                 "dac": 600}
 
+#: Width of the block of seat seeds each master seed owns.
+#:
+#: Seat seeds used to be `master + offset + index`, so master 1's seats 0 to 3 drew the streams of
+#: master 0's seats 1 to 4. Replicates run from the web interface or a sweep at consecutive master
+#: seeds therefore shared most of their randomness, and any interval computed over them was too
+#: narrow. Found by an external review of the code (C2-01, 2026-11-16). Each master seed now owns
+#: the block `[master * 1000, master * 1000 + 1000)`, the kind offsets stay inside it, and an index
+#: that would spill into the next kind's range is refused. The published experiment scripts seed
+#: their own agents and were never affected.
+_SEED_STRIDE = 1000
+_MAX_SEATS_PER_KIND = 100
+
+
+def _seat_seed(master: int, kind: str, index: int) -> int:
+    """The seed of seat `index` of `kind` in a run with master seed `master`, without overlap."""
+    if not 0 <= index < _MAX_SEATS_PER_KIND:
+        raise ValueError(
+            f"seat index {index} for {kind!r} is outside 0..{_MAX_SEATS_PER_KIND - 1}; beyond that "
+            f"its seed would collide with the next kind's seats in the same run")
+    return master * _SEED_STRIDE + _SEED_OFFSET[kind] + index
+
 #: What each kind will accept as an override, and therefore what a sweep may vary.
 #:
 #: **An override this factory does not recognise is refused, not ignored.** A silently dropped
@@ -81,7 +102,7 @@ def classic_agent(strategy: str, index: int, n_agents: int, seed: int,
         return AllD(f"AllD {index}")
     if strategy == "Random":
         return RandomAgent(f"Random {index}", p_cooperate=overrides.get("p_cooperate", 0.5),
-                           seed=seed + _SEED_OFFSET["classic"] + index)
+                           seed=_seat_seed(seed, "classic", index))
     if strategy == "MajorityTFT":
         return MajorityTFT(f"TFT {index}", n_agents=n_agents)
     raise ValueError(f"unknown classic strategy {strategy}")
@@ -108,7 +129,7 @@ def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "
             epsilon=1.0,
             epsilon_min=overrides.get("epsilon_min", epsilon_min),
             epsilon_decay=overrides.get("epsilon_decay", epsilon_decay),
-            seed=seed + _SEED_OFFSET["qlearning"] + index,
+            seed=_seat_seed(seed, "qlearning", index),
             state_labels=labels, action_labels=actions,
         )
 
@@ -123,7 +144,7 @@ def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "
             epsilon=1.0,
             epsilon_min=overrides.get("epsilon_min", epsilon_min),
             epsilon_decay=overrides.get("epsilon_decay", epsilon_decay),
-            seed=seed + _SEED_OFFSET["dqn"] + index,
+            seed=_seat_seed(seed, "dqn", index),
             state_labels=labels, action_labels=actions, **kwargs,
         )
 
@@ -140,7 +161,7 @@ def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "
         return FEPAgent(
             name=f"FEP {index}", n_agents=game.n_agents, mpcr=game.mpcr, cost=game.cost,
             reciprocity=overrides.get("reciprocity", reciprocity),
-            seed=seed + _SEED_OFFSET["fep"] + index,
+            seed=_seat_seed(seed, "fep", index),
             start_state=game.start_state, **kwargs,
         )
 
@@ -150,7 +171,7 @@ def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "
         return MarkovBrainAgent(
             name=f"MarkovBrain {index}", n_states=game.n_states, n_actions=game.n_actions,
             n_hidden=int(overrides.get("n_hidden", markov_hidden)),
-            seed=seed + _SEED_OFFSET["markov_brain"] + index,
+            seed=_seat_seed(seed, "markov_brain", index),
             start_state=game.start_state,
         )
 
@@ -162,7 +183,7 @@ def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "
     if kind == "dac":
         from .dac import DACAgent
         _checked(kind, overrides)
-        return DACAgent(name=f"DAC {index}", seed=seed + _SEED_OFFSET["dac"] + index, **overrides)
+        return DACAgent(name=f"DAC {index}", seed=_seat_seed(seed, "dac", index), **overrides)
 
     if kind == "llm":
         raise ValueError(

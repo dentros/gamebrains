@@ -196,9 +196,12 @@ Deep mechanistic interpretability (activation probing) is **out of scope for the
   - Tests: `tests/test_social_alt.py` (11 cases), including the traditional-measures-look-fine
     scenario as an explicit assertion.
 - **Transfer Entropy / Mutual Information / Predictive Information (the ToM-relevant
-  family), per our own decision-framework paper** — Papadopoulos & Psannis, *"Information-Theoretic
-  Measures in AI: A Practical Decision Guide"* (arXiv:2604.23716, same authors as GameBrains — a
-  self-citation, not an external survey). This paper's own prescriptive framework is what
+  family), per our own decision-framework paper** — Papadopoulos & Psannis, *"Non-stationarity
+  breaks permutation surrogates in multi-agent reinforcement learning: diagnosis and remedies"*,
+  IEEE Access, early access 2026-11-16, doi:10.1109/ACCESS.2026.3754039 (IEEE Xplore 11797853;
+  preprint arXiv:2604.23716, whose early versions carried the title *"Information-Theoretic Measures
+  in AI: A Practical Decision Guide"*). Same authors as GameBrains, so a self-citation, not an
+  external survey. This paper's own prescriptive framework is what
   GameBrains should implement and follow, not just cite:
   - **Transfer Entropy (TE)** — directed information flow from one agent's action/observation
     history into another's — the concrete, quantifiable **Theory-of-Mind signature** this project
@@ -1659,7 +1662,8 @@ Appendix G table is stale and must be regenerated.**
 
 ## 9j. The transfer-entropy guardrail was rebuilt on its own validation study (2026-09-12)
 
-The companion paper (§5) was submitted to IEEE Access, and its final method **contradicts what this
+The companion paper (§5) was submitted to IEEE Access (published there in early access on 2026-11-16,
+doi:10.1109/ACCESS.2026.3754039), and its final method **contradicts what this
 platform had implemented from its earlier draft**. Section 9i's guardrail derived a burn-in, cut the
 transient, and refused to publish unless the remaining window passed ADF and KPSS. Measured against
 ground truth over 100 seeds in two games, that ordering is the wrong one. The paper's own closing

@@ -160,3 +160,11 @@ rather than devised here. Please cite the originals when those are used:
 > N. Al. Papadopoulos and M. Sanchez-Fibla, "Alternation measures for the evaluation of selfish
 > agents' turn-taking," in *Artificial Intelligence Research and Development*, IOS Press, 2021,
 > pp. 278-281. [doi:10.3233/FAIA210145](https://doi.org/10.3233/FAIA210145)
+
+The transfer-entropy significance test in `metrics/information.py`, which permutes each source
+within blocks of training time, follows a validation study by the same authors. Please cite it
+when those measures are used:
+
+> N. Al. Papadopoulos and K. E. Psannis, "Non-stationarity breaks permutation surrogates in
+> multi-agent reinforcement learning: diagnosis and remedies," *IEEE Access*, early access, 2026.
+> [doi:10.1109/ACCESS.2026.3754039](https://doi.org/10.1109/ACCESS.2026.3754039)

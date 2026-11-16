@@ -1236,6 +1236,113 @@ Found on the way: the webui's own bake-off built its FEP seat with `reciprocity`
 and the FEP help text in both languages still said it picks the move that surprises it least. Both
 corrected.
 
+## 9q. A Markov brain of logic gates, beside the sigmoid one (`agents/markov_gates.py`, 2026-11-16)
+
+Reviewers objected to the name `markov_brain`. In the literature this platform cites (Edlund et al.
+2011, Albantakis et al. 2014, Hintze et al. 2017, MABE) a Markov brain is a network of binary nodes
+updated by **probabilistic or deterministic logic gates**; `agents/markov_brain.py` is a stochastic
+recurrent network of sigmoid units. That agent is left exactly as it is, under its own kind, since
+records, experiment scripts and the paper name it. The gate brain is a new kind, `markov_gates`.
+**Do not describe `markov_brain` as a circuit of logic gates.** Its webui help text did, in both
+languages, and was corrected in the same commit that put the real one beside it.
+
+- Nodes: the sigmoid brain's layout and encoding exactly (sensor `k` is bit `k` of the observation,
+  action is the motor bits little-endian), so the two play the same games.
+- Gates, after MABE: 1 to 4 inputs from any node, 1 to 4 outputs to hidden or motor nodes, a table
+  of shape `2^in x 2^out` whose rows are distributions over output patterns. Every gate reads the
+  state at t, hidden and motor nodes start from zero at t+1, and the gates' output bits are OR'ed
+  in. A node no gate writes is 0. Rows and columns are little-endian over the gate's own input and
+  output order; an implementation that numbers them the other way round relabels rows and columns
+  and changes nothing else.
+- **Deterministic by default**, as in Albantakis's animats: no random number is drawn during play,
+  `full_tpm()` is the exact transition function, and since the second term of causal autonomy is
+  zero for deterministic dynamics, `phi_autonomy.causal_autonomy` computes the complete measure on
+  these brains rather than the first-order part it computes on the sigmoid brain.
+- `deterministic=False` gives probabilistic gates, one draw per gate per update from the agent's
+  seeded generator. The state-by-node TPM then keeps every node's marginal exactly (gates draw
+  independently) but **drops the correlation between outputs one gate draws together**.
+  `tpm_is_exact()` says whether that happens for a genome: always True when deterministic, and for
+  a probabilistic gate only when every row factorises over its output bits.
+- The gate list is the genome. `mutate(rng, rate, scale, name, seed)`: each row mutates with
+  probability `rate` (a deterministic row moves its one to another column, a probabilistic row has
+  one entry moved by a Gaussian of width `scale`, clipped and renormalised); each gate is rewired
+  with probability `rate` (one input or output moved to a node that gate does not use); then one
+  gate is deleted with probability `rate` and one inserted and one duplicated with `rate / 2` each,
+  within `[MIN_GATES, MAX_GATES] = [1, 32]`. At `rate = 0` the child is the parent. `crossover` cuts
+  each parent's list at a point of its own and joins head to tail, taking gates whole. Every result
+  goes through the constructor's validation, so an operator can only return a valid genome or raise.
+
+**Design decisions, each a choice somebody could make differently.**
+
+1. A gate lists a node at most once on each side. A gate whose addresses are decoded from a genome
+   without excluding repeats can name a node twice; here that would only add unreachable rows.
+2. Outputs go to hidden and motor nodes only. A sensor written by a gate is overwritten by the
+   observation before anything reads it.
+3. Deterministic or probabilistic is a property of the brain, not of each gate, and crossover
+   refuses to mix the two. It is one recorded parameter, and a brain is one design.
+4. Structural mutation is balanced in expectation (delete at `rate`, insert and duplicate at
+   `rate / 2`), so the genome does not grow just by being mutated.
+5. `spawn` reads `n_hidden` off the config, as the sigmoid brain does, and `n_gates` and
+   `deterministic` from `config.genome`, and **refuses any other key there**, for the factory's
+   reason: a knob accepted and ignored is recorded as the setting the run used.
+6. `n_gates` in the record is the gate count the seated genome has, so an evolved brain reports its
+   own rather than the count it was spawned with.
+7. `parse_deterministic` refuses anything but true/false/1/0, because `bool("0")` is True and a
+   form or a sweep sending `"0"` would otherwise run and record deterministic gates.
+8. The brain is cleared at `on_match_start` and on the game's start observation. A game with none
+   (the congestion family) gives it `NO_START_OBSERVATION = -1`, so memory runs across episodes,
+   which is what would let a brain carry who won last time. The sigmoid brain's default,
+   `n_states - 1`, is a real board position in that family.
+
+**Three things found by running it, none of them a defect in the new agent.**
+
+1. **OR saturates.** A node written by `k` gates with random tables is 1 for a given input pattern
+   with probability `1 - 2^-k`, so a random brain with many gates mostly plays action 1. In five
+   random four-seat Public Goods rosters over 300 rounds, the seats whose rate of playing 1 rounds
+   to 1.00 were 13 of 20 at 3 gates, 17 at 4 and 19 at 6. That is MABE's rule with uniform tables, not a bug, but it means the
+   GA starts from a population that mostly cooperates, and it made the first version of the seed
+   test fail: two rosters of six-gate brains under different seeds played identically.
+2. **The vendored EMD refuses some cuts of deterministic gate brains.** PyPhi's CES distance puts
+   the phi of the concepts found only in the unpartitioned structure in one histogram, those found
+   only in the partitioned one in the other, and balances the two with a null-concept bin of mass
+   `sum(d1) - sum(d2)`. When the partitioned side's own concepts carry more phi, that mass is
+   negative, and `vendor/pyphi/_emd_numpy.py`, which solves the transport problem as a linear
+   program with non-negative flows, reports it infeasible and raises. It was found on the first
+   end-to-end webui run with Phi switched on (a five-gate, six-node brain; the captured histograms
+   were `[0.071, 0.125, 0.061, 0, 0, 0, 0]` and `[0, 0, 0, 0.071, 0.125, 0.091, -0.030]`).
+   It is not common: a sweep of 40 random five-gate brains after 50 rounds raised on none. **How
+   often it happens, and whether the sigmoid brain ever reaches it, is not measured.** A 60-seed
+   run over both kinds was started and stopped by the machine for lack of memory before it
+   reported, so do not quote a rate from this section.
+   What pyemd, which the fork replaced, returns for a negative histogram is not known here, so
+   raising is at least not a guess. The principled repair, putting the deficit in the
+   unpartitioned side's null bin, changes what Phi means for those cuts and is the author's call,
+   not a quiet patch to the fork. Meanwhile the webui (`_gate_phi`) shows "Phi was not computed"
+   with the reason and still reports causal autonomy, which needs no EMD, for this kind only; the
+   sigmoid brain's path is unchanged and would still raise if it reached that case.
+3. **`factory.build("markov_brain", ...)` fails on the whole congestion family**, with an
+   `AttributeError`, because it reads `game.start_state` and `CongestionGame` defines none. So the
+   webui cannot seat a sigmoid brain in a Honey-Jar match. Not fixed here, since it would change an
+   existing kind's wiring; the gate brain goes through `start_observation(game)` instead.
+
+**Experiment scripts were not touched, and two of them now need one line each.**
+`run_evolution_bakeoff.py` defaults `--kinds` to `list(EVOLVABLE_KINDS)` and keys `LABELS`,
+`PREFIXES` and `genome_size` by kind, so its default invocation evolves the three older kinds and
+then raises `KeyError` at the first `markov_gates` run. `run_evolution.py --architecture
+markov_gates` raises `KeyError` on its `name_prefix` dict, and would skip Phi, which it computes for
+`markov_brain` only. The fix is an entry in each dict (genome size: the sum of the table sizes).
+
+Wired into the factory (`markov_gates`, seed offset 700, `ACCEPTS` n_hidden, n_gates,
+deterministic), `EVOLVABLE_KINDS` (appended, `markov_brain` stays first), the record (`_PARAM_ATTRS`
+n_hidden, n_gates, deterministic, evolved_by) and the Smart Filter (`_KIND_ORDER` and
+`FEATURE_WEIGHTS` lengthen from 11 to 12), and the webui: kind metadata, glyph and colours in both
+themes, an AND-gate mascot, three advanced parameters with help in both languages (`deterministic`
+offered as a choice of two), a card listing every gate as wiring plus truth table, a help topic,
+Phi in a match when no sigmoid brain is seated, and a fourth genome on the evolve tab with its two
+knobs. `tests/test_markov_gates.py` (11 cases) checks each mechanism with the genome set by hand;
+breaking OR into overwrite, letting gates read a half-updated state, or reversing the TPM's row
+order each makes the guarding case fail.
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see
@@ -1244,6 +1351,10 @@ corrected.
 - Active inference / Free Energy Principle — `pymdp` (not used directly; `agents/fep.py` implements
   the math in numpy — see that file's docstring for why).
 - MABE (Modular Agent Based Evolver) — Markov-brain inspiration.
+- Markov brains of logic gates, for `agents/markov_gates.py`: Edlund et al. (2011), PLoS Comput.
+  Biol. 7(10):e1002236, doi:10.1371/journal.pcbi.1002236; Albantakis et al. (2014), PLoS Comput.
+  Biol. 10(12):e1003966, doi:10.1371/journal.pcbi.1003966; Hintze et al. (2017), *Markov Brains: A
+  Technical Introduction*, arXiv:1709.05601.
 - Mayner et al. (2018), *PyPhi: A toolbox for integrated information theory*, PLOS Comp. Biol.
 - Terry et al., *PettingZoo: Gym for Multi-Agent Reinforcement Learning*; Towers et al., *Gymnasium*.
 - Moritz et al., *Ray/RLlib*; Raffin et al., *Stable-Baselines3*; Arend et al. (2022), *MLPro*.

@@ -64,5 +64,46 @@
     "pretrain_rounds": 3000,
     "eval_rounds": 1000,
     "seeds": 10
+  },
+  "provenance": {
+    "code_version": "git:938d37c",
+    "command": "run_bakeoff.py --seeds 10 --json gamebrains/experiments/results/bakeoff_alouminio.json",
+    "written_utc": "2026-11-16T13:09:57+00:00",
+    "versions": {
+      "python": "3.11.9",
+      "numpy": "2.4.6",
+      "platform": "Windows-10-10.0.26300-SP0",
+      "torch": "2.12.1+cpu",
+      "gymnasium": "1.2.2",
+      "pettingzoo": "1.26.1",
+      "networkx": "3.6.1",
+      "scipy": "1.17.1"
+    },
+    "settings": {
+      "n_agents": 5,
+      "mpcr": 0.5,
+      "pretrain_rounds": 3000,
+      "eval_rounds": 1000,
+      "seeds": 10,
+      "eps_decay": 0.9997,
+      "eps_min": 0.02,
+      "ga": {
+        "population_size": 20,
+        "generations": 15,
+        "match_rounds": 200,
+        "matches_per_generation": 3
+      },
+      "fep_reciprocity": 1.0,
+      "kinds": [
+        "qlearning",
+        "dqn",
+        "fep",
+        "markov_brain",
+        "classic"
+      ],
+      "agent_seeds": "seed * 100 + seat for learners; the GA and the FEP seat take the seed",
+      "eval_seed": "seed + 9000",
+      "interval": "95% t, t(N-1) * s / sqrt(N)"
+    }
   }
 }

@@ -24,6 +24,18 @@
       0.541511111111111,
       0.013136141834996133
     ],
+    "efficiency_per_episode": [
+      0.5849720886451298,
+      0.010855488857309139
+    ],
+    "CALT_final": [
+      0.11426920860737781,
+      0.00493205094338521
+    ],
+    "AALT_final": [
+      0.10434754003313965,
+      0.005386832234486782
+    ],
     "episodes": [
       1388.4,
       14.362463070100475
@@ -71,6 +83,18 @@
     "efficiency": [
       0.4149555555555556,
       0.0073553072034609
+    ],
+    "efficiency_per_episode": [
+      0.9697952584956526,
+      0.0025975827119752515
+    ],
+    "CALT_final": [
+      0.745577084565068,
+      0.01621598645766685
+    ],
+    "AALT_final": [
+      0.6980306509831223,
+      0.022661140798453383
     ],
     "episodes": [
       641.8,
@@ -120,6 +144,18 @@
       0.5006222222222223,
       0.07659201789754452
     ],
+    "efficiency_per_episode": [
+      0.5510956337756889,
+      0.08379981023641778
+    ],
+    "CALT_final": [
+      0.10441381246063383,
+      0.030951812518275463
+    ],
+    "AALT_final": [
+      0.10094079558203847,
+      0.02805278362793091
+    ],
     "episodes": [
       1364.5,
       26.384075049165546
@@ -167,6 +203,18 @@
     "efficiency": [
       0.5808666666666668,
       0.008863498842743126
+    ],
+    "efficiency_per_episode": [
+      0.6192711735578442,
+      0.0077843850390704105
+    ],
+    "CALT_final": [
+      0.08294640303080392,
+      0.00735504697361927
+    ],
+    "AALT_final": [
+      0.067956746513135,
+      0.010761575349495135
     ],
     "episodes": [
       1406.9,
@@ -300,6 +348,34 @@
         0.0,
         0.0
       ]
+    }
+  },
+  "provenance": {
+    "code_version": "git:52a9fab",
+    "command": "run_dac_lesion.py --seeds 10 --json gamebrains/experiments/results/dac_lesion_alouminio.json",
+    "written_utc": "2026-11-16T04:40:27+00:00",
+    "versions": {
+      "python": "3.11.9",
+      "numpy": "2.4.6",
+      "platform": "Windows-10-10.0.26300-SP0",
+      "torch": "2.12.1+cpu",
+      "gymnasium": "1.2.2",
+      "pettingzoo": "1.26.1",
+      "networkx": "3.6.1",
+      "scipy": "1.17.1"
+    },
+    "settings": {
+      "hjg_agents": 3,
+      "hjg_rounds": 3000,
+      "pgg_agents": 4,
+      "pgg_rounds": 1000,
+      "seeds": 10,
+      "interval": "95% t",
+      "final_window": 0.2,
+      "dac_defaults": "agents/dac.py constructor defaults; lesions set only `layers`",
+      "agent_seeds": "seed * 10 + seat",
+      "match_seed": "seed",
+      "efficiency": "per round (efficiency) and per episode (efficiency_per_episode)"
     }
   }
 }

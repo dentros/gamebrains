@@ -14,7 +14,7 @@
       "networkx": "3.6.1",
       "scipy": "1.17.1",
       "statsmodels": "0.14.6",
-      "code_version": "git:fb4018d"
+      "code_version": "git:52a9fab"
     }
   },
   "architectures": {
@@ -37,7 +37,7 @@
       },
       "calls_per_agent_step": 4.019,
       "construction_calls_per_agent": 3.0,
-      "peak_kib": 56.02734375,
+      "peak_kib": 56.01953125,
       "relative_to_classic": 1.0
     },
     "qlearning": {
@@ -59,7 +59,7 @@
       },
       "calls_per_agent_step": 10.952,
       "construction_calls_per_agent": 13.0,
-      "peak_kib": 63.72265625,
+      "peak_kib": 63.71484375,
       "relative_to_classic": 2.7250559840756408
     },
     "markov_brain": {
@@ -106,6 +106,28 @@
       "peak_kib": 73.73828125,
       "relative_to_classic": 13.562328937546653
     },
+    "dac": {
+      "match": {
+        "runs": [
+          1074610,
+          1074610
+        ],
+        "mean": 1074610.0,
+        "spread": 0
+      },
+      "construction": {
+        "runs": [
+          70,
+          70
+        ],
+        "mean": 70.0,
+        "spread": 0
+      },
+      "calls_per_agent_step": 537.305,
+      "construction_calls_per_agent": 17.5,
+      "peak_kib": 281.24609375,
+      "relative_to_classic": 133.69121672057724
+    },
     "dqn": {
       "match": {
         "runs": [
@@ -125,7 +147,7 @@
       },
       "calls_per_agent_step": 968.005,
       "construction_calls_per_agent": 4038.5,
-      "peak_kib": 1160.748046875,
+      "peak_kib": 1166.875,
       "relative_to_classic": 240.8571784025877
     }
   },

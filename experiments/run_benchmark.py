@@ -65,7 +65,7 @@ from ..metrics import graph, information, social, social_alt
 
 N_AGENTS = 4          # a power of 2, so the Markov brain's motor encoding is valid
 MPCR = 0.5
-KINDS = ("classic", "qlearning", "markov_brain", "fep", "dqn")
+KINDS = ("classic", "qlearning", "markov_brain", "fep", "dac", "dqn")
 #: Long enough for every architecture to reach its steady path. At 30 rounds a DQN's replay buffer
 #: never reaches its batch of 64, so its optimizer had not run once before the first counted match,
 #: and that match paid 152 calls of first-use setup the second did not. Measured, both ways.
@@ -89,6 +89,9 @@ def _roster(kind: str, game: Any, seed: int = 0) -> list:
     if kind == "fep":
         return [FEPAgent(f"F{i}", n_agents=N_AGENTS, mpcr=MPCR, seed=seed + i,
                          start_state=game.start_state) for i in range(N_AGENTS)]
+    if kind == "dac":
+        from ..agents.dac import DACAgent
+        return [DACAgent(f"X{i}", seed=seed + i) for i in range(N_AGENTS)]
     if kind == "markov_brain":
         return [MarkovBrainAgent.random(f"M{i}", game.n_states, game.n_actions,
                                         seed=seed + i, start_state=game.start_state)

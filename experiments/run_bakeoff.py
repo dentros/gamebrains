@@ -28,7 +28,7 @@ from typing import Any, Optional
 import numpy as np
 
 from ..agents.classic import AllD
-from ..agents.fep import FEPAgent
+from ..agents.fep import DEFAULT_RECIPROCITY, FEPAgent
 from ..agents.frozen import Frozen
 from ..agents.qlearning import QLearningAgent
 from ..agents.markov_brain import crossover as mb_crossover, spawn as mb_spawn
@@ -37,6 +37,7 @@ from ..engine.runner import run_match
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import social
 from ..repository.meta_analysis import t95
+from .provenance import provenance
 
 N_AGENTS = 5
 MPCR = 0.5
@@ -57,8 +58,15 @@ def _game(rounds: int, mpcr: float | None = None,
                            allow_non_dilemma=allow_non_dilemma)
 
 
+#: The genetic algorithm that evolves the Markov-brain representative. Stored with every result,
+#: since an evolved policy is defined as much by these as by its seed.
+GA_SETTINGS = {"population_size": 20, "generations": 15, "match_rounds": 200,
+               "matches_per_generation": 3}
+
+
 def pretrain(kind: str, seed: int, quiet: bool = False, mpcr: float | None = None,
-             allow_non_dilemma: bool = False) -> Frozen:
+             allow_non_dilemma: bool = False,
+             fep_reciprocity: float = DEFAULT_RECIPROCITY) -> Frozen:
     """Train one architecture in self-play and return one frozen representative of it.
 
     `mpcr` defaults to this module's own constant, which is what every bake-off in the paper used.
@@ -76,11 +84,16 @@ def pretrain(kind: str, seed: int, quiet: bool = False, mpcr: float | None = Non
     if kind == "fep":
         # No trained parameters, only beliefs formed online, so a fresh agent is the honest
         # representative. Reported in the paper as not comparable to the RL rows in the same way.
-        return Frozen(FEPAgent("FEP", n_agents=N_AGENTS, mpcr=effective_mpcr, seed=seed), "FEP")
+        # `fep_reciprocity` exists so a result measured before the default changed can still be
+        # regenerated: the language-model bake-off of the paper ran this seat at 0.
+        return Frozen(FEPAgent("FEP", n_agents=N_AGENTS, mpcr=effective_mpcr, seed=seed,
+                               reciprocity=fep_reciprocity), "FEP")
 
     if kind == "markov_brain":
-        config = EvolutionConfig(population_size=20, generations=15, match_rounds=200,
-                                 matches_per_generation=3, seed=seed)
+        config = EvolutionConfig(population_size=GA_SETTINGS["population_size"],
+                                 generations=GA_SETTINGS["generations"],
+                                 match_rounds=GA_SETTINGS["match_rounds"],
+                                 matches_per_generation=GA_SETTINGS["matches_per_generation"], seed=seed)
         result = evolve(lambda: _game(200, mpcr, allow_non_dilemma), config,
                         spawn=mb_spawn, crossover=mb_crossover)
         best = result.population[int(np.argmax(result.fitness))]
@@ -102,8 +115,9 @@ def pretrain(kind: str, seed: int, quiet: bool = False, mpcr: float | None = Non
     return Frozen(roster[0], roster[0].name)
 
 
-def one_bakeoff(seed: int) -> tuple[np.ndarray, np.ndarray, float]:
-    roster = [pretrain(kind, seed) for kind in KINDS]
+def one_bakeoff(seed: int, fep_reciprocity: float = DEFAULT_RECIPROCITY
+                ) -> tuple[np.ndarray, np.ndarray, float]:
+    roster = [pretrain(kind, seed, fep_reciprocity=fep_reciprocity) for kind in KINDS]
     game = _game(EVAL_ROUNDS)
     records = run_match(game, roster, rounds=EVAL_ROUNDS, seed=seed + 9000)
     metrics = social.compute_all(records, game.max_welfare_per_round())
@@ -128,6 +142,8 @@ def main(argv: Optional[list[str]] = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     parser.add_argument("--seeds", type=int, default=10, help="independent master seeds")
     parser.add_argument("--json", default="", help="also write results to this path")
+    parser.add_argument("--fep-reciprocity", type=float, default=DEFAULT_RECIPROCITY,
+                        help="reciprocity of the active-inference seat (results before 2026-11-13 used 0)")
     args = parser.parse_args(argv)
 
     print(f"Bake-off: {len(KINDS)} architectures, {PRETRAIN_ROUNDS} pretrain rounds each, "
@@ -136,7 +152,7 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     payoffs, cooperations, overall = [], [], []
     for seed in range(1, args.seeds + 1):
-        p, c, o = one_bakeoff(seed)
+        p, c, o = one_bakeoff(seed, args.fep_reciprocity)
         payoffs.append(p)
         cooperations.append(c)
         overall.append(o)
@@ -173,6 +189,13 @@ def main(argv: Optional[list[str]] = None) -> None:
     results["_match_cooperation"] = [om, oh]
     results["_config"] = {"n_agents": N_AGENTS, "mpcr": MPCR, "pretrain_rounds": PRETRAIN_ROUNDS,
                           "eval_rounds": EVAL_ROUNDS, "seeds": args.seeds}
+    results["provenance"] = provenance({
+        "n_agents": N_AGENTS, "mpcr": MPCR, "pretrain_rounds": PRETRAIN_ROUNDS,
+        "eval_rounds": EVAL_ROUNDS, "seeds": args.seeds, "eps_decay": EPS_DECAY,
+        "eps_min": EPS_MIN, "ga": GA_SETTINGS, "fep_reciprocity": args.fep_reciprocity,
+        "kinds": list(KINDS),
+        "agent_seeds": "seed * 100 + seat for learners; the GA and the FEP seat take the seed",
+        "eval_seed": "seed + 9000", "interval": "95% t, t(N-1) * s / sqrt(N)"})
     if args.json:
         with open(args.json, "w", encoding="utf-8") as handle:
             json.dump(results, handle, indent=2)

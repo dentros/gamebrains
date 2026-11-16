@@ -37,6 +37,10 @@ from ..games.congestion import from_preset
 from ..games.public_goods import PublicGoodsGame
 from ..metrics import social, social_alt
 from ..repository.meta_analysis import t95
+from .provenance import provenance
+
+#: Share of the episodes, from the end, that the final-window measures read.
+FINAL_WINDOW = 0.2
 
 HJG_AGENTS = 3
 HJG_ROUNDS = 3000
@@ -78,8 +82,14 @@ def hjg_once(row: str, seed: int) -> dict[str, Any]:
     records = run_match(game, roster, rounds=HJG_ROUNDS, seed=seed)
     alt = social_alt.compute_all(records["episodes"], n_agents=HJG_AGENTS,
                                  full_reward=game.full_reward)
+    final = social_alt.compute_all(records["episodes"], n_agents=HJG_AGENTS,
+                                   full_reward=game.full_reward, window=FINAL_WINDOW)
+    # Two efficiencies, named apart because they can rank the same runs in opposite orders: per
+    # round, welfare over the per-round maximum, and per episode, the alternation papers' measure.
     return {"CALT": alt["CALT"], "AALT": alt["AALT"], "reward_fairness": alt["reward_fairness"],
             "efficiency": social.compute_all(records, game.max_welfare_per_round())["efficiency"],
+            "efficiency_per_episode": alt["efficiency"],
+            "CALT_final": final["CALT"], "AALT_final": final["AALT"],
             "episodes": len(records["episodes"]), "layers": _layer_shares(roster)}
 
 
@@ -138,6 +148,11 @@ def main(argv: Optional[list[str]] = None) -> None:
         print(f"  {row:30s} cooperation {s['cooperation'][0]:.3f} +/- {s['cooperation'][1]:.3f}  "
               + " ".join(f"{k}={v[0]:.2f}" for k, v in s["layers"].items() if v[0] >= 0.005))
 
+    results["provenance"] = provenance({
+        **results["config"], "final_window": FINAL_WINDOW,
+        "dac_defaults": "agents/dac.py constructor defaults; lesions set only `layers`",
+        "agent_seeds": "seed * 10 + seat", "match_seed": "seed",
+        "efficiency": "per round (efficiency) and per episode (efficiency_per_episode)"})
     if args.json:
         with open(args.json, "w", encoding="utf-8") as handle:
             json.dump(results, handle, indent=2)

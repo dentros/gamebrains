@@ -53,7 +53,8 @@ caller-side choice, so RS/WPE/RP/AWE each come in `_reach` and `_excl` form.
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Sequence
+import math
+from typing import Any, Iterable, Optional, Sequence
 
 import numpy as np
 
@@ -302,15 +303,26 @@ def traditional_metrics(top_agents_per_episode: Sequence[Sequence[int]], n_agent
 # --- putting it together --------------------------------------------------------------------------
 
 def compute_all(episodes: Sequence[dict[str, Any]], n_agents: int,
-                full_reward: float = 100.0) -> dict[str, Any]:
+                full_reward: float = 100.0, window: Optional[float] = None) -> dict[str, Any]:
     """Every measure in this module, from the runner's per-episode records.
 
     `episodes` is `run_match(...)["episodes"]`: each entry carries `top_agents` (the per-agent
     arrival flags) and `rewards` (that episode's per-agent totals). Only episodic games produce
     these, so a single-stage game yields one episode and the alternation measures are trivially
     undefined, which they should be.
+
+    `window`, a fraction in (0, 1], computes every measure over the final share of the episodes
+    only. Over a whole run, a learner's measures mix the exploration phase with the behaviour it
+    settles into, so their decline with run length is partly the growing weight of the settled
+    phase. The final window reads that settled phase directly. It is reported beside the whole-run
+    value and never replaces it, because the papers define the measures over a whole run.
     """
     usable = [e for e in episodes if "top_agents" in e]
+    if window is not None:
+        if not 0.0 < window <= 1.0:
+            raise ValueError(f"window must be a fraction in (0, 1], got {window}")
+        keep = max(1, math.ceil(window * len(usable))) if usable else 0
+        usable = usable[len(usable) - keep:]
     if not usable:
         return {"n_episodes": 0, "note": "no per-episode arrival records; not an episodic game"}
 

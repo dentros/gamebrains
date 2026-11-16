@@ -47,10 +47,17 @@ from ..games.public_goods import PublicGoodsGame
 from ..metrics import social
 from ..repository.meta_analysis import t95
 from ..metrics.social_alt import compute_all, coordination_score
+from .provenance import provenance
 
 EPS_DECAY = 0.9997
 EPS_MIN = 0.02
 DEFAULT_LENGTHS = (1000, 3000, 10_000, 40_000, 100_000)
+#: Share of the episodes, counted from the end, that the final-window measures read. A whole-run
+#: measure mixes the exploration phase with the behaviour a learner settles into, so each run
+#: also reports the alternation family over its final fifth (social_alt.compute_all, window=).
+FINAL_WINDOW = 0.2
+#: Measures reported over the final window as well as over the whole run.
+WINDOWED = ("CALT", "AALT", "reward_fairness", "tt_fairness", "fairness", "efficiency")
 
 
 def ci95(values) -> tuple[float, float]:
@@ -88,7 +95,13 @@ def congestion_run(seed: int, rounds: int, n_agents: int = 3, learner: bool = Tr
     else:
         roster = [RandomAgent(f"R{i}", seed=seed * 100 + 50 + i) for i in range(n_agents)]
     records = run_match(game, roster, rounds=rounds, seed=seed)
-    return compute_all(records["episodes"], n_agents=n_agents, full_reward=game.full_reward)
+    whole = compute_all(records["episodes"], n_agents=n_agents, full_reward=game.full_reward)
+    final = compute_all(records["episodes"], n_agents=n_agents, full_reward=game.full_reward,
+                        window=FINAL_WINDOW)
+    whole["final_window"] = {key: float(final[key]) for key in WINDOWED}
+    whole["final_window"]["collision_rate"] = (final["collision_episodes"]
+                                               / max(final["n_episodes"], 1))
+    return whole
 
 
 def _efficiency(row: dict) -> float:
@@ -226,7 +239,8 @@ def main(argv: Optional[list[str]] = None) -> None:
     # depend on the total round count, so a shorter run is a prefix of the longer one with the same
     # seed. That makes "does every seed decline" a stronger and simpler claim than any comparison
     # of confidence intervals between rows. Costs nothing extra: the runs already happen below.
-    per_seed: dict[str, list[list[float]]] = {"calt_ql": [], "aalt_ql": [], "calt_rnd": []}
+    per_seed: dict[str, list[list[float]]] = {"calt_ql": [], "aalt_ql": [], "calt_rnd": [],
+                                              "calt_ql_final": []}
 
     results["congestion"] = {}
     for rounds in args.lengths:
@@ -240,6 +254,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         per_seed["calt_ql"].append([float(r["CALT"]) for r in learners])
         per_seed["aalt_ql"].append([float(r["AALT"]) for r in learners])
         per_seed["calt_rnd"].append([float(r["CALT"]) for r in randoms])
+        per_seed["calt_ql_final"].append([float(r["final_window"]["CALT"]) for r in learners])
 
         qm, qh = ci95([r["CALT"] for r in learners])
         rm, rh = ci95([r["CALT"] for r in randoms])
@@ -260,12 +275,21 @@ def main(argv: Optional[list[str]] = None) -> None:
             "episodes": list(ci95([r["n_episodes"] for r in learners])),
             "collision_rate": list(ci95([r["collision_episodes"] / max(r["n_episodes"], 1)
                                          for r in learners])),
+            # The same measures over the final fifth of each run's episodes, for the learner and
+            # for the random baseline it is compared with.
+            "final_window": {
+                "share": FINAL_WINDOW,
+                **{f"{key}_learner": list(ci95([r["final_window"][key] for r in learners]))
+                   for key in (*WINDOWED, "collision_rate")},
+                "CALT_random": list(ci95([r["final_window"]["CALT"] for r in randoms])),
+            },
         }
 
     # --- per-seed monotonicity, the paired reading of the same runs -------------------------------
     if len(args.lengths) > 1:
         print(f"\nPER-SEED MONOTONICITY  (seeds of {n} that decrease at each step)")
-        labels = {"calt_ql": "CALT (QL)", "aalt_ql": "AALT (QL)", "calt_rnd": "CALT (random)"}
+        labels = {"calt_ql": "CALT (QL)", "aalt_ql": "AALT (QL)", "calt_rnd": "CALT (random)",
+                  "calt_ql_final": "CALT final"}
         head = "  " + f"{'step':>22}" + "".join(f"{labels[k]:>16}" for k in per_seed)
         print(head)
         print("  " + "-" * (len(head) - 2))
@@ -295,6 +319,21 @@ def main(argv: Optional[list[str]] = None) -> None:
                   f"{m[:,-1].min():.3f}-{m[:,-1].max():.3f} at the longest, "
                   f"disjoint={bool(m[:,-1].max() < m[:,0].min())}")
 
+    # The final-window table, printed after the whole-run one it qualifies.
+    print(f"\nFINAL WINDOW  (last {FINAL_WINDOW:.0%} of each run's episodes)")
+    print(f"  {'rounds':>7} {'CALT (QL)':>16} {'CALT (random)':>16} {'rewFair (QL)':>16} "
+          f"{'collisions (QL)':>16}")
+    for rounds, row in results["congestion"].items():
+        fw = row["final_window"]
+        print(f"  {rounds:7d} {fmt(*fw['CALT_learner']):>16} {fmt(*fw['CALT_random']):>16} "
+              f"{fmt(*fw['reward_fairness_learner']):>16} {fmt(*fw['collision_rate_learner']):>16}")
+
+    results["provenance"] = provenance({
+        "seeds": n, "lengths": list(args.lengths), "eps_decay": EPS_DECAY, "eps_min": EPS_MIN,
+        "final_window": FINAL_WINDOW, "public_goods": {"n_agents": 5, "rounds": 3000, "mpcr": 0.5},
+        "congestion": {"preset": "hjg", "n_agents": 3},
+        "agent_seeds": "seed * 100 + seat for learners, seed * 100 + 50 + seat for the random baseline",
+        "interval": "95% t, t(N-1) * s / sqrt(N)"})
     journal.close()
     if args.json:
         with open(args.json, "w", encoding="utf-8") as handle:

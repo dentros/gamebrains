@@ -163,7 +163,31 @@ def test_a_single_stage_game_yields_no_alternation_measures():
     assert compute_all([{"rounds": 40, "rewards": [1.0, 2.0]}], n_agents=2)["n_episodes"] == 0
 
 
+def test_a_window_reads_only_the_final_share_of_the_episodes():
+    """A run that alternates perfectly and then collapses into collisions must read worse over its
+    final half than over the whole run, and the final half must equal the measures computed on
+    that half alone."""
+    good = [{"top_agents": [1, 0] if i % 2 == 0 else [0, 1], "rewards": [100.0, 0.0]} for i in range(20)]
+    bad = [{"top_agents": [1, 1], "rewards": [0.0, 0.0]} for _ in range(20)]
+    run = good + bad
+    whole = compute_all(run, n_agents=2)
+    final = compute_all(run, n_agents=2, window=0.5)
+    alone = compute_all(bad, n_agents=2)
+    assert final["n_episodes"] == 20
+    assert final["CALT"] == alone["CALT"] and final["CALT"] < whole["CALT"], (
+        f"whole {whole['CALT']}, final half {final['CALT']}, second half alone {alone['CALT']}")
+    assert compute_all(run, n_agents=2, window=1.0)["CALT"] == whole["CALT"]
+    for bad_window in (0.0, -0.1, 1.5):
+        try:
+            compute_all(run, n_agents=2, window=bad_window)
+        except ValueError:
+            continue
+        raise AssertionError(f"window {bad_window} was accepted")
+
+
 if __name__ == "__main__":
+    test_a_window_reads_only_the_final_share_of_the_episodes()
+    print("OK: a window reads only the final share of the episodes")
     test_calt_matches_the_gap_papers_worked_example()
     print("OK: CALT matches the Gap paper's worked example (0.469)")
     test_perfect_alternation_scores_exactly_one_at_n2()

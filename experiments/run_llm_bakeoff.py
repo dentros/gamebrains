@@ -36,6 +36,7 @@ from ..games.public_goods import PublicGoodsGame
 from ..metrics import social
 from . import run_bakeoff
 from .run_bakeoff import MPCR, PRETRAIN_ROUNDS, pretrain
+from .provenance import provenance
 from .run_llm_contract import RESULTS_DIR
 
 #: Four opponents and the model make five seats, which is what the genetic algorithm's population
@@ -56,6 +57,9 @@ def main(argv: list[str] | None = None) -> int:
                              f"{', '.join(sorted(PROFILES))}. Two profiles are two experiments, "
                              f"so the name is written into the results file and the record")
     parser.add_argument("--opponents", nargs="*", default=OPPONENTS)
+    parser.add_argument("--fep-reciprocity", type=float, default=None,
+                        help="reciprocity of the active-inference opponent; the paper's Table S7 "
+                             "was measured at 0, before the default became 1")
     args = parser.parse_args(argv)
 
     backend = OllamaBackend(model=args.model)
@@ -73,7 +77,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"pretraining {len(args.opponents)} architectures for {PRETRAIN_ROUNDS} rounds each, "
           f"at the {seats} seats they will be evaluated in")
     started = time.time()
-    roster: list[Any] = [pretrain(kind, args.seed, quiet=True) for kind in args.opponents]
+    fep_kwargs = ({} if args.fep_reciprocity is None
+                  else {"fep_reciprocity": args.fep_reciprocity})
+    roster: list[Any] = [pretrain(kind, args.seed, quiet=True, **fep_kwargs)
+                         for kind in args.opponents]
     roster.append(LLMAgent(f"LLM ({args.model})", backend=backend, profile=args.profile))
     print(f"  done in {time.time() - started:.0f}s\n")
 
@@ -134,6 +141,11 @@ def main(argv: list[str] | None = None) -> int:
         "model": args.model, "profile": args.profile,
         "rounds": args.rounds, "seed": args.seed,
         "pretrain_rounds": PRETRAIN_ROUNDS, "mpcr": MPCR, "seconds": round(elapsed, 1),
+        "provenance": provenance({"model": args.model, "profile": args.profile,
+                                  "rounds": args.rounds, "seed": args.seed,
+                                  "opponents": list(args.opponents),
+                                  "fep_reciprocity": args.fep_reciprocity,
+                                  "pretrain_rounds": PRETRAIN_ROUNDS, "mpcr": MPCR}),
         "agents": rows,
         "match": {k: v for k, v in metrics.items() if isinstance(v, (int, float))},
         "rationales": [{"round": i + 1, **e["data"]} for i, e in samples],

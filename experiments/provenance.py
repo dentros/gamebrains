@@ -27,7 +27,11 @@ def _code_version() -> str:
         out = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True,
                              text=True, cwd=Path(__file__).resolve().parents[1], timeout=5)
         if out.returncode == 0 and out.stdout.strip():
-            dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
+            # Only uncommitted *code* makes a version unrecoverable. Result files are excluded: a
+            # chain of scripts rewrites them one after another, and counting them marked every
+            # script after the first as "+uncommitted" while the code was the committed version.
+            dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no", "--",
+                                    ".", ":(exclude)experiments/results"],
                                    capture_output=True, text=True, timeout=5,
                                    cwd=Path(__file__).resolve().parents[1]).stdout.strip()
             return "git:" + out.stdout.strip() + ("+uncommitted" if dirty else "")

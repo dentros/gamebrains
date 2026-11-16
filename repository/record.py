@@ -27,8 +27,9 @@ from .ledger import Ledger
 # its documented behaviour for a schema change and is the honest one: a shorter vector does not
 # state that no language model played, it states that the question was not asked. Append here
 # rather than insert, so at least the positions of the existing dimensions never move. `dac` was
-# appended on 2026-11-13 on the same terms, lengthening the vector from 10 to 11.
-_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "llm", "dac"]
+# appended on 2026-11-13 on the same terms, lengthening the vector from 10 to 11, and
+# `markov_gates` on 2026-11-16, lengthening it from 11 to 12.
+_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "llm", "dac", "markov_gates"]
 
 
 def _git_code_version() -> str:
@@ -53,7 +54,7 @@ DEFAULT_CODE_VERSION = _git_code_version()
 # (not the constructor call) so this works uniformly whether the agent was built by run_pgg.py,
 # the webui, or anything else. Missing attributes are simply omitted, not errors: an older agent
 # class without one of these fields still hashes fine, just without that dimension.
-#: `evolved_by` on the three evolvable kinds names the genetic algorithm that produced the genome
+#: `evolved_by` on the evolvable kinds names the genetic algorithm that produced the genome
 #: in the seat: generations, population, mutation and the lifetime-learning reading. A policy the
 #: GA found and one gradient descent found are not the same experiment even when every other
 #: hyperparameter agrees, and two GA settings that search very differently are not either.
@@ -86,6 +87,11 @@ _PARAM_ATTRS: dict[str, tuple[str, ...]] = {
             "explore", "min_visits", "deficit_bands", "stm_length", "ltm_capacity",
             "distance_decay", "succession_bonus", "trust_up", "trust_down", "trust_threshold",
             "initial_trust", "baseline_rate"),
+    # The gate-based Markov brain (agents/markov_gates.py). `n_gates` is read off the live genome,
+    # so an evolved brain records the gate count it actually has, not the count it was spawned
+    # with. `deterministic` separates two kinds of gate, which are two designs: a probabilistic
+    # brain must never share a config_hash with a deterministic one.
+    "markov_gates": ("n_hidden", "n_gates", "deterministic", "evolved_by"),
 }
 
 

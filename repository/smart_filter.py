@@ -71,6 +71,7 @@ FEATURE_WEIGHTS = np.array([
     0.75,   # #classic
     0.75,   # #llm            appended 2026-09-18, see record.py's _KIND_ORDER
     0.75,   # #dac            appended 2026-11-13, same
+    0.75,   # #markov_gates   appended 2026-11-16, same
 ], dtype=float)
 
 

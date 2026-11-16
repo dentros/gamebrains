@@ -97,6 +97,7 @@ T: dict[str, tuple[str, str]] = {
     "agent.dqn":          ("Deep Q-Network", "Deep Q-Network"),
     "agent.fep":          ("FEP / Ενεργητική συμπερασματολογία", "FEP / Active Inference"),
     "agent.markov_brain": ("Markov-brain (εξελικτικό)", "Markov-brain (evolutionary)"),
+    "agent.markov_gates": ("Markov brain (λογικές πύλες)", "Markov brain (logic gates)"),
     "agent.classic":      ("Κλασικές στρατηγικές (σταθερές)", "Classic (fixed)"),
     "agent.dac":          ("DAC (έλεγχος σε στρώματα)", "DAC (layered control)"),
     "agent.llm":          ("Γλωσσικό μοντέλο (Ollama)", "LLM (Ollama)"),
@@ -134,6 +135,8 @@ T: dict[str, tuple[str, str]] = {
     "param.stm_length":       ("stm_length", "stm_length"),
     "param.ltm_capacity":     ("ltm_capacity", "ltm_capacity"),
     "param.trust_threshold":  ("trust_threshold", "trust_threshold"),
+    "param.n_gates":          ("n_gates", "n_gates"),
+    "param.deterministic":    ("deterministic", "deterministic"),
     "param.genome_cid":       ("genome CID", "genome CID"),
     "param.epsilon_pair":     ("epsilon_decay / epsilon_min", "epsilon_decay / epsilon_min"),
     "field.row_kind":         ("Αρχιτεκτονική", "Architecture"),
@@ -162,8 +165,10 @@ T: dict[str, tuple[str, str]] = {
     "preset.evo_vs_online": ("Εξελικτικό εναντίον online", "Evolutionary vs online"),
     "field.compute_nash_l": ("Ισορροπία Nash (pygambit, μόνο για n έως 10)",
                             "Nash equilibrium (pygambit, n<=10 only)"),
-    "field.compute_phi_l":  ("Φ / αιτιακή αυτονομία (μόνο αν παίζει markov_brain, αργό ~15 δευτ.)",
-                             "Phi / causal autonomy (only with a markov_brain, slow ~15s)"),
+    "field.compute_phi_l":  ("Φ / αιτιακή αυτονομία (μόνο αν παίζει Markov brain, όποιου είδους, "
+                             "αργό ~15 δευτ.)",
+                             "Phi / causal autonomy (only with a Markov brain of either kind, slow "
+                             "~15s)"),
     "field.record_repo_l":  ("Καταγραφή στο τοπικό αρχείο πειραμάτων (και στο Smart Filter)",
                              "Record to the repository-lite ledger (and the Smart Filter)"),
     "field.log_lines_l":    ("Πυκνότητα αφήγησης", "Narration density"),
@@ -179,6 +184,9 @@ T: dict[str, tuple[str, str]] = {
     "opt.constrained_on":   ("1 — ο διακομιστής επιβάλλει τη μορφή",
                              "1 — the server enforces the format"),
     "opt.constrained_off":  ("0 — μόνο το prompt τη ζητά", "0 — only the prompt asks for it"),
+    "opt.gates_deterministic": ("1 — ντετερμινιστικές πύλες, ακριβής πίνακας μεταβάσεων",
+                                "1 — deterministic gates, exact transition matrix"),
+    "opt.gates_probabilistic": ("0 — πιθανοτικές πύλες", "0 — probabilistic gates"),
     "group.none":    ("Χωρίς ομαδοποίηση, ένα τρέξιμο ανά γραμμή",
                       "No grouping, one run per row"),
     "group.design":  ("Ανά πείραμα", "By design"),
@@ -554,14 +562,28 @@ H: dict[str, tuple[str, str]] = {
         "and replays them when the situation matches, for as long as it trusts them. Its card "
         "shows which layer decided each time."),
     "agent.markov_brain": (
-        "Ένα μικρό κύκλωμα από λογικές πύλες που δεν μαθαίνει καθόλου μέσα στην παρτίδα: "
-        "παίζει όπως είναι φτιαγμένο. Βελτιώνεται μόνο μέσω εξέλιξης, δηλαδή φτιάχνοντας "
-        "πολλές παραλλαγές, κρατώντας τις καλύτερες και επαναλαμβάνοντας για δεκάδες γενιές. "
-        "Αυτό γίνεται στη σελίδα Εξέλιξη, όχι εδώ.",
-        "A small circuit of logic gates that does not learn during a match at all: it plays as "
-        "it was built. It improves only through evolution, that is, by making many variants, "
-        "keeping the best and repeating for dozens of generations. That happens on the "
-        "Evolution page, not here."),
+        "Ένα μικρό αναδρομικό δίκτυο από δυαδικούς κόμβους, όπου ο καθένας ανάβει με "
+        "πιθανότητα που ορίζουν τα βάρη των εισόδων του (σιγμοειδής). Δεν μαθαίνει καθόλου μέσα "
+        "στην παρτίδα: παίζει όπως είναι φτιαγμένο. Βελτιώνεται μόνο μέσω εξέλιξης, δηλαδή "
+        "φτιάχνοντας πολλές παραλλαγές, κρατώντας τις καλύτερες και επαναλαμβάνοντας για "
+        "δεκάδες γενιές. Αυτό γίνεται στη σελίδα Εξέλιξη, όχι εδώ. Το Markov brain από λογικές "
+        "πύλες είναι μια άλλη αρχιτεκτονική.",
+        "A small recurrent network of binary nodes, each switching on with a probability set by "
+        "the weights of its inputs (a sigmoid). It does not learn during a match at all: it "
+        "plays as it was built. It improves only through evolution, that is, by making many "
+        "variants, keeping the best and repeating for dozens of generations. That happens on the "
+        "Evolution page, not here. The Markov brain of logic gates is a different architecture."),
+    "agent.markov_gates": (
+        "Ένα Markov brain όπως το ορίζει η βιβλιογραφία (Hintze, Adami, Albantakis, MABE): "
+        "δυαδικοί κόμβοι αισθητήρων, μνήμης και κίνησης, που ενημερώνονται από λογικές πύλες. "
+        "Κάθε πύλη διαβάζει έως τέσσερις κόμβους και γράφει έως τέσσερις μέσα από έναν μικρό "
+        "πίνακα, και όταν δύο πύλες γράφουν τον ίδιο κόμβο ενώνονται με OR. Δεν μαθαίνει μέσα "
+        "στην παρτίδα: η λίστα πυλών είναι το γονιδίωμά του και αλλάζει μόνο με εξέλιξη.",
+        "A Markov brain as the literature defines one (Hintze, Adami, Albantakis, MABE): binary "
+        "sensor, memory and motor nodes updated by logic gates. Each gate reads up to four nodes "
+        "and writes up to four through a small table, and two gates writing one node are "
+        "combined by OR. It does not learn during a match: the gate list is its genome and "
+        "changes only through evolution."),
     "agent.classic": (
         "Σταθεροί κανόνες που δεν μαθαίνουν ποτέ, όπως «δίνε πάντα» ή «μη δίνεις ποτέ». "
         "Υπάρχουν για να έχεις μέτρο σύγκρισης: αν ένας πράκτορας που μαθαίνει για χιλιάδες "
@@ -794,6 +816,20 @@ H: dict[str, tuple[str, str]] = {
         "όταν βγαίνουν λάθος.",
         "How much trust its memory must have earned before it decides. Trust rises slowly when "
         "its memories prove right and falls fast when they prove wrong."),
+    "param.n_gates": (
+        "Πόσες λογικές πύλες έχει ένας καινούργιος τυχαίος εγκέφαλος. Στην εξέλιξη ο αριθμός "
+        "αλλάζει, γιατί οι πύλες προστίθενται, σβήνονται και αντιγράφονται, από 1 έως 32.",
+        "How many logic gates a fresh random brain has. Under evolution the number changes, "
+        "since gates are added, deleted and duplicated, between 1 and 32."),
+    "param.deterministic": (
+        "Αν οι πύλες είναι ντετερμινιστικές, κάθε είσοδος δίνει πάντα την ίδια έξοδο, και ο "
+        "πίνακας μεταβάσεων από τον οποίο υπολογίζεται το Φ είναι ακριβής. Αν είναι "
+        "πιθανοτικές, κάθε είσοδος δίνει μια κατανομή εξόδων, και ο πίνακας χάνει τη συσχέτιση "
+        "ανάμεσα στις εξόδους μίας πύλης.",
+        "With deterministic gates every input pattern always gives the same output, and the "
+        "transition matrix Phi is computed from is exact. With probabilistic gates every input "
+        "pattern gives a distribution over outputs, and the matrix loses the correlation "
+        "between the outputs of one gate."),
     "param.llm_model": (
         "Ποιο μοντέλο θα ρωτηθεί, με το όνομα που έχει στο Ollama, π.χ. llama3.2:1b. Πρέπει να "
         "το έχεις κατεβάσει πρώτα με ollama pull.",
@@ -1139,11 +1175,12 @@ H: dict[str, tuple[str, str]] = {
     # ---- evolution --------------------------------------------------------------------------
     "field.architecture": (
         "Τι είναι το γονιδίωμα που εξελίσσεται: η καλωδίωση ενός μικρού κυκλώματος, ένας "
-        "πίνακας τιμών, ή τα βάρη ενός δικτύου. Ο ίδιος γενετικός αλγόριθμος ψάχνει και τα "
-        "τρία, οπότε μια σύγκριση μεταξύ τους κρατάει σταθερό τον κανόνα μάθησης και αλλάζει "
-        "μόνο το υπόβαθρο.",
-        "What the evolving genome is: the wiring of a small circuit, a table of values, or the "
-        "weights of a network. The same genetic algorithm searches all three, so a comparison "
+        "πίνακας τιμών, τα βάρη ενός δικτύου, ή μια λίστα λογικών πυλών. Ο ίδιος γενετικός "
+        "αλγόριθμος ψάχνει και τα τέσσερα, οπότε μια σύγκριση μεταξύ τους κρατάει σταθερό τον "
+        "κανόνα μάθησης και αλλάζει μόνο το υπόβαθρο.",
+        "What the evolving genome is: the wiring of a small circuit, a table of values, the "
+        "weights of a network, or a list of logic gates. The same genetic algorithm searches all "
+        "four, so a comparison "
         "across them holds the learning rule fixed and varies only the substrate."),
     "field.lifetime_learning": (
         "Αν ένα άτομο κρατάει όσα έμαθε μέσα στην παρτίδα που μετράει την απόδοσή του. Στο "

@@ -6,8 +6,9 @@
   <h2><svg class="glyph"><use href="#glyph-evolve"/></svg>Evolution summary</h2>
   <p class="meta">
     population={{ cfg.population_size }} &middot; generations={{ cfg.generations }} &middot;
-    match_rounds={{ cfg.match_rounds }}{% if architecture == 'markov_brain' %} &middot;
-    n_hidden={{ cfg.n_hidden }}{% endif %} &middot;
+    match_rounds={{ cfg.match_rounds }}{% if architecture in ('markov_brain', 'markov_gates') %} &middot;
+    n_hidden={{ cfg.n_hidden }}{% endif %}{% if architecture == 'markov_gates' %} &middot;
+    n_gates={{ cfg.genome.n_gates }} &middot; deterministic={{ cfg.genome.deterministic }}{% endif %} &middot;
     n_agents={{ n_agents }} &middot; seed={{ cfg.seed }} &middot;
     architecture={{ architecture }} &middot; lifetime_learning={{ cfg.lifetime_learning }}
   </p>
@@ -28,7 +29,7 @@
   <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>&Phi; &amp; causal autonomy (best evolved genome)</h2>
   <table>
     <tr><th>&Phi;</th><th>Causal autonomy (bits)</th><th>Max possible (bits)</th></tr>
-    <tr><td>{{ "%.4f"|format(phi_info.phi) }}</td><td>{{ "%.4f"|format(phi_info.autonomy) }}</td>
+    <tr><td>{{ "%.4f"|format(phi_info.phi) if phi_info.phi is not none else "not computed" }}</td><td>{{ "%.4f"|format(phi_info.autonomy) }}</td>
         <td>{{ phi_info.max_autonomy }}</td></tr>
   </table>
 </div>

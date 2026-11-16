@@ -360,7 +360,8 @@ document.getElementById('mainform').addEventListener('submit', () => {
 
 <script>
 const GLYPH_FOR = {qlearning:'glyph-qlearning', dqn:'glyph-dqn', fep:'glyph-fep',
-                   markov_brain:'glyph-markov_brain', classic:'glyph-classic'};
+                   markov_brain:'glyph-markov_brain', markov_gates:'glyph-markov_gates',
+                   classic:'glyph-classic'};
 function updateRowVisibility(sel) {
   const row = sel.closest('.rosterrow');
   const kind = sel.value;

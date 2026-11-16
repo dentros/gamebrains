@@ -193,12 +193,14 @@ KIND_META = {
     "dqn":          {"glyph": "glyph-dqn",       "label": "Deep Q-Network",   "color": "#7a4a8a"},
     "fep":          {"glyph": "glyph-fep",       "label": "FEP / Active Inference", "color": "#6b8a3d"},
     "markov_brain": {"glyph": "glyph-markov_brain", "label": "Markov-brain (evolutionary)", "color": "#b5541f"},
+    "markov_gates": {"glyph": "glyph-markov_gates", "label": "Markov brain (logic gates)", "color": "#5457b0"},
     "classic":      {"glyph": "glyph-classic",   "label": "Classic (fixed)",  "color": "#5c5346"},
     "dac":          {"glyph": "glyph-dac",       "label": "DAC (layered control)", "color": "#b8913a"},
     "llm":          {"glyph": "glyph-llm",       "label": "LLM (Ollama)",     "color": "#4aa39a"},
     "human":        {"glyph": "glyph-classic",   "label": "Human (you)",      "color": "#c98a2b"},
 }
-_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "classic", "dac", "llm", "human"]
+_KIND_ORDER = ["qlearning", "dqn", "fep", "markov_brain", "markov_gates", "classic", "dac", "llm",
+               "human"]
 
 _METRIC_META = [
     ("cooperation_rate", "Cooperation rate"),
@@ -341,6 +343,11 @@ _ADVANCED_PARAMS: dict[str, list[tuple[str, Any, str]]] = {
             ("stm_length", 4, "couplets in short-term memory"),
             ("ltm_capacity", 60, "sequences kept in long-term memory"),
             ("trust_threshold", 0.5, "trust the contextual layer needs to take control")],
+    # The gate-based Markov brain. Defaults are agents/markov_gates.py's own. `deterministic` is
+    # 1/0 for the reason `llm_constrained` is, and offered as a choice of two, never typed.
+    "markov_gates": [("n_hidden", 2, "hidden nodes, the brain's memory"),
+                     ("n_gates", 4, "gates in a fresh random brain"),
+                     ("deterministic", 1, "1 = deterministic gates (exact TPM), 0 = probabilistic")],
     # The model tag and the constraint are design decisions rather than tuning, and both reach
     # config_hash through record.py's _PARAM_ATTRS. `llm_constrained` is 1/0 rather than a
     # checkbox because every field here is one text input cast by the type of its default, and a
@@ -366,6 +373,7 @@ _ADVANCED_PARAMS: dict[str, list[tuple[str, Any, str]]] = {
 _PARAM_CHOICES: dict[str, list[tuple[str, str]]] = {
     "llm_profile": [(name, name) for name in sorted(llm_prompt.PROFILES)],
     "llm_constrained": [("1", "opt.constrained_on"), ("0", "opt.constrained_off")],
+    "deterministic": [("1", "opt.gates_deterministic"), ("0", "opt.gates_probabilistic")],
 }
 
 
@@ -427,6 +435,41 @@ def _compute_phi_sequential(agent: Any, n_t: int = 5):
         phi_result = compute_phi(agent)
         autonomy = causal_autonomy(agent, n_t=n_t)
     return phi_result, autonomy
+
+
+def _gate_phi(agent: Any, n_t: int = 5) -> dict[str, Any]:
+    """Phi and causal autonomy for a gate brain, with a note where either cannot be read as exact.
+
+    Two separate cases, both stated rather than hidden. A probabilistic brain whose gates draw
+    outputs jointly has a transition matrix that drops that correlation, so its Phi is an
+    approximation. And the vendored PyPhi's Earth Mover's Distance refuses a cut under which the
+    concepts found only in the partitioned structure carry more phi than those found only in the
+    unpartitioned one, because the balancing mass PyPhi assigns to the null concept is then
+    negative; deterministic gate brains reach that case. The refusal
+    is reported for this kind and Phi is left blank, while causal autonomy, which needs no EMD, is
+    still computed. The sigmoid brain's path is not changed (see CLAUDE.md section 9q).
+    """
+    from ..metrics.phi_autonomy import causal_autonomy, compute_phi  # imports pyphi + sets sys.path
+    import pyphi
+    note = None if agent.tpm_is_exact() else (
+        "These probabilistic gates draw some outputs jointly, and the transition matrix Phi is "
+        "computed from keeps each node's probability but not that correlation, so the value is "
+        "an approximation.")
+    with pyphi.config.override(PARALLEL_CUT_EVALUATION=False):
+        try:
+            phi = compute_phi(agent)["phi"]
+        except RuntimeError as exc:
+            if not str(exc).startswith("emd:"):
+                raise
+            phi = None
+            note = ("Phi was not computed. Under one of the cuts PyPhi evaluates, the concepts "
+                    "found only in the partitioned cause-effect structure carry more phi than "
+                    "those found only in the unpartitioned one, so the mass PyPhi assigns to the "
+                    "null concept is negative, and the vendored Earth Mover's Distance refuses a "
+                    "negative histogram rather than return a number for it. Causal autonomy does "
+                    "not use that distance and is reported.")
+        autonomy = causal_autonomy(agent, n_t=n_t)
+    return {"phi": phi, "autonomy": autonomy, "note": note}
 
 
 def _epsilon_rounds_to_min(decay: float, emin: float) -> float:
@@ -564,6 +607,24 @@ _HELP_TOPICS: dict[str, tuple[str, str]] = {
         "everybody should rush, as any tabular learner does. Removing layers, in code, is how you "
         "see which layer produces what.</p>"
     )),
+    "markov_gates": ("Markov brain built from logic gates", (
+        "<p><b>Theory.</b> A Markov brain as Hintze, Adami, Albantakis and the MABE framework define "
+        "one: binary sensor, hidden and motor nodes, updated by logic gates. Each gate reads one to "
+        "four nodes and writes one to four hidden or motor nodes through a small table. At every "
+        "round the sensors take the observation, every gate reads the same snapshot of the nodes, "
+        "and the next hidden and motor values start from zero with each gate's outputs OR'ed in. "
+        "With deterministic gates, the default, the table is a truth table and the brain's "
+        "transition function is exact, which is what &Phi; and causal autonomy are computed from. "
+        "It does not learn within a match; the gate list is a genome, and it changes only by "
+        "evolution.</p>"
+        "<p><b>Reading it.</b> The bits are the nodes after the last move. Each gate is listed as the "
+        "nodes it reads, an arrow, and the nodes it writes, with a common name where it has one "
+        "(AND, XOR, ...) and its full table below. With probabilistic gates each row shows the "
+        "likeliest output and its probability; the transition matrix then keeps every node's "
+        "probability but not the correlation between outputs one gate draws together, and the card "
+        "says so. This is a different architecture from the sigmoid Markov-brain, which is a "
+        "network of stochastic weighted units.</p>"
+    )),
     "nash": ("Nash equilibrium (pygambit)", (
         "<p><b>Theory.</b> Computed analytically (via pygambit) on the single-round stage game: which "
         "action profile is stable when no player benefits from unilaterally deviating, given mpcr/cost/n. "
@@ -698,6 +759,58 @@ def _markov_brain_html(brain: dict) -> str:
     return out
 
 
+def _markov_gates_html(brain: dict, cap: int = 16) -> str:
+    """The gate brain's card: its nodes after the last move, then every gate as wiring plus table.
+
+    A deterministic gate is shown as its truth table, named where it is a gate a reader knows. A
+    probabilistic one is shown as the likeliest output per input pattern, and the card says when
+    the transition matrix cannot hold this genome exactly.
+    """
+    state = brain["state"]
+    ns, nh = brain["n_sensor"], brain["n_hidden"]
+    labels = brain.get("node_labels") or [f"n{k}" for k in range(len(state))]
+    boxes = "".join(
+        f"<span class='bit {'on' if b else 'off'} {_mb_role(k, ns, nh)}' "
+        f"title='{escape(labels[k])}'>{b}</span>"
+        for k, b in enumerate(state))
+    deterministic = bool(brain.get("deterministic", True))
+    kind_text = "deterministic gates" if deterministic else "probabilistic gates"
+    exact = ("the transition matrix is exact" if brain.get("tpm_exact", True) else
+             "the transition matrix keeps each node's probability but not the correlation between "
+             "outputs one gate draws together, so &Phi; on it is an approximation")
+    out = (f"<div class='mbrain'>{boxes}</div>"
+           f"<p class='meta'>sensor={ns} hidden={nh} motor={brain['n_motor']} "
+           f"<span class='legend'>(sensor / hidden / motor)</span> &middot; "
+           f"{brain.get('n_gates', len(brain.get('gates', [])))} {kind_text}; {exact}. Fixed "
+           f"within a match: the gate list is a genome and changes only by evolution.</p>")
+    gates = brain.get("gates", [])
+    items = []
+    for g_idx, gate in enumerate(gates[:cap]):
+        ins = " ".join(gate.get("input_labels", []))
+        outs = " ".join(gate.get("output_labels", []))
+        name = f" <b>{escape(gate['function'])}</b>" if gate.get("function") else ""
+        head = f"<tr><th>{escape(ins)}</th><th>{escape(outs)}</th>"
+        if "truth_table" in gate:
+            rows = "".join(f"<tr><td><code>{escape(i)}</code></td><td><code>{escape(o)}</code>"
+                           f"</td></tr>" for i, o in gate["truth_table"])
+            table = f"<table class='qtable'>{head}</tr>{rows}</table>"
+        else:
+            rows = "".join(
+                f"<tr><td><code>{escape(r['in'])}</code></td><td><code>{escape(r['likeliest'])}"
+                f"</code></td><td>{r['p']:.2f}</td><td>{r['entropy_bits']:.2f}</td></tr>"
+                for r in gate.get("summary", []))
+            table = (f"<table class='qtable'>{head}<th>P</th><th>H (bits)</th></tr>{rows}</table>"
+                     f"<p class='meta'>Likeliest output per input pattern, its probability, and the "
+                     f"entropy of the row.</p>")
+        items.append(f"<details class='explain'><summary>g{g_idx}: {escape(ins)} &rarr; "
+                     f"{escape(outs)}{name}</summary>{table}</details>")
+    more = (f"<p class='meta'>+{len(gates) - cap} more gates, in the agent's inspect() "
+            f"payload.</p>" if len(gates) > cap else "")
+    return (out + "<h4>Gates</h4>" + "".join(items) + more
+            + "<p class='meta'>Bits in a table are in the order the nodes are named in its "
+              "header.</p>")
+
+
 def _classic_html(brain: dict) -> str:
     extra = f" (p={brain['p_cooperate']:g})" if "p_cooperate" in brain else ""
     return f"<p class='rule'><b>{brain['strategy']}</b>{extra}: {brain['rule']}</p>"
@@ -820,6 +933,8 @@ def render_creature(agent: Any, coop_rate: float | None = None,
         body = _fep_html(brain) + _help_trigger("fep")
     elif kind == "markov_brain":
         body = _markov_brain_html(brain)
+    elif kind == "markov_gates":
+        body = _markov_gates_html(brain) + _help_trigger("markov_gates")
     elif kind == "classic":
         body = _classic_html(brain)
     elif kind == "llm":
@@ -930,6 +1045,21 @@ def _mascot_svg(kind: str) -> str:
             f"<circle cx='40.5' cy='45' r='2.8' fill='{e}'/><circle cx='59.5' cy='45' r='2.8' fill='{e}'/>"
             f"<path d='M40 58 Q50 64 60 58' fill='none' stroke='{e}' stroke-width='4' stroke-linecap='round'/>"
             f"<path d='M26 32 H74' stroke='{e}' stroke-width='2.4' stroke-linecap='round' opacity='.55'/>"
+            "</svg>"
+        )
+    if kind == "markov_gates":
+        # An AND gate's body, two input leads on the left and one output on the right: the
+        # architecture is a list of gates, so the creature is one.
+        return (
+            "<svg viewBox='0 0 100 100'>"
+            f"<line x1='4' y1='38' x2='22' y2='38' stroke='{e}' stroke-width='5' stroke-linecap='round'/>"
+            f"<line x1='4' y1='62' x2='22' y2='62' stroke='{e}' stroke-width='5' stroke-linecap='round'/>"
+            f"<line x1='80' y1='50' x2='96' y2='50' stroke='{e}' stroke-width='5' stroke-linecap='round'/>"
+            f"<path d='M20 18 H48 A32 32 0 0 1 48 82 H20 Z' fill='var(--piece-markov_gates)' stroke='{e}' stroke-width='5'/>"
+            f"<circle cx='38' cy='44' r='7' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='60' cy='44' r='7' fill='#fff' stroke='{e}' stroke-width='3'/>"
+            f"<circle cx='39' cy='45' r='2.8' fill='{e}'/><circle cx='61' cy='45' r='2.8' fill='{e}'/>"
+            f"<path d='M40 60 Q49 66 58 60' fill='none' stroke='{e}' stroke-width='4' stroke-linecap='round'/>"
             "</svg>"
         )
     if kind == "dac":
@@ -1483,10 +1613,17 @@ def _execute_single_run(f, roster_sink: Optional[list] = None) -> dict[str, Any]
 
     phi_info = None
     markov_agents = [a for a in roster if getattr(a, "kind", None) == "markov_brain"]
-    if do_phi and markov_agents:
-        target = markov_agents[0]
-        phi_result, autonomy = _compute_phi_sequential(target)
-        phi_info = {"agent": target.name, "phi": phi_result["phi"], "autonomy": autonomy}
+    # The gate brain is the other architecture Phi is defined for. It is analysed only when no
+    # sigmoid brain is seated, so a roster that already ran gets the same Phi panel it always did.
+    gate_agents = [a for a in roster if getattr(a, "kind", None) == "markov_gates"]
+    phi_candidates = markov_agents or gate_agents
+    if do_phi and phi_candidates:
+        target = phi_candidates[0]
+        if target.kind == "markov_gates":
+            phi_info = {"agent": target.name, **_gate_phi(target)}
+        else:
+            phi_result, autonomy = _compute_phi_sequential(target)
+            phi_info = {"agent": target.name, "phi": phi_result["phi"], "autonomy": autonomy}
 
     repo_info, filter_info, genome_cids = None, None, []
     for a in markov_agents:
@@ -1680,7 +1817,13 @@ def evolve_run():
         elite_count=int(f.get("elite_count", 2)),
         seed=int(f.get("seed", 0)),
         lifetime_learning=f.get("lifetime_learning", "off"),
-        name_prefix={"markov_brain": "MB", "qlearning": "QL", "dqn": "DQ"}[architecture],
+        name_prefix={"markov_brain": "MB", "qlearning": "QL", "dqn": "DQ",
+                     "markov_gates": "MG"}[architecture],
+        # Only the gate brain reads these. The other genomes keep the empty mapping they always
+        # had, so their runs are unchanged.
+        genome=({"n_gates": int(f.get("n_gates", 4) or 4),
+                 "deterministic": f.get("deterministic", "1") or "1"}
+                if architecture == "markov_gates" else {}),
     )
     do_bakeoff = f.get("bakeoff") == "on"
     pretrain_rounds = int(f.get("pretrain_rounds", 4000) or 4000)
@@ -1706,9 +1849,11 @@ def evolve_run():
 
     best = result.best
     is_markov = architecture == "markov_brain"
-    if is_markov:
-        # Settle into one concrete, reachable state (see run_evolution.py). Markov-brain only:
-        # it is the one genome here with hidden state, and `start_state` is its own attribute.
+    # Both Markov brains have node-level dynamics, hidden state and a `start_state`; only the
+    # sigmoid one has the genome store format used further down.
+    has_nodes = architecture in ("markov_brain", "markov_gates")
+    if has_nodes:
+        # Settle into one concrete, reachable state (see run_evolution.py).
         best.act(best.start_state)
 
     phi_info = None
@@ -1717,6 +1862,11 @@ def evolve_run():
         phi_result, autonomy = _compute_phi_sequential(best, n_t=3)
         phi_info = {"phi": phi_result["phi"], "autonomy": autonomy,
                    "max_autonomy": best.n_hidden + best.n_motor}
+    elif do_phi and has_nodes:
+        gate = _gate_phi(best, n_t=3)
+        phi_info = {"phi": gate["phi"], "autonomy": gate["autonomy"],
+                    "max_autonomy": best.n_hidden + best.n_motor}
+        phi_note = gate["note"]
     elif do_phi:
         # Refused rather than attempted. Phi is exponential in system size, so it is restricted
         # to the small Markov brains throughout this platform; a Q-table has no node-level
@@ -2136,6 +2286,8 @@ def _final_brains(event_log: list[dict[str, Any]]) -> list[dict[str, Any]]:
             body = _fep_html(brain)
         elif kind == "markov_brain":
             body = _markov_brain_html(brain)
+        elif kind == "markov_gates":
+            body = _markov_gates_html(brain)
         elif kind == "classic":
             body = _classic_html(brain)
         elif kind == "llm":

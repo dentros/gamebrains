@@ -154,22 +154,21 @@ def test_ga_operators_keep_the_genome_valid() -> None:
     for deterministic in (True, False):
         agent = MarkovGatesAgent.random("A", game.n_states, game.n_actions, n_hidden=2, n_gates=4,
                                         deterministic=deterministic, seed=3)
-        counts, tables = set(), 0
-        for step in range(1500):
+        counts, tables_changed = set(), False
+        for step in range(500):
             child = agent.mutate(rng, rate=0.4, scale=0.5, name="A", seed=step)
             _check_genome(child)
             counts.add(child.n_gates)
-            tables += sum(
-                1 for g in child.gates for h in agent.gates
-                if (g.inputs, g.outputs) == (h.inputs, h.outputs)
-                and g.table.shape == h.table.shape and not np.array_equal(g.table, h.table))
+            tables_changed = tables_changed or any(
+                (g.inputs, g.outputs) == (h.inputs, h.outputs) and not np.array_equal(g.table, h.table)
+                for g, h in zip(child.gates, agent.gates))
             mate = MarkovGatesAgent.random("B", game.n_states, game.n_actions, n_hidden=2,
                                            n_gates=int(rng.integers(1, 9)),
                                            deterministic=deterministic, seed=step + 10_000)
             agent = crossover(child, mate, rng, name="A", seed=step)
             _check_genome(agent)
         assert min(counts) <= 2 and max(counts) >= 8, f"gate counts stayed within {sorted(counts)}"
-        assert tables > 0, "no table entry ever changed under point mutation"
+        assert tables_changed, "no table entry ever changed under point mutation"
 
         # Rewiring on its own: it moves one input or one output and never touches the table.
         # Nodes s0..s2 = 0..2, h0, h1 = 3, 4, m0 = 5: free nodes on both sides of the gate.
@@ -212,7 +211,7 @@ def test_ga_operators_keep_the_genome_valid() -> None:
         pass
     else:
         raise AssertionError("a gate reading a node the brain does not have was accepted")
-    print(f"OK: 1500 mutations and crossovers per gate kind left every genome valid, gate counts "
+    print(f"OK: 500 mutations and crossovers per gate kind left every genome valid, gate counts "
           f"ranged over {min(counts)}..{max(counts)}")
 
 

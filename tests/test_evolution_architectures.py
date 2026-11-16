@@ -206,7 +206,7 @@ def test_the_registry_names_what_can_be_evolved_and_refuses_the_rest() -> None:
         except ValueError as exc:
             assert "evolvable" in str(exc).lower() or "genome" in str(exc).lower(), (
                 f"the refusal should say why {kind} has nothing to evolve: {exc}")
-    print("OK: the registry names the three evolvable kinds and refuses the others by reason")
+    print("OK: the registry names the evolvable kinds and refuses the others by reason")
 
 
 def test_listing_what_is_evolvable_does_not_require_torch() -> None:

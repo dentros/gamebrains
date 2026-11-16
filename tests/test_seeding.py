@@ -19,7 +19,7 @@ import sys
 from ..agents import factory
 from ..games.public_goods import PublicGoodsGame
 
-KINDS = ("qlearning", "fep", "markov_brain", "dac")
+KINDS = ("qlearning", "fep", "markov_brain", "dac", "markov_gates")
 SEATS = 10
 
 

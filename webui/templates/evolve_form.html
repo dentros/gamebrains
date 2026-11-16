@@ -16,10 +16,12 @@
           <option value="markov_brain" selected>Markov brain &mdash; evolved wiring</option>
           <option value="qlearning">Tabular policy &mdash; evolved Q-table</option>
           <option value="dqn">Network &mdash; evolved weights</option>
+          <option value="markov_gates">Markov brain of logic gates &mdash; evolved gate list</option>
         </select>
-        <p class="meta">What a genome is. The same genetic algorithm searches all three, so a
+        <p class="meta">What a genome is. The same genetic algorithm searches all four, so a
         comparison across them holds the learning rule fixed and varies only the substrate.
-        Integrated information and the genome hand-off are offered for the Markov brain only.</p>
+        Integrated information is offered for the two Markov brains, the genome hand-off for the
+        sigmoid one only.</p>
       </div>
       <div><label>{{ t('field.lifetime_learning') }}{{ info('field.lifetime_learning') }}</label>
         <select name="lifetime_learning">
@@ -36,6 +38,14 @@
       <div><label>{{ t('field.match_rounds') }}{{ info('field.match_rounds') }}</label><input type="number" name="match_rounds" value="200" min="10"></div>
       <div><label>{{ t('field.matches_per_generation') }}{{ info('field.matches_per_generation') }}</label><input type="number" name="matches_per_generation" value="3" min="1"></div>
       <div><label>{{ t('param.n_hidden') }}{{ info('param.n_hidden') }}</label><input type="number" name="n_hidden" value="2" min="1" max="6"></div>
+      <div><label>{{ t('param.n_gates') }}{{ info('param.n_gates') }}</label><input type="number" name="n_gates" value="4" min="1" max="32">
+        <p class="meta">Logic-gate brain only.</p></div>
+      <div><label>{{ t('param.deterministic') }}{{ info('param.deterministic') }}</label>
+        <select name="deterministic">
+          <option value="1" selected>{{ t('opt.gates_deterministic') }}</option>
+          <option value="0">{{ t('opt.gates_probabilistic') }}</option>
+        </select>
+        <p class="meta">Logic-gate brain only.</p></div>
       <div><label>{{ t('field.tournament_size') }}{{ info('field.tournament_size') }}</label><input type="number" name="tournament_size" value="3" min="2"></div>
       <div><label>{{ t('field.mutation_rate') }}{{ info('field.mutation_rate') }}</label><input type="text" name="mutation_rate" value="0.15"></div>
       <div><label>{{ t('field.mutation_scale') }}{{ info('field.mutation_scale') }}</label><input type="text" name="mutation_scale" value="0.4"></div>

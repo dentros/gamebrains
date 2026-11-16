@@ -8,8 +8,9 @@ construction lives here and both callers go through it.
 What each kind is given is deliberate and should not be changed casually:
 
 * **Seat seeds are offset by kind**, so seat 0 of a Q-learner and seat 0 of a DQN in the same
-  roster do not share a stream. The offsets are 100, 200, 300, 400 and 500, and they are part of
-  what makes a seeded run reproduce, so an edit here changes every future run's numbers.
+  roster do not share a stream. The offsets are 100 to 700 in steps of 100, one per kind, and they
+  are part of what makes a seeded run reproduce, so an edit here changes every future run's numbers.
+  A new kind takes the next free offset and never moves an existing one.
 * **Nothing defaults twice.** A hyperparameter absent from `overrides` is not filled in with a
   value copied into this file, it is left to the agent class's own constructor default. Copying
   defaults is how two sources of truth begin.
@@ -31,11 +32,11 @@ from .classic import AllC, AllD, MajorityTFT, RandomAgent
 from .fep import DEFAULT_RECIPROCITY
 
 #: Every kind this factory builds. The language model is deliberately absent, see the module note.
-KINDS = ("qlearning", "dqn", "fep", "markov_brain", "classic", "dac")
+KINDS = ("qlearning", "dqn", "fep", "markov_brain", "classic", "dac", "markov_gates")
 
 #: Seed offsets per kind. Part of the reproducibility contract, not a tuning knob.
 _SEED_OFFSET = {"qlearning": 100, "dqn": 200, "fep": 300, "classic": 400, "markov_brain": 500,
-                "dac": 600}
+                "dac": 600, "markov_gates": 700}
 
 #: Width of the block of seat seeds each master seed owns.
 #:
@@ -79,6 +80,9 @@ ACCEPTS: dict[str, tuple[str, ...]] = {
             "min_visits", "deficit_bands", "stm_length", "ltm_capacity", "distance_decay",
             "succession_bonus", "trust_up", "trust_down", "trust_threshold", "initial_trust",
             "baseline_rate"),
+    # The gate-based Markov brain. `deterministic` is a choice between two kinds of gate, so a
+    # sweep over it runs two designs, and `parse_deterministic` refuses anything but true or false.
+    "markov_gates": ("n_hidden", "n_gates", "deterministic"),
 }
 
 
@@ -185,6 +189,24 @@ def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "
         _checked(kind, overrides)
         return DACAgent(name=f"DAC {index}", seed=_seat_seed(seed, "dac", index), **overrides)
 
+    if kind == "markov_gates":
+        from .markov_gates import MarkovGatesAgent, parse_deterministic, start_observation
+        _checked(kind, overrides)
+        # Not `markov_hidden`: that is the sigmoid brain's own field in the interface, and reading
+        # it here would give this kind a default copied from somewhere else.
+        kwargs: dict[str, Any] = {}
+        if "n_hidden" in overrides:
+            kwargs["n_hidden"] = int(overrides["n_hidden"])
+        if "n_gates" in overrides:
+            kwargs["n_gates"] = int(overrides["n_gates"])
+        if "deterministic" in overrides:
+            kwargs["deterministic"] = parse_deterministic(overrides["deterministic"])
+        return MarkovGatesAgent(
+            name=f"MarkovGates {index}", n_states=game.n_states, n_actions=game.n_actions,
+            seed=_seat_seed(seed, "markov_gates", index),
+            start_state=start_observation(game), **kwargs,
+        )
+
     if kind == "llm":
         raise ValueError(
             "a language-model seat is not built here: it needs a live backend, costs seconds per "
@@ -195,12 +217,13 @@ def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "
 
 #: The architectures `engine.evolution.evolve` can search over. Ordered oldest first, which is
 #: also least surprising: `markov_brain` is the genome the GA was written for and stays the
-#: default everywhere, so adding the other two cannot change an existing run.
+#: default everywhere, so adding the others cannot change an existing run. `markov_gates`, the
+#: gate-based Markov brain, is appended last for the same reason.
 #:
 #: Not every kind can be here. `classic` has no parameters to vary, and `fep` carries beliefs it
 #: forms online rather than anything inherited, so neither has a genome for selection to act on.
 #: `llm` has weights nobody here can mutate.
-EVOLVABLE_KINDS = ("markov_brain", "qlearning", "dqn")
+EVOLVABLE_KINDS = ("markov_brain", "qlearning", "dqn", "markov_gates")
 
 
 def evolvable(kind: str):
@@ -216,6 +239,8 @@ def evolvable(kind: str):
         from .qlearning import crossover, spawn
     elif kind == "dqn":
         from .dqn import crossover, spawn
+    elif kind == "markov_gates":
+        from .markov_gates import crossover, spawn
     else:
         raise ValueError(
             f"{kind!r} has no genome the GA can search over. Evolvable kinds are "

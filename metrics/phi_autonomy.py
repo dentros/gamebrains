@@ -1,24 +1,32 @@
 """
-Φ (integrated information) and causal autonomy for MarkovBrainAgent animats.
+Φ (integrated information) and causal autonomy for the two Markov brains.
 
-Uses the GameBrains PyPhi fork (see vendor/pyphi/FORK_NOTES.md) rather than Albantakis et al.'s
-`autonomy` companion package (github.com/Albantakis/autonomy), because that package is officially
-Windows-unsupported and requires the same unpatched PyPhi our fork exists to fix. The causal
-autonomy measure below is a direct reimplementation of that package's `A_m_sensors_causal`
-(causal_agent_analysis.py), built from the same PyPhi TPM utilities it uses internally.
+Φ uses the GameBrains PyPhi fork (see vendor/pyphi/FORK_NOTES.md).
 
-Honesty note, carried over verbatim from that source's own comment: the full causal-autonomy
-measure is a *difference* of two conditional entropies, H(M_t|S_hist) - H(M_t|M_{t-1},S_hist);
-the second term is exactly zero for deterministic transition dynamics, which is why the reference
-implementation computes only the first term, with an explicit "TODO: add the part for
-non-deterministic agents" left in the source. Our MarkovBrainAgent has stochastic (sigmoid)
-dynamics, so -- exactly as in the published implementation -- what we compute here is that first
-term only: a first-order approximation, not the complete measure, for non-deterministic systems.
+Causal autonomy is computed from its published definition, Albantakis (2021), "Quantifying the
+autonomy of structurally diverse automata", Entropy 23:1415, Eq. 12, for the system V = {O, M} of
+hidden and motor nodes and its sensors S:
+
+    A_m = H(O_t, M_t | S^_{t-1}, ..., S^_{t-m}) - H(O_t, M_t | V^_{t-1})
+
+A hat is an intervention that sets the variable to the uniform distribution, and the hidden and
+motor state is uniform before the sensor history begins. The first term is what remains uncertain
+about the system's state once the sensor history is known, so what the system carries from its own
+past. The second is the noise of one step from a uniformly chosen state, and is zero for
+deterministic dynamics. Both terms are computed here, so the measure is complete for stochastic
+brains as well. The code works on the brain's own transition table with numpy alone; it shares no
+code with the author's `autonomy` toolbox and does not use PyPhi.
+
+**What changed on 2026-11-18.** The function this replaces was described as a reimplementation of
+that toolbox, and it took the entropy of the hidden and motor distribution *averaged* over sensor
+histories. That entropy does not condition on the history, so it counted the sensors' own variation
+as the system's: a node that only copied a sensor read 1 bit, and nodes that were pure noise read
+their full width. Under the definition above both read 0. It also computed the first term only.
+`tests/test_causal_autonomy.py` holds the cases that separate the two.
 """
 
 from __future__ import annotations
 
-import itertools
 import os
 import sys
 from pathlib import Path
@@ -31,9 +39,6 @@ if str(_VENDOR) not in sys.path:
 
 import numpy as np
 import pyphi
-from pyphi.convert import state_by_node2state_by_state, to_multidimensional
-from pyphi.tpm import condition_tpm
-from scipy.stats import entropy as _entropy
 
 from ..engine import procguard
 
@@ -129,51 +134,76 @@ def compute_phi(agent) -> dict:
     return {"phi": float(sia.phi), "complex_nodes": list(hm_idx)}
 
 
-def _conditioned_hidden_motor_transition(tpm_multi: np.ndarray, n_nodes: int, n_sensor: int,
-                                         hm_idx: tuple[int, ...], sensor_state: int) -> np.ndarray:
-    """The (2^n_hm, 2^n_hm) state-by-state transition matrix over hidden+motor nodes, given the
-    sensor nodes are fixed to `sensor_state`. See module docstring; shapes verified empirically
-    against pyphi.tpm.condition_tpm (a plain to_2dimensional does not apply here, since it assumes
-    the conditioned array's free dimensions still equal the full node count -- they don't once
-    some dimensions have been collapsed to singletons by conditioning).
+#: The largest (number of sensor histories) x (number of hidden and motor states) the first term
+#: will enumerate, about half a gigabyte of float64. Past it the computation is refused with the
+#: count, which is more useful than a machine that stops answering.
+MAX_AUTONOMY_CELLS = 2 ** 26
+
+
+def _hidden_motor_transitions(agent) -> np.ndarray:
+    """T[s, i, j] = P(hidden and motor state j at t+1 | sensors s and hidden and motor state i at t).
+
+    Read off `agent.full_tpm()`, the state-by-node table both Markov brains provide. Its row index
+    is the whole state, little-endian, with the sensors as the low `n_sensor` bits, so row
+    `s + i * 2**n_sensor` holds sensors `s` and hidden and motor state `i`. Its columns are each
+    node's probability of being on next.
+
+    The next state's probability is the product of its nodes' probabilities, which is exact when
+    the nodes are drawn independently given the current state: always for the sigmoid brain and
+    for deterministic gates, and for probabilistic gates only where `tpm_is_exact()` says so. Φ
+    rests on the same table and the same caveat.
     """
-    n_hm = len(hm_idx)
-    sensor_bits = tuple((sensor_state >> k) & 1 for k in range(n_sensor))
-    full_state = sensor_bits + tuple([0] * (n_nodes - n_sensor))
-
-    fixed_indices = tuple(range(n_sensor))
-    cond = condition_tpm(tpm_multi, fixed_indices, full_state)
-    squeezed = cond.squeeze(axis=fixed_indices)          # shape (2,)*n_hm + (n_nodes,)
-    flat = squeezed.reshape([2 ** n_hm, n_nodes], order="F")
-    state_by_node = flat[:, hm_idx]                       # (2^n_hm, n_hm)
-    return state_by_node2state_by_state(state_by_node)    # (2^n_hm, 2^n_hm)
+    tpm = np.asarray(agent.full_tpm(), dtype=float)
+    n_s = int(agent.n_sensor)
+    n_hm = int(agent.n_nodes) - n_s
+    on = tpm[:, n_s:]                                                   # (2^n, n_hm)
+    bits = (np.arange(2 ** n_hm)[:, None] >> np.arange(n_hm)[None, :]) & 1
+    joint = np.where(bits[None, :, :] == 1, on[:, None, :], 1.0 - on[:, None, :]).prod(axis=2)
+    return joint.reshape(2 ** n_hm, 2 ** n_s, 2 ** n_hm).transpose(1, 0, 2)
 
 
-def causal_autonomy(agent, n_t: int = 5) -> float:
-    """A_m_sensors_causal, reimplemented from Albantakis et al.'s `autonomy` toolbox: the entropy
-    of the hidden+motor state at time t given the preceding n_t sensor readings, assuming every
-    length-n_t sensor sequence is equally likely and starting from a maximum-entropy prior over
-    the hidden+motor state before the sequence. See the module docstring for the documented scope
-    limitation on non-deterministic systems (which applies to our stochastic animats).
+def _entropy_bits(rows: np.ndarray) -> np.ndarray:
+    """Shannon entropy in bits of each row, with 0 log 0 taken as 0."""
+    with np.errstate(divide="ignore", invalid="ignore"):
+        terms = np.where(rows > 0.0, rows * np.log2(rows), 0.0)
+    return -terms.sum(axis=-1)
+
+
+def causal_autonomy_terms(agent, n_t: int = 4) -> dict:
+    """Both terms of Albantakis (2021) Eq. 12 and their difference, for a sensor history of `n_t`.
+
+    `given_sensors` is H(O_t, M_t | S^_{t-1..t-n_t}): every sensor history of length `n_t` equally
+    likely, the hidden and motor state uniform before it, and the entropy of the state at t
+    averaged over histories. Averaged after taking the entropy, so a history that fixes the state
+    contributes nothing. `given_previous_state` is H(O_t, M_t | V^_{t-1}): the entropy of one step
+    averaged over every whole state at t-1, sensors included.
+
+    `autonomy` is the first minus the second. It is at most the number of hidden and motor nodes.
+    For a stochastic brain it can fall slightly below zero, because the two terms average over
+    different distributions of the previous state; it is reported as computed, not clipped.
+    The published evaluation used `n_t = 4`.
     """
-    tpm = agent.full_tpm()
-    n = agent.n_nodes
-    n_sensor = agent.n_sensor
-    hm_idx = tuple(range(n_sensor, n))
-    n_hm = len(hm_idx)
+    if int(n_t) < 1:
+        raise ValueError(f"the sensor history must be at least one step long, got n_t={n_t}")
+    n_t = int(n_t)
+    T = _hidden_motor_transitions(agent)
+    n_sensor_states, n_hm_states = T.shape[0], T.shape[1]
+    histories = n_sensor_states ** n_t
+    if histories * n_hm_states > MAX_AUTONOMY_CELLS:
+        raise ValueError(
+            f"{n_sensor_states}^{n_t} = {histories:,} sensor histories over {n_hm_states} hidden "
+            f"and motor states is past the {MAX_AUTONOMY_CELLS:,}-cell limit this enumeration "
+            f"allows; use a shorter history")
 
-    tpm_multi = to_multidimensional(tpm)
-    tpm_cond_input = [
-        _conditioned_hidden_motor_transition(tpm_multi, n, n_sensor, hm_idx, si)
-        for si in range(2 ** n_sensor)
-    ]
+    dist = np.full((1, n_hm_states), 1.0 / n_hm_states)
+    for _ in range(n_t):
+        dist = np.einsum("hi,sij->hsj", dist, T).reshape(-1, n_hm_states)
+    given_sensors = float(_entropy_bits(dist).mean())
+    given_previous_state = float(_entropy_bits(T.reshape(-1, n_hm_states)).mean())
+    return {"autonomy": given_sensors - given_previous_state, "given_sensors": given_sensors,
+            "given_previous_state": given_previous_state, "n_t": n_t}
 
-    maxent = np.full(2 ** n_hm, 1.0 / (2 ** n_hm))
-    reps = []
-    for seq in itertools.product(range(2 ** n_sensor), repeat=n_t):
-        rep = maxent
-        for si in seq:
-            rep = np.average(tpm_cond_input[si], weights=rep, axis=0)
-        reps.append(rep)
 
-    return float(_entropy(np.mean(reps, axis=0), base=2))
+def causal_autonomy(agent, n_t: int = 4) -> float:
+    """Causal autonomy in bits, Albantakis (2021) Eq. 12. See `causal_autonomy_terms`."""
+    return causal_autonomy_terms(agent, n_t)["autonomy"]

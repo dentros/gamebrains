@@ -549,19 +549,11 @@ towers2024gymnasium, liang2018rllib, raffin2021stable).
   hooks; `full_tpm()` builds the state-by-node TPM (little-endian row order, matching
   `pyphi.convert.le_index2state`) that `metrics/phi_autonomy.py` consumes.
 - **`metrics/phi_autonomy.py`** — Φ via `pyphi.compute.sia` on the fixed hidden+motor subsystem
-  (see performance note below), and **causal autonomy**: a faithful reimplementation of Albantakis
-  et al.'s `A_m_sensors_causal` (github.com/Albantakis/autonomy, `causal_agent_analysis.py`) —
-  not the actual package (officially Windows-unsupported, needs the same unpatched PyPhi our fork
-  fixes), but the *same formula*, rebuilt from the same `pyphi.tpm`/`pyphi.convert` utilities it
-  uses internally, verified empirically shape-by-shape against those utilities before shipping.
-  **Honesty carried from the source:** the full causal-autonomy measure is a difference of two
-  conditional entropies; the second term is exactly 0 only for *deterministic* dynamics, and the
-  reference implementation (their own comment) only computes the first term, with a `TODO: add
-  the part for non-deterministic agents` left in their code. Our animats are stochastic, so — like
-  the published implementation — we compute that first term only, not the complete measure.
-  Validated on two analytically-known degenerate genomes: all-zero (every hidden/motor node an
-  independent fair coin) → causal autonomy = exactly n_hidden+n_motor bits; strongly-negative-bias
-  (near-deterministic) → causal autonomy ≈ 0. Both match exactly.
+  (see performance note below), and **causal autonomy**, computed since 2026-11-18 from its
+  published definition (Albantakis 2021, Entropy 23:1415, Eq. 12) with numpy alone, both terms
+  included. See section 9r for what the earlier version computed and why it was replaced; the
+  description that stood here (a reimplementation of the `autonomy` toolbox, first term only,
+  fair coins giving n_hidden+n_motor bits) is superseded.
 - **⚠️ Performance finding (2026-07-07/08), important for any future Φ/autonomy work:** naively
   using `pyphi.compute.major_complex` (search over *every* candidate subsystem, matching the
   reference toolbox's `average_IIT_3_0`) took **1109.86s (~18.5 min) for a single 5-node animat**.
@@ -1259,8 +1251,8 @@ languages, and was corrected in the same commit that put the real one beside it.
   and changes nothing else.
 - **Deterministic by default**, as in Albantakis's animats: no random number is drawn during play,
   `full_tpm()` is the exact transition function, and since the second term of causal autonomy is
-  zero for deterministic dynamics, `phi_autonomy.causal_autonomy` computes the complete measure on
-  these brains rather than the first-order part it computes on the sigmoid brain.
+  zero for deterministic dynamics. Since section 9r `phi_autonomy` computes both terms for either
+  brain.
 - `deterministic=False` gives probabilistic gates, one draw per gate per update from the agent's
   seeded generator. The state-by-node TPM then keeps every node's marginal exactly (gates draw
   independently) but **drops the correlation between outputs one gate draws together**.
@@ -1345,6 +1337,60 @@ Phi in a match when no sigmoid brain is seated, and a fourth genome on the evolv
 knobs. `tests/test_markov_gates.py` (11 cases) checks each mechanism with the genome set by hand;
 breaking OR into overwrite, letting gates read a half-updated state, or reversing the TPM's row
 order each makes the guarding case fail.
+
+## 9r. Causal autonomy from its definition, and the sigmoid brain seated in the congestion family (2026-11-18)
+
+### Why it was rewritten
+
+A licence inventory found that github.com/Albantakis/autonomy carries **no licence**, so its code
+is all rights reserved, while `metrics/phi_autonomy.py` called itself "a direct reimplementation"
+of that package's `A_m_sensors_causal`. The user asked for the measure to be built a different way
+entirely. It is now computed from the paper's Eq. 12 alone:
+
+    A_m = H(O_t, M_t | S^_{t-1..t-m}) - H(O_t, M_t | V^_{t-1})
+
+with every intervened variable uniform and the hidden and motor state uniform before the sensor
+history. `causal_autonomy_terms` returns both terms and their difference; `causal_autonomy` returns
+the difference. It reads the brain's own `full_tpm()` with numpy, shares no code with the toolbox
+and no longer uses PyPhi, and refuses past `MAX_AUTONOMY_CELLS` (2^26) with the count, which a
+congestion board reaches at the default history length. The webui says so on the page.
+
+### What the old function actually computed
+
+The entropy of the hidden and motor distribution **averaged over sensor histories**, which is
+H(O_t, M_t) with the sensors random, not H(O_t, M_t | history). It counted the sensors' variation
+as the system's. Measured on the old code before the rewrite:
+
+| Case | Old | Eq. 12 |
+|---|---|---|
+| hidden and motor nodes that copy a sensor | 1.000 bit | 0 |
+| independent fair coins (3 nodes) | 3.000 bits | 0 (both terms are 3) |
+| nodes that copy themselves | 3 bits | 3 bits |
+| nodes always off | 0 | 0 |
+
+The old tests asserted the old values for the two cases that differ, and so did
+`test_markov_gates`'s follower case ("1 bit, where the definition gives exactly that"). Both are
+corrected. The first two rows of the table fail on the old code (`tests/test_causal_autonomy.py`,
+7 cases). No paper table reported an autonomy value; the paper's sentence describing the measure
+and its anchors changed.
+
+The two terms average over different distributions of the previous state, so for a stochastic brain
+the measure can come out slightly negative. It is reported as computed.
+
+### The sigmoid Markov brain could not be seated in a congestion game
+
+`factory.build("markov_brain", ...)` read `game.start_state`, which the congestion family does not
+declare, and raised AttributeError, so the webui and every sweep refused a sigmoid brain in a
+Honey-Jar match. `start_observation(game)` and `NO_START_OBSERVATION` moved from `markov_gates.py`
+to `engine/game.py` (still importable from the old place), and both brains, the factory and
+`markov_brain.spawn` use them. In the congestion family the sigmoid brain's memory now runs across
+episodes, as the gate brain's does. Test: `test_markov_brain.test_factory_seats_a_sigmoid_brain_in_the_congestion_family`.
+
+### The two evolution scripts know the gate brain
+
+`run_evolution_bakeoff.py` (label, prefix, genome size as the sum of the table sizes) and
+`run_evolution.py` (prefix, Phi with the EMD refusal reported, autonomy with both terms) raised
+KeyError on `markov_gates` until now, as section 9q recorded.
 
 ## 10. References
 

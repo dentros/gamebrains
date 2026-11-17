@@ -49,9 +49,9 @@ from ..engine.evolution import EvolutionConfig, evolve
 from ..games.public_goods import PublicGoodsGame
 
 LABELS = {"markov_brain": "Markov brain", "qlearning": "Evolved Q-table",
-          "dqn": "Evolved network"}
+          "dqn": "Evolved network", "markov_gates": "Gate Markov brain"}
 #: Name prefixes keep the individuals in one run distinguishable in a log. Cosmetic only.
-PREFIXES = {"markov_brain": "MB", "qlearning": "QL", "dqn": "DQ"}
+PREFIXES = {"markov_brain": "MB", "qlearning": "QL", "dqn": "DQ", "markov_gates": "MG"}
 #: A seed counts as having found the equilibrium when its best individual earns less than this
 #: fraction of what universal contribution pays. Loose on purpose: the question is which of two
 #: widely separated outcomes a run landed on, and a tight threshold would turn that into a
@@ -79,6 +79,10 @@ def genome_size(kind: str, agent: Any) -> int:
         return int(agent.W.size + agent.bias.size)
     if kind == "dqn":
         return int(sum(t.numel() for t in agent.policy.state_dict().values()))
+    if kind == "markov_gates":
+        # The tables are what mutation moves. The wiring and the gate count change too, so this
+        # is the size of one genome, and a gate brain's genome has no fixed size.
+        return int(sum(g.table.size for g in agent.gates))
     raise ValueError(f"no genome size defined for {kind!r}")
 
 

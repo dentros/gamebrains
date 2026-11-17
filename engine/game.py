@@ -176,3 +176,20 @@ class Game(ABC):
             "observation_kind": self.observation_kind,
             "action_roles": dict(self.action_roles),
         }
+
+
+#: The start observation of a game that declares none. Observations are non-negative indices, so
+#: no observation equals it, and an agent that clears its memory on the start observation clears
+#: it only when a match starts. The congestion family declares none: an episode there begins on an
+#: ordinary board position, and clearing on that position would wipe the memory every time the
+#: board happened to return to it.
+NO_START_OBSERVATION = -1
+
+
+def start_observation(game: Any) -> int:
+    """The observation that marks the first round of `game`, or `NO_START_OBSERVATION`.
+
+    Read through here, never as `game.start_state` directly: the factory did the latter for the
+    sigmoid Markov brain and raised AttributeError on every congestion game (fixed 2026-11-18).
+    """
+    return int(getattr(game, "start_state", NO_START_OBSERVATION))

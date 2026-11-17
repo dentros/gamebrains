@@ -327,13 +327,19 @@ def test_phi_and_causal_autonomy_on_a_small_deterministic_brain() -> None:
                               gates=[Gate((0,), (1, 2), _table([0, 0], 2))],
                               start_state=NO_START_OBSERVATION)
     assert abs(causal_autonomy(silent, n_t=2)) < 1e-12
-    # Both nodes copy the sensor: two equally likely states after the last reading, so 1 bit.
+    # Both nodes copy the sensor: the sensor history fixes them, so 0 bits. This case asserted
+    # 1 bit until 2026-11-18, the value of the earlier implementation, which took the entropy of
+    # the state averaged over sensor histories and so counted the sensor's variation as the
+    # brain's. Albantakis (2021) Eq. 12 conditions on the history (tests/test_causal_autonomy.py).
     follower = MarkovGatesAgent("copy", n_states=2, n_actions=2, n_hidden=1, seed=0,
                                 gates=[Gate((0,), (1, 2), _table([0, 3], 2))],
                                 start_state=NO_START_OBSERVATION)
-    assert abs(causal_autonomy(follower, n_t=2) - 1.0) < 1e-12
-    print(f"OK: Phi = {result['phi']:.4f} on a two-node copy loop; causal autonomy 0 and 1 bit "
-          f"where the definition gives exactly those")
+    assert causal_autonomy(follower, n_t=2) == 0.0
+    # The copy loop ignores the sensor and swaps h0 and m0 every step, so its state at t is its
+    # uniform starting state relabelled: 2 bits the sensor history cannot explain.
+    assert causal_autonomy(agent, n_t=2) == 2.0
+    print(f"OK: Phi = {result['phi']:.4f} on a two-node copy loop; causal autonomy 0, 0 and 2 "
+          f"bits where the definition gives exactly those")
 
 
 def test_the_brain_payload_serialises_and_the_card_renders() -> None:

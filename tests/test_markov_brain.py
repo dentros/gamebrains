@@ -1,18 +1,15 @@
 """
-Tests for MarkovBrainAgent and metrics.phi_autonomy.
+Tests for MarkovBrainAgent and its Phi computation.
 
-Validated against two analytically known degenerate cases (not just "it runs without erroring"):
-  - all-zero genome -> every hidden/motor node is an independent fair coin each step -> the
-    hidden+motor joint state is exactly uniform over 2^n_hm outcomes regardless of any sensor
-    history, so causal_autonomy must equal exactly n_hm bits.
-  - strongly-negative-bias genome -> every hidden/motor node is (near-)always 0 -> the joint
-    state is (near-)deterministic, so causal_autonomy must be close to 0 bits.
+Causal autonomy has its own module, `tests/test_causal_autonomy.py`, since 2026-11-18. The two
+cases that used to be here asserted the earlier implementation's value for a fair-coin genome
+(n_hm bits), which the published definition puts at 0.
 """
 
 import numpy as np
 
 from gamebrains.agents.markov_brain import MarkovBrainAgent, crossover
-from gamebrains.metrics.phi_autonomy import causal_autonomy, compute_phi
+from gamebrains.metrics.phi_autonomy import compute_phi
 
 
 def test_observation_encoding_and_action_decoding_roundtrip():
@@ -66,25 +63,28 @@ def test_clone_mutate_crossover_produce_valid_agents():
     assert np.all(from_a | from_b)
 
 
-def test_causal_autonomy_fair_coin_equals_n_hm_bits():
-    n_hidden = 2
-    agent = MarkovBrainAgent(
-        "FairCoin", n_states=8, n_actions=2, n_hidden=n_hidden,
-        W=np.zeros((n_hidden + 1, 3 + n_hidden + 1)), bias=np.zeros(n_hidden + 1), seed=0,
-    )
-    result = causal_autonomy(agent, n_t=3)
-    assert abs(result - (n_hidden + 1)) < 1e-9  # n_hm = n_hidden + n_motor(=1) bits, exactly
+def test_factory_seats_a_sigmoid_brain_in_the_congestion_family():
+    """The congestion family declares no start observation. The factory read `game.start_state`
+    directly and raised AttributeError there, so no sigmoid brain could be seated in a Honey-Jar
+    match from the interface or a sweep."""
+    from gamebrains.agents import factory
+    from gamebrains.agents.markov_brain import spawn
+    from gamebrains.engine.game import NO_START_OBSERVATION
+    from gamebrains.engine.runner import run_match
+    from gamebrains.games.congestion import from_preset
+    from gamebrains.games.public_goods import PublicGoodsGame
 
+    game = from_preset("hjg", 3)
+    roster = [factory.build("markov_brain", i, game, seed=0) for i in range(3)]
+    assert all(a.start_state == NO_START_OBSERVATION for a in roster), (
+        "a board position may not clear the brain: the congestion family has no start observation")
+    records = run_match(game, roster, rounds=200, seed=0)
+    assert set(np.asarray(records["actions"]).flatten().tolist()) <= set(range(game.n_actions))
+    assert spawn("MB", game, 0, None).start_state == NO_START_OBSERVATION
 
-def test_causal_autonomy_near_deterministic_is_near_zero():
-    n_hidden = 2
-    n_controlled = n_hidden + 1
-    agent = MarkovBrainAgent(
-        "Deterministic", n_states=8, n_actions=2, n_hidden=n_hidden,
-        W=np.zeros((n_controlled, 3 + n_controlled)), bias=np.full(n_controlled, -30.0), seed=0,
-    )
-    result = causal_autonomy(agent, n_t=3)
-    assert result < 1e-6
+    pgg = PublicGoodsGame(n_agents=3)
+    assert factory.build("markov_brain", 0, pgg, seed=0).start_state == pgg.start_state, (
+        "the Public Goods Game declares its start observation and the brain must still use it")
 
 
 def test_compute_phi_runs_and_returns_nonnegative():
@@ -104,9 +104,7 @@ if __name__ == "__main__":
     print("OK: full_tpm sensor rows are identity")
     test_clone_mutate_crossover_produce_valid_agents()
     print("OK: clone/mutate/crossover produce valid agents")
-    test_causal_autonomy_fair_coin_equals_n_hm_bits()
-    print("OK: causal_autonomy == n_hm bits for the fair-coin genome")
-    test_causal_autonomy_near_deterministic_is_near_zero()
-    print("OK: causal_autonomy ~= 0 for the near-deterministic genome")
+    test_factory_seats_a_sigmoid_brain_in_the_congestion_family()
+    print("OK: the factory seats a sigmoid brain in the congestion family")
     test_compute_phi_runs_and_returns_nonnegative()
     print("OK: compute_phi runs and returns Phi >= 0")

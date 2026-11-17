@@ -25,6 +25,7 @@ from typing import Any, Optional
 import numpy as np
 
 from ..engine.agent import Agent
+from ..engine.game import start_observation
 
 
 def _sigmoid(x: np.ndarray) -> np.ndarray:
@@ -207,5 +208,6 @@ def spawn(name: str, game: Any, seed: int, config: Any) -> MarkovBrainAgent:
     """
     return MarkovBrainAgent.random(
         name, game.n_states, game.n_actions,
-        n_hidden=getattr(config, "n_hidden", 2), seed=seed, start_state=game.start_state,
+        n_hidden=getattr(config, "n_hidden", 2), seed=seed,
+        start_state=start_observation(game),
     )

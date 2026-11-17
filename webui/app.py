@@ -429,12 +429,26 @@ def _compute_phi_sequential(agent: Any, n_t: int = 5):
     Windows-spawn-based-multiprocessing caution already on file (see the Flask-reloader
     incident noted in webui/__init__.py's history / CLAUDE.md §9e), not a new failure mode.
     Trading the speedup for reliability here is the right call in a server context."""
-    from ..metrics.phi_autonomy import causal_autonomy, compute_phi  # imports pyphi + sets sys.path
+    from ..metrics.phi_autonomy import compute_phi  # imports pyphi + sets sys.path
     import pyphi
     with pyphi.config.override(PARALLEL_CUT_EVALUATION=False):
         phi_result = compute_phi(agent)
-        autonomy = causal_autonomy(agent, n_t=n_t)
-    return phi_result, autonomy
+    autonomy, why_not = _autonomy_or_reason(agent, n_t)
+    return phi_result, autonomy, why_not
+
+
+def _autonomy_or_reason(agent: Any, n_t: int) -> tuple[Optional[float], Optional[str]]:
+    """Causal autonomy, or None with the reason it was refused.
+
+    The measure enumerates every sensor history of length `n_t`, which is 2^(sensor bits x n_t)
+    of them, and refuses past a fixed size. A congestion game's board has enough states for its
+    brains to cross that at the default length, so the page says so where the number would be.
+    """
+    from ..metrics.phi_autonomy import causal_autonomy
+    try:
+        return causal_autonomy(agent, n_t=n_t), None
+    except ValueError as exc:
+        return None, f"Causal autonomy was not computed: {exc}."
 
 
 def _gate_phi(agent: Any, n_t: int = 5) -> dict[str, Any]:
@@ -449,7 +463,7 @@ def _gate_phi(agent: Any, n_t: int = 5) -> dict[str, Any]:
     is reported for this kind and Phi is left blank, while causal autonomy, which needs no EMD, is
     still computed. The sigmoid brain's path is not changed (see CLAUDE.md section 9q).
     """
-    from ..metrics.phi_autonomy import causal_autonomy, compute_phi  # imports pyphi + sets sys.path
+    from ..metrics.phi_autonomy import compute_phi  # imports pyphi + sets sys.path
     import pyphi
     note = None if agent.tpm_is_exact() else (
         "These probabilistic gates draw some outputs jointly, and the transition matrix Phi is "
@@ -468,7 +482,9 @@ def _gate_phi(agent: Any, n_t: int = 5) -> dict[str, Any]:
                     "null concept is negative, and the vendored Earth Mover's Distance refuses a "
                     "negative histogram rather than return a number for it. Causal autonomy does "
                     "not use that distance and is reported.")
-        autonomy = causal_autonomy(agent, n_t=n_t)
+    autonomy, why_not = _autonomy_or_reason(agent, n_t)
+    if why_not:
+        note = f"{note} {why_not}" if note else why_not
     return {"phi": phi, "autonomy": autonomy, "note": note}
 
 
@@ -1622,8 +1638,9 @@ def _execute_single_run(f, roster_sink: Optional[list] = None) -> dict[str, Any]
         if target.kind == "markov_gates":
             phi_info = {"agent": target.name, **_gate_phi(target)}
         else:
-            phi_result, autonomy = _compute_phi_sequential(target)
-            phi_info = {"agent": target.name, "phi": phi_result["phi"], "autonomy": autonomy}
+            phi_result, autonomy, why_not = _compute_phi_sequential(target)
+            phi_info = {"agent": target.name, "phi": phi_result["phi"], "autonomy": autonomy,
+                        "note": why_not}
 
     repo_info, filter_info, genome_cids = None, None, []
     for a in markov_agents:
@@ -1859,7 +1876,7 @@ def evolve_run():
     phi_info = None
     phi_note = None
     if do_phi and is_markov:
-        phi_result, autonomy = _compute_phi_sequential(best, n_t=3)
+        phi_result, autonomy, phi_note = _compute_phi_sequential(best, n_t=3)
         phi_info = {"phi": phi_result["phi"], "autonomy": autonomy,
                    "max_autonomy": best.n_hidden + best.n_motor}
     elif do_phi and has_nodes:

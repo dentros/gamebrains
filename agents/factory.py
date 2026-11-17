@@ -171,12 +171,16 @@ def build(kind: str, index: int, game: Any, seed: int, classic_strategy: str = "
 
     if kind == "markov_brain":
         from .markov_brain import MarkovBrainAgent
+        from ..engine.game import start_observation
         _checked(kind, overrides)
         return MarkovBrainAgent(
             name=f"MarkovBrain {index}", n_states=game.n_states, n_actions=game.n_actions,
             n_hidden=int(overrides.get("n_hidden", markov_hidden)),
             seed=_seat_seed(seed, "markov_brain", index),
-            start_state=game.start_state,
+            # Not `game.start_state`: the congestion family declares none, and reading it
+            # directly raised AttributeError there, so no sigmoid brain could sit in a Honey-Jar
+            # match. Same rule as the gate brain below.
+            start_state=start_observation(game),
         )
 
     if kind == "classic":

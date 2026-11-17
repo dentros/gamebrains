@@ -178,7 +178,7 @@
     <p class="meta">{{ n('w.agent') }} {{ phi_info.agent }}</p>
     <table>
       <tr><th>&Phi;</th><th>Causal autonomy (bits)</th></tr>
-      <tr><td>{{ "%.4f"|format(phi_info.phi) if phi_info.phi is not none else "not computed" }}</td><td>{{ "%.4f"|format(phi_info.autonomy) }}</td></tr>
+      <tr><td>{{ "%.4f"|format(phi_info.phi) if phi_info.phi is not none else "not computed" }}</td><td>{{ "%.4f"|format(phi_info.autonomy) if phi_info.autonomy is not none else "not computed" }}</td></tr>
     </table>
     {% if phi_info.note %}<p class="meta">{{ phi_info.note }}</p>{% endif %}
   </div>

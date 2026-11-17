@@ -13,7 +13,8 @@ Both metrics use a discrete plug-in (maximum-likelihood) entropy estimator with 
 correction -- appropriate because every symbol involved (observations, actions) is already a small
 discrete integer in this game, so no continuous-valued estimator (KSG) or neural training surrogate
 (MINE/InfoNCE) is needed. Per the project's own information-theoretic guardrails
-(arXiv:2604.23716, cited in CLAUDE.md section 5): this is a calibrated *estimator*, not a training
+(Papadopoulos & Psannis, IEEE Access 2026, doi:10.1109/ACCESS.2026.3754039; preprint
+arXiv:2604.23716; cited in CLAUDE.md section 5): this is a calibrated *estimator*, not a training
 surrogate, and every reported transfer-entropy value ships with its estimator parameters
 (alphabet, sample size) and a surrogate-based significance test -- never a bare point number.
 

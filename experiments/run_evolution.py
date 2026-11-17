@@ -59,7 +59,8 @@ def main() -> None:
         population_size=args.population, generations=args.generations,
         match_rounds=args.match_rounds, n_hidden=args.n_hidden, seed=args.seed,
         lifetime_learning=args.lifetime_learning,
-        name_prefix={"markov_brain": "MB", "qlearning": "QL", "dqn": "DQ"}[args.architecture],
+        name_prefix={"markov_brain": "MB", "qlearning": "QL", "dqn": "DQ",
+                     "markov_gates": "MG"}[args.architecture],
     )
 
     results_dir = Path(__file__).resolve().parents[1] / "results"
@@ -105,24 +106,36 @@ def main() -> None:
     # Phi is defined here over the node-level dynamics of a small Markov brain, and is
     # exponential in system size. A Q-table has no such decomposition to partition and a
     # network has far too many nodes, so this is skipped by architecture rather than attempted.
-    if args.architecture != "markov_brain":
+    if args.architecture not in ("markov_brain", "markov_gates"):
         print(f"  Phi and causal autonomy are not computed for {args.architecture}: they are "
               f"defined over a small Markov brain's node-level dynamics, which this genome "
               f"does not have.")
     elif not args.skip_phi:
-        from ..metrics.phi_autonomy import causal_autonomy, compute_phi  # lazy: only needs pyphi here
+        from ..metrics.phi_autonomy import causal_autonomy_terms, compute_phi  # lazy: needs pyphi
 
         print()
         print("  Computing Phi and causal autonomy for the fittest evolved animat "
               "(runs PyPhi's major-complex search, may take a moment)...")
         best = result.best
         best.act(best.start_state)   # settle into one concrete, reachable state to analyze
-        phi_result = compute_phi(best)
-        autonomy = causal_autonomy(best, n_t=3)
-        print(f"  Phi = {phi_result['phi']:.4f}   (main complex node indices: "
-              f"{phi_result['complex_nodes']})")
-        print(f"  causal autonomy = {autonomy:.4f} bits "
-              f"(max possible = {best.n_hidden + best.n_motor} bits)")
+        try:
+            phi_result = compute_phi(best)
+            print(f"  Phi = {phi_result['phi']:.4f}   (main complex node indices: "
+                  f"{phi_result['complex_nodes']})")
+        except RuntimeError as exc:
+            # The vendored EMD refuses some cuts of gate brains (CLAUDE.md section 9q). Said,
+            # not hidden, and autonomy below does not depend on it.
+            if not str(exc).startswith("emd:"):
+                raise
+            print(f"  Phi not computed: the vendored Earth Mover's Distance refused a cut ({exc})")
+        try:
+            terms = causal_autonomy_terms(best, n_t=3)
+            print(f"  causal autonomy = {terms['autonomy']:.4f} bits "
+                  f"(max possible = {best.n_hidden + best.n_motor} bits; "
+                  f"H given sensors {terms['given_sensors']:.4f}, "
+                  f"one-step noise {terms['given_previous_state']:.4f})")
+        except ValueError as exc:
+            print(f"  causal autonomy not computed: {exc}")
 
 
 if __name__ == "__main__":

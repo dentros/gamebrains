@@ -44,8 +44,8 @@ and the correlation between its own outputs is lost. `tpm_is_exact()` says wheth
 occurs for this genome: it is True for deterministic brains and for any probabilistic gate whose
 rows factorise over their output bits (a single-output gate always does). The causal-autonomy
 measure has the same split: its second term is zero for deterministic dynamics, so on a
-deterministic gate brain `phi_autonomy.causal_autonomy` computes the complete measure rather than
-the first-order part it computes for the sigmoid brain.
+deterministic gate brain the second term of causal autonomy is zero, and `phi_autonomy` computes
+both terms for either brain.
 
 **Genome and the GA.** The gate list is the genome. `spawn`, `crossover`, `clone` and `mutate` have
 the signatures `engine.evolution` expects and `markov_brain.py` uses. Mutation does point mutation
@@ -63,6 +63,9 @@ from typing import Any, Optional, Sequence
 import numpy as np
 
 from ..engine.agent import Agent
+# Both Markov brains read the start observation the same way, so the helper lives with the
+# Game contract. Still importable from here, where the tests and the factory first found it.
+from ..engine.game import NO_START_OBSERVATION, start_observation  # noqa: F401
 
 #: MABE's bounds on gate arity.
 MAX_GATE_INPUTS = 4
@@ -77,15 +80,6 @@ DEFAULT_N_GATES = 4
 #: What `spawn` reads from `EvolutionConfig.genome`. `n_hidden` comes from the config's own field,
 #: as it does for the sigmoid brain.
 GENOME_KNOBS = ("n_gates", "deterministic")
-
-#: The start observation for a game that declares none. Observations are non-negative indices, so
-#: nothing equals it and the brain is cleared only when a match starts.
-NO_START_OBSERVATION = -1
-
-
-def start_observation(game: Any) -> int:
-    """The observation that marks the first round of `game`, or `NO_START_OBSERVATION`."""
-    return int(getattr(game, "start_state", NO_START_OBSERVATION))
 
 _ROW_SUM_TOL = 1e-9
 

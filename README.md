@@ -41,7 +41,8 @@ that relates to co-authorship on the accompanying papers.
 - **Agents** (`agents/`), all sharing one `Agent` contract (`act`/`update`/`inspect`/`render_brain`):
   tabular Q-learning, a Deep Q-Network (PyTorch), a Free-Energy-Principle / active-inference agent
   (Theory-of-Mind-relevant belief tracking), an evolvable Markov-brain animat (genetic algorithm
-  plus Φ and causal autonomy via a maintained PyPhi compatibility fork, `vendor/pyphi/`), a Markov
+  plus Φ via a maintained PyPhi compatibility fork, `vendor/pyphi/`, and causal autonomy computed
+  from its published definition), a Markov
   brain built from logic gates after MABE (deterministic by default, so the transition matrix Φ is
   computed from is exact, with probabilistic gates as an option), a compact
   agent in the Distributed Adaptive Control tradition (reactive, adaptive and contextual layers,
@@ -51,7 +52,8 @@ that relates to co-authorship on the accompanying papers.
   a model served locally by Ollama, with a replay backend that reproduces its recorded decisions.
   A person can also take a seat from the browser, under the same contract as every agent.
 - **Metrics** (`metrics/`): social (cooperation rate, efficiency, payoff Gini, action entropy),
-  Nash equilibrium detection (`pygambit`), Φ and causal autonomy (`vendor/pyphi/`),
+  Nash equilibrium detection (`pygambit`), Φ (`vendor/pyphi/`), causal autonomy (Albantakis 2021,
+  Eq. 12),
   information-theoretic measures (mutual information, transfer entropy with a blockwise surrogate
   test, predictive information), graph-theoretic measures over the co-cooperation and influence
   networks, and the **ALT and RP temporal-fairness families**, reimplemented from the author's own

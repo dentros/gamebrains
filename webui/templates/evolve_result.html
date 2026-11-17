@@ -29,7 +29,7 @@
   <h2><svg class="glyph"><use href="#glyph-markov_brain"/></svg>&Phi; &amp; causal autonomy (best evolved genome)</h2>
   <table>
     <tr><th>&Phi;</th><th>Causal autonomy (bits)</th><th>Max possible (bits)</th></tr>
-    <tr><td>{{ "%.4f"|format(phi_info.phi) if phi_info.phi is not none else "not computed" }}</td><td>{{ "%.4f"|format(phi_info.autonomy) }}</td>
+    <tr><td>{{ "%.4f"|format(phi_info.phi) if phi_info.phi is not none else "not computed" }}</td><td>{{ "%.4f"|format(phi_info.autonomy) if phi_info.autonomy is not none else "not computed" }}</td>
         <td>{{ phi_info.max_autonomy }}</td></tr>
   </table>
 </div>

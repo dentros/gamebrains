@@ -1392,6 +1392,57 @@ episodes, as the gate brain's does. Test: `test_markov_brain.test_factory_seats_
 `run_evolution.py` (prefix, Phi with the EMD refusal reported, autonomy with both terms) raised
 KeyError on `markov_gates` until now, as section 9q recorded.
 
+## 9s. A return that changes mid-match, a neutral prompt, and a seed on every request (2026-11-23)
+
+### `PublicGoodsGame(mpcr_schedule=[(round, mpcr), ...])`
+
+`[(41, 1.25)]` keeps `mpcr` for rounds 1 to 40 and pays 1.25 from round 41, so one match can cross
+from the dilemma (r = 2 at n = 4) into the regime where contributing dominates (r = 5), and the
+reaction can be read round by round. Each entry is held to the rule `mpcr` is held to, so a value
+above 1 needs `allow_non_dilemma=True` as before. `mpcr` stays the round-1 value because
+`describe()` is read after play; `mpcr_at(t)` and `current_mpcr` give the value in force. With a
+schedule the round's value is logged as `info["mpcr"]`, `describe()` carries the schedule, and
+`max_welfare_per_round()` is the average over the game's rounds, so efficiency stays total over
+total. **Without a schedule nothing changes**: same rewards, same log, same `config_hash`.
+`tests/test_mpcr_schedule.py` (6 cases).
+
+### `neutral-v1` (`agents/llm_prompt.py`)
+
+What `informed-v1` tells, in words that name no side. The options are "Option A" and "Option B",
+listed in that order, and which of them concedes is drawn from the agent's new `seed` argument, so
+the order of the two roles varies by seed and is recorded with every decision (`labels` and `role`
+in the journal). The game's name, its action names, "concede" and "claim" never appear. Since a
+label alone says nothing, the rule sentence says what each option does (`neutral_rules`): in the
+Public Goods Game the pool and its multiplier r, which a reader turns into a share correctly; in
+the congestion family which option moves you forward. A schedule gives one sentence per change, and
+the round it changes opens with "From this round on the rule has changed." With `seat=` given, the
+congestion prompt also says which digit of the position is the agent's own.
+
+It has a builder of its own (`_build_neutral_prompt`), so `minimal-v1` and `informed-v1` prompts and
+journals stay byte for byte what their recorded runs were asked, which is what a replay matches on.
+Checked by dumping both before and after the change.
+
+**⚠️ What `informed-v1` says about the Public Goods payoff is wrong by a factor of n.** Its sentence
+reads "Everything conceded is multiplied by {mpcr} and shared equally among all {n} players". Read
+literally that pays `mpcr / n` per unit conceded; the game pays `mpcr`. At n = 5 and MPCR 0.5 the
+model was told a fifth of the real return. The profile is frozen, so it stays as it is and the runs
+recorded under it are runs under that sentence; `neutral-v1` states r instead.
+
+### A sampling seed on every request, and the temperature in the design
+
+`OllamaBackend(seed=...)` draws a seed for each request, in call order, from a generator seeded with
+it, sends it as `options.seed`, and records it on the attempt (`Attempt.seed`), so the journal holds
+`sampling_seeds` for every decision. Above temperature 0 that makes each sample one that can be
+asked for again. It does not make the backend deterministic, and `capabilities()` still says so.
+`server_info()` returns the server version and the model's digest, because a tag names whatever was
+last pushed under it. `num_predict` passes a token cap through.
+
+`temperature` joins `_PARAM_ATTRS["llm"]`: the same model at 0 and at 0.7 shared a `config_hash`
+before, so a meta-analysis grouping by design would have pooled them. llm records written earlier
+carry the shorter parameter set, as when `profile` was added (9l). A backend with no temperature (a
+replay, a stub) records none. `tests/test_neutral_profile.py` (8 cases, the Ollama ones with the
+HTTP call replaced).
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see

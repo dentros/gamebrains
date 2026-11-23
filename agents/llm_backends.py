@@ -84,6 +84,9 @@ class Attempt:
     prompt_tokens: Optional[int] = None
     eval_tokens: Optional[int] = None
 
+    #: The sampling seed this request was sent with, for a backend that sends one. None otherwise.
+    seed: Optional[int] = None
+
 
 @dataclass
 class Response:

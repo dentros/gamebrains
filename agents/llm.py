@@ -104,6 +104,13 @@ class LLMAgent(Agent):
         max_attempts: repair budget per decision.
         persona: an optional line describing who the model is playing as. Empty by default,
             since a persona is an experimental manipulation rather than a default setting.
+        seed: draws which neutral label each role gets, under a profile with `neutral_labels`.
+            Unused otherwise. Not part of the design: like a match seed it picks one of several
+            equivalent presentations, and the one picked is recorded with every decision.
+        seat: this agent's index in the roster, when the caller knows it. Under a neutral profile
+            in a game whose position is decoded (the congestion family), the prompt then says
+            which digit of the position is the agent's own, which a board shown in seat order
+            otherwise leaves the model to guess. Unused otherwise.
     """
 
     kind = "llm"
@@ -119,7 +126,7 @@ class LLMAgent(Agent):
 
     def __init__(self, name: str, backend: Backend, roles: Sequence[str] = DEFAULT_ROLES,
                  profile: str = DEFAULT_PROFILE, max_attempts: int = DEFAULT_MAX_ATTEMPTS,
-                 persona: str = "") -> None:
+                 persona: str = "", seed: int = 0, seat: Optional[int] = None) -> None:
         self.name = name
         self.backend = backend
         self.roles = tuple(roles)
@@ -129,6 +136,13 @@ class LLMAgent(Agent):
         self.information = self._profile.information
         self.max_attempts = max_attempts
         self.persona = persona
+        self.seed = int(seed)
+        self.seat = seat
+        #: role -> label shown to the model. Empty unless the profile is neutral, in which case
+        #: the roles' own names are what the model is shown.
+        self._labels: dict[str, str] = (llm_prompt.neutral_label_map(self.roles, self.seed)
+                                        if self._profile.neutral_labels else {})
+        self._rules: list[tuple[int, str]] = []
 
         self._role_actions: dict[str, int] = {}
         self._state_labels: list[str] = []
@@ -178,6 +192,8 @@ class LLMAgent(Agent):
         self._state_labels = self._decode_states(game)
         self._game_context["state_legend"] = (
             llm_prompt.state_legend(game) if self._state_labels else "")
+        self._rules = (llm_prompt.neutral_rules(game, self._labels)
+                       if self._profile.neutral_labels else [])
         self._log = []
         self._journal = []
         self._last = None
@@ -212,6 +228,17 @@ class LLMAgent(Agent):
     @property
     def backend_name(self) -> str:
         return self.backend.capabilities().name
+
+    @property
+    def temperature(self) -> float:
+        """The backend's sampling temperature, recorded with the design: the same model at 0 and
+        at 0.7 is two experiments, and a meta-analysis grouping by `config_hash` would otherwise
+        pool them. Raises AttributeError for a backend that has none (a replay, a stub), so the
+        recorder, which reads with `hasattr`, records nothing rather than a guess."""
+        value = getattr(self.backend, "temperature", None)
+        if value is None:
+            raise AttributeError("this backend declares no sampling temperature")
+        return float(value)
 
     @property
     def native_schema(self) -> bool:
@@ -255,6 +282,8 @@ class LLMAgent(Agent):
         the difference between two runs is one recorded name and not an argument a caller may have
         passed differently the second time.
         """
+        if self._profile.neutral_labels:
+            return self._build_neutral_prompt(observation)
         ctx = self._game_context
         profile = self._profile
         kind = ctx.get("observation_kind", "opaque")
@@ -326,6 +355,66 @@ class LLMAgent(Agent):
         ]
         return "\n".join(lines)
 
+    def _build_neutral_prompt(self, observation: int) -> str:
+        """A profile with `neutral_labels`: the same board as `informed-v1` in words that name no
+        side. A builder of its own, so the prompts of the older profiles stay byte for byte what
+        their recorded runs were asked, which is what a replay of those runs matches on."""
+        ctx = self._game_context
+        profile = self._profile
+        kind = ctx.get("observation_kind", "opaque")
+        labels = [self._labels[role] for role in self.roles]
+        listed = sorted(labels, key=llm_prompt.NEUTRAL_LABELS.index)
+        round_number = len(self._log) + 1
+
+        lines = [f"You are one of {ctx.get('n_agents', '?')} players in a repeated game."]
+        if self.persona:
+            lines.append(self.persona)
+        if profile.round_position and ctx.get("rounds"):
+            lines.append(f"This is round {round_number} of {ctx['rounds']}.")
+        rule = llm_prompt.rule_for_round(self._rules, round_number) if profile.payoff_rule else ""
+        if rule:
+            lines.append(rule)
+        lines += ["", "Your options this round:"] + [f"- {label}" for label in listed] + [""]
+
+        decoded = (self._state_labels[observation]
+                   if profile.decode_state and kind != "concede_count"
+                   and 0 <= observation < len(self._state_labels) else "")
+        if decoded:
+            lines.append(f"The position is {decoded}. {ctx.get('state_legend', '')}".strip())
+            if self.seat is not None:
+                lines.append(f"You are player {self.seat + 1}, so your cell is digit "
+                             f"{self.seat + 1} from the left.")
+        elif kind == "concede_count":
+            last = self._log[-1]["role"] if self._log else None
+            others = llm_prompt.others_conceded(
+                observation, ctx.get("n_agents"), None if last is None else last == "concede")
+            total = ctx.get("n_agents")
+            if others is not None and isinstance(total, int) and "concede" in self._labels:
+                lines.append(f"In the previous round {others} of the {total - 1} other players "
+                             f"chose {self._labels['concede']}, not counting you.")
+        else:
+            lines.append(f"The observation you are given is {observation}, an index with no "
+                         f"declared meaning.")
+
+        if self._log:
+            lines += ["", "Your last rounds, most recent first:"]
+            for entry in reversed(self._log[-self.history:]):
+                shown = self._labels.get(entry["role"], entry["role"])
+                lines.append(f"- you chose {shown} and received {entry['reward']:.2f}")
+        else:
+            lines += ["", "No rounds have been played yet."]
+        if profile.cumulative_payoff and self._log:
+            lines.append(f"Your total so far is {self._earned:.2f} over {len(self._log)} rounds.")
+
+        lines += [
+            "",
+            "Reply with a single JSON object and nothing else, with the fields:",
+            f'  "action": one of {listed}',
+            '  "rationale": one short sentence on why',
+            '  "confidence": a number between 0 and 1',
+        ]
+        return "\n".join(lines)
+
     # --- the contract -----------------------------------------------------------------
 
     def act(self, observation: int) -> int:
@@ -333,12 +422,16 @@ class LLMAgent(Agent):
             raise RuntimeError(self._unbound())
 
         prompt = self.build_prompt(observation)
-        schema = decision_schema(self.roles)
+        offered = ([self._labels[r] for r in self.roles] if self._labels else list(self.roles))
+        schema = decision_schema(sorted(offered, key=llm_prompt.NEUTRAL_LABELS.index)
+                                 if self._labels else offered)
         # A SchemaViolation here is left to propagate. The alternative is a substituted action,
         # which would be recorded as a decision the model never made.
         response = self.backend.complete(prompt, schema, max_attempts=self.max_attempts)
 
-        role = response.data["action"]
+        answer = response.data["action"]
+        role = ({label: r for r, label in self._labels.items()}[answer] if self._labels
+                else answer)
         self._last = response
         self._last_decision = {
             "role": role,
@@ -348,12 +441,21 @@ class LLMAgent(Agent):
             "repaired": response.repaired,
             "seconds": round(response.seconds, 3),
         }
-        self._journal.append({
+        entry = {
             "prompt": prompt,
             "data": dict(response.data),
             "attempts": response.n_attempts,
             "model": response.model,
-        })
+        }
+        # Added only when there is something to add, so journals of the older profiles and
+        # backends keep exactly the fields they had.
+        if self._labels:
+            entry["role"] = role
+            entry["labels"] = dict(self._labels)
+        seeds = [getattr(a, "seed", None) for a in response.attempts]
+        if any(s is not None for s in seeds):
+            entry["sampling_seeds"] = seeds
+        self._journal.append(entry)
         self._pending_action = self._role_actions[role]
         return self._pending_action
 
@@ -378,6 +480,7 @@ class LLMAgent(Agent):
                              "deterministic": caps.deterministic},
             "profile": self._profile.name,
             "roles": dict(self._role_actions),
+            "labels": dict(self._labels),
             "history": list(self._log),
             "last_attempts": [
                 {"ok": a.ok, "error": a.error, "seconds": round(a.seconds, 3),

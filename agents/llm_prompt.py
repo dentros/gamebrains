@@ -31,8 +31,9 @@ experimental manipulation rather than a description of the board, and it is reco
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,14 @@ class PromptProfile:
     information: str
     """The declaration `Agent.information` reports for an agent using this profile."""
 
+    neutral_labels: bool = False
+    """Offer the two options as "Option A" and "Option B", which of them concedes drawn from the
+    agent's seed, and leave out every word that names a side: the game's name, its action names,
+    "concede" and "claim". What each option does is then said in the rule sentence
+    (`neutral_rules`), since a label alone tells the model nothing. A word like "cooperate" is a
+    cue a model has read a great deal about, so a profile that keeps it measures the word as much
+    as the game."""
+
 
 #: What the measurements in the paper were taken under: the observation, a gloss on what it means,
 #: and the agent's own last rounds. Kept exactly as it was, because results recorded under it must
@@ -87,7 +96,20 @@ INFORMED_V1 = PromptProfile(
     information="observation+history+others",
 )
 
-PROFILES: dict[str, PromptProfile] = {p.name: p for p in (MINIMAL_V1, INFORMED_V1)}
+#: What `informed-v1` tells, with no word that names a side and the option order drawn per seed.
+#: The rule sentence is its own (`neutral_rules`) rather than `payoff_sentence`, and states the
+#: multiplier as the pool's, which is how a reader computes a share from it. It also follows a game
+#: whose return changes during the match, and says so on the round it changes.
+NEUTRAL_V1 = PromptProfile(
+    name="neutral-v1", history=6, others_explicitly=True, payoff_rule=True,
+    cumulative_payoff=True, round_position=True, decode_state=True,
+    information="observation+history+others", neutral_labels=True,
+)
+
+PROFILES: dict[str, PromptProfile] = {p.name: p for p in (MINIMAL_V1, INFORMED_V1, NEUTRAL_V1)}
+
+#: The labels a neutral profile offers, in the order they are listed.
+NEUTRAL_LABELS = ("Option A", "Option B")
 
 DEFAULT_PROFILE = MINIMAL_V1.name
 
@@ -151,6 +173,63 @@ def state_legend(game: Any) -> str:
         return str(legend())
     except Exception:
         return ""
+
+
+def neutral_label_map(roles: Sequence[str], seed: int) -> dict[str, str]:
+    """Which neutral label each role gets, drawn from `seed`.
+
+    The labels are always listed A then B, so drawing which role is A is what puts the two options
+    in a random order. Seeded, so a run can say which order its model saw, and recorded with the
+    decisions for the same reason.
+    """
+    if len(roles) > len(NEUTRAL_LABELS):
+        raise ValueError(f"a neutral profile labels at most {len(NEUTRAL_LABELS)} options, "
+                         f"got {len(roles)} roles")
+    order = list(roles)
+    random.Random(seed).shuffle(order)
+    return {role: label for role, label in zip(order, NEUTRAL_LABELS)}
+
+
+def neutral_rules(game: Any, labels: dict[str, str]) -> list[tuple[int, str]]:
+    """What each option does and how it pays, as (first round, sentence), in neutral words.
+
+    A game whose return changes during a match (the Public Goods Game's `mpcr_schedule`) gives one
+    entry per change. An empty list for a game this module does not know, rather than a sentence
+    invented about it.
+    """
+    concede, claim = labels.get("concede"), labels.get("claim")
+    n = getattr(game, "n_agents", None)
+
+    mpcr_at = getattr(game, "mpcr_at", None)
+    cost = getattr(game, "cost", None)
+    if callable(mpcr_at) and cost is not None and n and concede:
+        starts = [1] + [start for start, _ in getattr(game, "mpcr_schedule", ())]
+        return [(start,
+                 f"Each player who chooses {concede} pays {cost:g} into a pool. The pool is "
+                 f"multiplied by {mpcr_at(start) * n:g} and shared equally among all {n} players, "
+                 f"whether they chose {concede} or not.")
+                for start in starts]
+
+    full = getattr(game, "full_reward", None)
+    positions = getattr(game, "num_positions", None)
+    if full is not None and positions and concede and claim:
+        terminal = positions - 1
+        return [(1, f"Each round, {claim} moves you one cell forward and {concede} keeps you where "
+                    f"you are. The first player to reach cell {terminal} alone takes {full:g}. If "
+                    f"several arrive together the reward is divided, and if everyone arrives it "
+                    f"can be nothing. Then everyone starts again from cell 0.")]
+    return []
+
+
+def rule_for_round(rules: list[tuple[int, str]], round_number: int) -> str:
+    """The rule in force in `round_number`, opened with a notice on the round it changed."""
+    current, start = "", 0
+    for first, sentence in rules:
+        if round_number >= first:
+            current, start = sentence, first
+    if current and start > 1 and round_number == start:
+        return f"From this round on the rule has changed. {current}"
+    return current
 
 
 def others_conceded(observation: int, n_agents: Optional[int],

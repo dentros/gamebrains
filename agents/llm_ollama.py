@@ -27,9 +27,10 @@ fails.
 from __future__ import annotations
 
 import json
+import random
 import urllib.error
 import urllib.request
-from typing import Any
+from typing import Any, Optional
 
 from .llm_backends import (
     DEFAULT_MAX_ATTEMPTS, Attempt, BackendUnavailable, Capabilities, Response, SchemaViolation,
@@ -54,16 +55,27 @@ class OllamaBackend:
             a different build of the same tag, a different quantisation or a different server
             version all change the output.
         timeout: seconds per request.
+        seed: when given, every request carries its own sampling seed, drawn in call order from a
+            generator seeded with this, and each attempt records the seed it was sent. Above
+            temperature 0 that is what turns "the model sampled something" into "the model sampled
+            with this seed", which can be sent again. It does not make the backend deterministic
+            either (the same server notes apply), so `capabilities()` still says it is not.
+        num_predict: a cap on generated tokens, passed to the server as is. None leaves the
+            server's default.
     """
 
     def __init__(self, model: str = DEFAULT_MODEL, host: str = DEFAULT_HOST,
                  constrained: bool = True, temperature: float = 0.0,
-                 timeout: float = 120.0) -> None:
+                 timeout: float = 120.0, seed: Optional[int] = None,
+                 num_predict: Optional[int] = None) -> None:
         self.model = model
         self.host = host.rstrip("/")
         self.constrained = constrained
         self.temperature = temperature
         self.timeout = timeout
+        self.seed = seed
+        self.num_predict = num_predict
+        self._rng = random.Random(seed) if seed is not None else None
 
     # --- availability -------------------------------------------------------------------
 
@@ -83,6 +95,25 @@ class OllamaBackend:
                 f"no Ollama server at {self.host} ({exc}). Install from ollama.com, then "
                 f"`ollama serve` and `ollama pull {self.model}`") from exc
         return [m.get("name", "") for m in payload.get("models", [])]
+
+    def server_info(self) -> dict[str, Any]:
+        """The server's version and this model's digest, for a results file to carry.
+
+        A tag names whatever was last pushed under it, so the digest is what says which weights
+        answered. Values the server does not report come back as None rather than guessed.
+        """
+        info: dict[str, Any] = {"host": self.host, "model": self.model, "version": None,
+                                "digest": None}
+        try:
+            with urllib.request.urlopen(f"{self.host}/api/version", timeout=5.0) as fh:
+                info["version"] = json.loads(fh.read().decode("utf-8")).get("version")
+            with urllib.request.urlopen(f"{self.host}/api/tags", timeout=5.0) as fh:
+                for m in json.loads(fh.read().decode("utf-8")).get("models", []):
+                    if m.get("name") == self.model:
+                        info["digest"] = m.get("digest")
+        except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
+            raise BackendUnavailable(f"could not reach Ollama at {self.host}: {exc}") from exc
+        return info
 
     # --- the contract -------------------------------------------------------------------
 
@@ -110,16 +141,23 @@ class OllamaBackend:
         for attempt, counts in zip(attempts, self._counts):
             attempt.prompt_tokens = counts.get("prompt_eval_count")
             attempt.eval_tokens = counts.get("eval_count")
+            attempt.seed = counts.get("seed")
         return Response(data=data, attempts=attempts, activations=None, model=self.model)
 
     # --- the one HTTP call --------------------------------------------------------------
 
     def _generate(self, prompt: str, schema: dict[str, Any]) -> str:
+        options: dict[str, Any] = {"temperature": self.temperature}
+        seed = self._rng.randrange(2 ** 31) if self._rng is not None else None
+        if seed is not None:
+            options["seed"] = seed
+        if self.num_predict is not None:
+            options["num_predict"] = self.num_predict
         body: dict[str, Any] = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-            "options": {"temperature": self.temperature},
+            "options": options,
         }
         if self.constrained:
             body["format"] = schema
@@ -142,6 +180,9 @@ class OllamaBackend:
 
         counts = getattr(self, "_counts", None)
         if counts is not None:
-            counts.append({k: payload[k] for k in ("prompt_eval_count", "eval_count")
-                           if isinstance(payload.get(k), int)})
+            entry = {k: payload[k] for k in ("prompt_eval_count", "eval_count")
+                     if isinstance(payload.get(k), int)}
+            if seed is not None:
+                entry["seed"] = seed
+            counts.append(entry)
         return payload.get("response", "")

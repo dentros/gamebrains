@@ -80,7 +80,12 @@ _PARAM_ATTRS: dict[str, tuple[str, ...]] = {
     # repository that let those two runs share a config_hash would be offering one as the other's
     # answer. Adding it lengthens the parameter set for llm seats only, so llm records written
     # before this line carry a different config_hash from equivalent ones written after it.
-    "llm": ("backend_name", "model", "profile", "native_schema", "history", "persona"),
+    # `temperature` since 2026-11-23: the same model sampled at 0 and at 0.7 is two experiments,
+    # and before it was recorded the two shared a config_hash. Records written earlier carry the
+    # shorter parameter set, so their hash differs from an equivalent new one, as when `profile`
+    # was added (CLAUDE.md 9l).
+    "llm": ("backend_name", "model", "profile", "native_schema", "history", "persona",
+            "temperature"),
     # `layers` above all: a lesioned DAC agent behaves differently from the full one by design, so
     # the two must never share a config_hash (agents/dac.py, tests/test_ablation.py).
     "dac": ("layers", "deficit_growth", "deficit_relief", "urgency", "withdraw", "alpha", "gamma",

@@ -72,6 +72,19 @@ _OBSERVATION_GLOSS = {
 }
 
 
+def move_schema(labels: Sequence[str]) -> dict[str, Any]:
+    """What a move-line reply must parse to: the option and the sentence before it. No
+    confidence, since the format asks for none."""
+    return {
+        "type": "object",
+        "properties": {
+            "action": {"type": "string", "enum": list(labels)},
+            "rationale": {"type": "string"},
+        },
+        "required": ["action", "rationale"],
+    }
+
+
 def decision_schema(roles: Sequence[str]) -> dict[str, Any]:
     """The JSON object a decision must be.
 
@@ -143,6 +156,7 @@ class LLMAgent(Agent):
         self._labels: dict[str, str] = (llm_prompt.neutral_label_map(self.roles, self.seed)
                                         if self._profile.neutral_labels else {})
         self._rules: list[tuple[int, str]] = []
+        self._system: Optional[str] = None
 
         self._role_actions: dict[str, int] = {}
         self._state_labels: list[str] = []
@@ -194,6 +208,13 @@ class LLMAgent(Agent):
             llm_prompt.state_legend(game) if self._state_labels else "")
         self._rules = (llm_prompt.neutral_rules(game, self._labels)
                        if self._profile.neutral_labels else [])
+        if self._profile.pd_history:
+            if set(self.roles) != {"concede", "claim"}:
+                raise ValueError(f"profile {self._profile.name} offers the two roles concede and "
+                                 f"claim, got {list(self.roles)}")
+            names = getattr(game, "action_names", [])
+            self._labels = {role: names[index] for role, index in self._role_actions.items()}
+            self._system = llm_prompt.pd_system(game, self._labels, self._profile.reply)
         self._log = []
         self._journal = []
         self._last = None
@@ -284,6 +305,8 @@ class LLMAgent(Agent):
         """
         if self._profile.neutral_labels:
             return self._build_neutral_prompt(observation)
+        if self._profile.pd_history:
+            return self._build_pd_prompt()
         ctx = self._game_context
         profile = self._profile
         kind = ctx.get("observation_kind", "opaque")
@@ -415,6 +438,21 @@ class LLMAgent(Agent):
         ]
         return "\n".join(lines)
 
+    def _build_pd_prompt(self) -> str:
+        """The user message of a `pd_history` profile: every past round, both moves, then the
+        round about to be played. The horizon and the payoffs are in the system message."""
+        rounds = self._game_context.get("rounds")
+        here = f"Round {len(self._log) + 1}" + (f" of {rounds}." if rounds else ".")
+        if not self._log:
+            return f"{here} Your move."
+        lines = ["History:"]
+        for i, entry in enumerate(self._log, 1):
+            theirs = self._labels.get(entry.get("opponent_role"), "unknown")
+            lines.append(f"round {i}: you={self._labels.get(entry['role'], entry['role'])}, "
+                         f"opponent={theirs}")
+        lines.append(f"{here} Your move.")
+        return "\n".join(lines)
+
     # --- the contract -----------------------------------------------------------------
 
     def act(self, observation: int) -> int:
@@ -422,12 +460,22 @@ class LLMAgent(Agent):
             raise RuntimeError(self._unbound())
 
         prompt = self.build_prompt(observation)
-        offered = ([self._labels[r] for r in self.roles] if self._labels else list(self.roles))
-        schema = decision_schema(sorted(offered, key=llm_prompt.NEUTRAL_LABELS.index)
-                                 if self._labels else offered)
+        profile = self._profile
+        if profile.neutral_labels:
+            offered = sorted((self._labels[r] for r in self.roles),
+                             key=llm_prompt.NEUTRAL_LABELS.index)
+        elif profile.pd_history:
+            offered = [self._labels["concede"], self._labels["claim"]]
+        else:
+            offered = list(self.roles)
+        schema = move_schema(offered) if profile.reply == "move" else decision_schema(offered)
+        # Only a profile that needs them sends them, so every older backend and stub keeps the
+        # call it was written for.
+        request = ({"system": self._system, "reply": profile.reply} if profile.pd_history else {})
         # A SchemaViolation here is left to propagate. The alternative is a substituted action,
         # which would be recorded as a decision the model never made.
-        response = self.backend.complete(prompt, schema, max_attempts=self.max_attempts)
+        response = self.backend.complete(prompt, schema, max_attempts=self.max_attempts,
+                                         **request)
 
         answer = response.data["action"]
         role = ({label: r for r, label in self._labels.items()}[answer] if self._labels
@@ -452,6 +500,8 @@ class LLMAgent(Agent):
         if self._labels:
             entry["role"] = role
             entry["labels"] = dict(self._labels)
+        if self._system is not None:
+            entry["system"] = self._system
         seeds = [getattr(a, "seed", None) for a in response.attempts]
         if any(s is not None for s in seeds):
             entry["sampling_seeds"] = seeds
@@ -465,6 +515,12 @@ class LLMAgent(Agent):
         entry = dict(self._last_decision)
         entry.update({"role": self._action_roles.get(action, "?"), "action": action,
                       "reward": float(reward)})
+        if self._profile.pd_history:
+            # The count published after this round, less our own move, is the opponent's move.
+            others = llm_prompt.others_conceded(
+                next_observation, 2, action == self._role_actions.get("concede"))
+            entry["opponent_role"] = None if others is None else (
+                "concede" if others == 1 else "claim")
         self._log.append(entry)
         self._earned += float(reward)
 

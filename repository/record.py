@@ -70,7 +70,8 @@ _PARAM_ATTRS: dict[str, tuple[str, ...]] = {
             "batch_size", "train_every", "target_sync_every", "evolved_by"),
     "fep": ("reciprocity", "obs_noise", "drift", "precision"),
     "markov_brain": ("n_hidden", "evolved_by"),
-    "classic": ("strategy", "p"),
+    # `plan` exists only on `Scripted`, so the other strategies record exactly what they did.
+    "classic": ("strategy", "p", "plan"),
     # For an LLM seat the model tag and whether the server constrained decoding to the schema are
     # design decisions, not runtime detail: the same prompt answered by a different model, or by
     # the same model without the constraint, is a different experiment and must not share a

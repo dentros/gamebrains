@@ -1443,6 +1443,32 @@ carry the shorter parameter set, as when `profile` was added (9l). A backend wit
 replay, a stub) records none. `tests/test_neutral_profile.py` (8 cases, the Ollama ones with the
 HTTP call replaced).
 
+### `games/matrix_game.py`: a two-player game given by T, R, P and S
+
+`MatrixGame(T, R, P, S, rounds)` and the preset `pd` (5/3/1/0), with any four finite payoffs. It publishes the cooperator count exactly as the Public Goods Game
+does (0 to 2, 3 before the first round), so every agent that reads a count plays it; cooperating is
+action 0 here and 1 there, which a role-bound agent never notices. The FEP agent is refused with the
+factory's existing message, since its payoff model is the Public Goods formula. Two players only.
+
+### `agents/classic.py`'s `Scripted(name, plan)`
+
+Plays a fixed sequence of roles (`concede` / `claim`), one per round, and is refused at the round
+the plan runs out. `plan` joins `_PARAM_ATTRS["classic"]`, read with `hasattr`, so the other
+strategies record what they always did.
+
+### `pd-history-v1` and `pd-history-move-v1`, and a second reply format
+
+A repeated two-player matrix game told as one: the horizon and the four payoffs in a system message
+(`OllamaBackend.complete(..., system=...)`), every past round as "round i: you=..., opponent=...",
+options under the game's own action names. The opponent's move is the published count less the
+agent's own. The two profiles differ only in the reply: the decision schema, or one sentence and a
+last line `MOVE: <option>` (`reply="move"`, parsed by `llm_backends.parse_move_line`, sent with no
+format constraint). **The MOVE line is read strictly**: it must name exactly one option as a whole
+word, and a reply naming none or both is repaired like any schema violation, never read as one of
+the two. `run_with_repair` takes `parse` and `repair` for this; their defaults are the JSON ones,
+so every existing call is unchanged. A pd profile in a game that is not a two-player matrix game is
+refused. `tests/test_matrix_game.py` (9 cases).
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see

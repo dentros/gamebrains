@@ -31,9 +31,10 @@ backend does not expose activations.
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional, Protocol
+from typing import Any, Callable, Optional, Protocol, Sequence
 
 #: How many times a backend may be asked to repair its own output before the caller gives up.
 #: Not a tuning knob so much as a budget: past a handful of attempts the model is not going to
@@ -242,14 +243,58 @@ def repair_prompt(original: str, raw: str, problems: list[str]) -> str:
     )
 
 
+def parse_move_line(labels: Sequence[str]) -> Callable[[str], dict[str, Any]]:
+    """A parser for replies written as reasoning followed by a last line `MOVE: <label>`.
+
+    The last line naming `MOVE:` decides, and it must name exactly one of `labels` as a whole word,
+    case aside. A reply that names none or both is a violation, so the repair loop asks again; it
+    is never read as one of the two, which is what a parser that defaults would do silently. The
+    lines before it are kept as the rationale.
+    """
+    def parse(raw: str) -> dict[str, Any]:
+        lines = [line.strip() for line in (raw or "").strip().splitlines() if line.strip()]
+        marked = [i for i, line in enumerate(lines) if "MOVE:" in line.upper()]
+        if not marked:
+            raise SchemaViolation("no line of the form 'MOVE: <option>'", raw or "")
+        last = marked[-1]
+        tail = lines[last].upper().split("MOVE:")[-1]
+        named = [label for label in labels
+                 if re.search(rf"\b{re.escape(label.upper())}\b", tail)]
+        if len(named) != 1:
+            raise SchemaViolation(
+                f"the MOVE line names {len(named)} of the options {list(labels)}, not exactly one",
+                raw)
+        rationale = " ".join(lines[:last]) or lines[last].upper().split("MOVE:")[0].strip()
+        return {"action": named[0], "rationale": rationale}
+    return parse
+
+
+def repair_move_prompt(original: str, raw: str, problems: list[str]) -> str:
+    """`repair_prompt` for the move-line reply format: same wording, its own last instruction."""
+    listed = "\n".join(f"- {p}" for p in problems)
+    return (
+        f"{original}\n\n"
+        f"Your previous answer was:\n{raw}\n\n"
+        f"It could not be used:\n{listed}\n\n"
+        f"Reply with one short sentence, then a last line of the form 'MOVE: <option>'."
+    )
+
+
 def run_with_repair(ask, prompt: str, schema: dict[str, Any],
-                    max_attempts: int) -> tuple[dict[str, Any], list[Attempt]]:
+                    max_attempts: int,
+                    parse: Optional[Callable[[str], Any]] = None,
+                    repair: Optional[Callable[[str, str, list[str]], str]] = None,
+                    ) -> tuple[dict[str, Any], list[Attempt]]:
     """Shared repair loop. `ask(prompt) -> str` is whatever the backend does to reach its model.
 
     Returns the parsed object and every attempt, successful or not. Both backends use this so the
     measured cost of structured output is a property of the model rather than of two separately
-    written loops.
+    written loops. `parse` and `repair` default to the JSON reply; the move-line format passes
+    `parse_move_line(...)` and `repair_move_prompt`, and the validation against `schema` is the
+    same for both.
     """
+    parse = parse or extract_json
+    repair = repair or repair_prompt
     attempts: list[Attempt] = []
     current = prompt
 
@@ -259,11 +304,11 @@ def run_with_repair(ask, prompt: str, schema: dict[str, Any],
         elapsed = time.perf_counter() - started
 
         try:
-            data = extract_json(raw)
+            data = parse(raw)
             problems = validate(data, schema)
         except SchemaViolation as exc:
             attempts.append(Attempt(len(current), raw, ok=False, error=str(exc), seconds=elapsed))
-            current = repair_prompt(prompt, raw, [str(exc)])
+            current = repair(prompt, raw, [str(exc)])
             continue
 
         if not problems:
@@ -272,7 +317,7 @@ def run_with_repair(ask, prompt: str, schema: dict[str, Any],
 
         attempts.append(Attempt(len(current), raw, ok=False,
                                 error="; ".join(problems), seconds=elapsed))
-        current = repair_prompt(prompt, raw, problems)
+        current = repair(prompt, raw, problems)
 
     last = attempts[-1] if attempts else Attempt(len(prompt), "", ok=False)
     raise SchemaViolation(

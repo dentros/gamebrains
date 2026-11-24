@@ -78,6 +78,16 @@ class PromptProfile:
     cue a model has read a great deal about, so a profile that keeps it measures the word as much
     as the game."""
 
+    pd_history: bool = False
+    """A two-player matrix game told as such: the horizon and the four payoffs in a system message,
+    and every past round as one line of both moves, "round i: you=..., opponent=...". The options
+    carry the game's own action names. Refused by a game that is not a two-player matrix game."""
+
+    reply: str = "json"
+    """How the model answers: `json` (the decision schema) or `move` (one short sentence, then a
+    last line `MOVE: <option>`), which is the format much of the language-model game literature
+    asks for."""
+
 
 #: What the measurements in the paper were taken under: the observation, a gloss on what it means,
 #: and the agent's own last rounds. Kept exactly as it was, because results recorded under it must
@@ -106,7 +116,47 @@ NEUTRAL_V1 = PromptProfile(
     information="observation+history+others", neutral_labels=True,
 )
 
-PROFILES: dict[str, PromptProfile] = {p.name: p for p in (MINIMAL_V1, INFORMED_V1, NEUTRAL_V1)}
+#: A repeated two-player matrix game with its whole history. The same content under two reply
+#: formats, since the format is itself a variable: `pd-history-v1` answers in the decision schema,
+#: `pd-history-move-v1` in a sentence and a `MOVE:` line.
+PD_HISTORY_V1 = PromptProfile(
+    name="pd-history-v1", history=0, others_explicitly=True, payoff_rule=True,
+    cumulative_payoff=False, round_position=True, decode_state=False,
+    information="observation+history+others", pd_history=True, reply="json",
+)
+PD_HISTORY_MOVE_V1 = PromptProfile(
+    name="pd-history-move-v1", history=0, others_explicitly=True, payoff_rule=True,
+    cumulative_payoff=False, round_position=True, decode_state=False,
+    information="observation+history+others", pd_history=True, reply="move",
+)
+
+PROFILES: dict[str, PromptProfile] = {
+    p.name: p for p in (MINIMAL_V1, INFORMED_V1, NEUTRAL_V1, PD_HISTORY_V1, PD_HISTORY_MOVE_V1)}
+
+
+def pd_system(game: Any, labels: dict[str, str], reply: str) -> str:
+    """The system message of a `pd_history` profile: horizon, options, payoffs, what to reply.
+
+    Raises for a game that does not declare four payoffs for two players, since a table written
+    for a game this module does not know would be a claim about it."""
+    if getattr(game, "n_agents", None) != 2 or not all(
+            hasattr(game, k) for k in ("T", "R", "P", "S")):
+        raise ValueError(f"a pd_history profile needs a two-player matrix game with payoffs T, R, "
+                         f"P and S; {getattr(game, 'name', type(game).__name__)!r} is not one")
+    c, d = labels["concede"], labels["claim"]
+    rounds = getattr(game, "rounds", None)
+    horizon = f"a {rounds}-round game" if rounds else "a repeated game"
+    text = (f"You are playing {horizon} against the same opponent. Each round you both choose "
+            f"{c} or {d} at the same time. Points per round: both {c}: {game.R:g} each. You {c} "
+            f"and they {d}: you {game.S:g}, they {game.T:g}. You {d} and they {c}: you "
+            f"{game.T:g}, they {game.S:g}. Both {d}: {game.P:g} each. Aim for the highest total "
+            f"for yourself.")
+    if reply == "move":
+        return text + (f" Give one short sentence of reasoning, then end with a last line of "
+                       f"exactly 'MOVE: {c}' or 'MOVE: {d}'.")
+    return text + (f' Reply with a single JSON object and nothing else, with the fields "action" '
+                   f'(one of ["{c}", "{d}"]), "rationale" (one short sentence on why) and '
+                   f'"confidence" (a number between 0 and 1).')
 
 #: The labels a neutral profile offers, in the order they are listed.
 NEUTRAL_LABELS = ("Option A", "Option B")

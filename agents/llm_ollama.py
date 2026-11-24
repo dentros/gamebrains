@@ -34,7 +34,7 @@ from typing import Any, Optional
 
 from .llm_backends import (
     DEFAULT_MAX_ATTEMPTS, Attempt, BackendUnavailable, Capabilities, Response, SchemaViolation,
-    run_with_repair,
+    parse_move_line, repair_move_prompt, run_with_repair,
 )
 
 DEFAULT_HOST = "http://127.0.0.1:11434"
@@ -131,13 +131,25 @@ class OllamaBackend:
         )
 
     def complete(self, prompt: str, schema: dict[str, Any],
-                 max_attempts: int = DEFAULT_MAX_ATTEMPTS) -> Response:
+                 max_attempts: int = DEFAULT_MAX_ATTEMPTS, *, system: Optional[str] = None,
+                 reply: str = "json") -> Response:
+        """`system` is sent as the server's system message. `reply="move"` asks for reasoning
+        followed by a last line `MOVE: <label>`, the labels being the schema's action enum, and
+        sends no format constraint, since a schema would force the reply back into JSON."""
         # The repair loop builds the Attempt objects, so the per-request token counts are collected
         # here in call order and matched up afterwards rather than threaded through a shared loop
         # that has no business knowing about one server's response fields.
         self._counts: list[dict[str, int]] = []
+        if reply not in ("json", "move"):
+            raise ValueError(f"reply must be 'json' or 'move', got {reply!r}")
+        parse = repair = None
+        if reply == "move":
+            parse = parse_move_line(schema["properties"]["action"]["enum"])
+            repair = repair_move_prompt
+        constrained = self.constrained and reply == "json"
         data, attempts = run_with_repair(
-            lambda text: self._generate(text, schema), prompt, schema, max_attempts)
+            lambda text: self._generate(text, schema, system=system, constrained=constrained),
+            prompt, schema, max_attempts, parse=parse, repair=repair)
         for attempt, counts in zip(attempts, self._counts):
             attempt.prompt_tokens = counts.get("prompt_eval_count")
             attempt.eval_tokens = counts.get("eval_count")
@@ -146,7 +158,8 @@ class OllamaBackend:
 
     # --- the one HTTP call --------------------------------------------------------------
 
-    def _generate(self, prompt: str, schema: dict[str, Any]) -> str:
+    def _generate(self, prompt: str, schema: dict[str, Any], system: Optional[str] = None,
+                  constrained: Optional[bool] = None) -> str:
         options: dict[str, Any] = {"temperature": self.temperature}
         seed = self._rng.randrange(2 ** 31) if self._rng is not None else None
         if seed is not None:
@@ -159,7 +172,9 @@ class OllamaBackend:
             "stream": False,
             "options": options,
         }
-        if self.constrained:
+        if system is not None:
+            body["system"] = system
+        if self.constrained if constrained is None else constrained:
             body["format"] = schema
 
         request = urllib.request.Request(

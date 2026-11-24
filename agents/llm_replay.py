@@ -85,7 +85,8 @@ class ReplayBackend:
         )
 
     def complete(self, prompt: str, schema: dict[str, Any],
-                 max_attempts: int = DEFAULT_MAX_ATTEMPTS) -> Response:
+                 max_attempts: int = DEFAULT_MAX_ATTEMPTS, **_request: Any) -> Response:
+        # `system` and `reply` shape a live request; a replay answers from what was recorded.
         queue = self._by_prompt.get(prompt_key(prompt))
         if not queue:
             raise NotRecorded(

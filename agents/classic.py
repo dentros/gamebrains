@@ -20,7 +20,7 @@ AllD remain useful reference points in such a game, but neither is "the cooperat
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 
@@ -117,6 +117,52 @@ class RandomAgent(_Classic):
     def render_brain(self) -> dict:
         d = super().render_brain()
         d["p_cooperate"] = self.p
+        return d
+
+
+class Scripted(_Classic):
+    """Plays a fixed sequence of roles, one per round, whatever anyone else does.
+
+    The opponent of a probe: "cooperate throughout and defect once, in round 4" or a recorded
+    pattern of defections. The plan is in roles (`concede` / `claim`), so the same plan plays the
+    same meaning in any game that declares them. A match longer than the plan is refused at the
+    round the plan runs out, rather than continued with a move nobody wrote.
+    """
+
+    strategy = "Scripted"
+
+    def __init__(self, name: str, plan: Sequence[str]) -> None:
+        super().__init__(name)
+        plan = tuple(plan)
+        if not plan:
+            raise ValueError("a scripted agent needs at least one move in its plan")
+        unknown = sorted({r for r in plan if r not in ("concede", "claim")})
+        if unknown:
+            raise ValueError(f"a plan is written in the roles 'concede' and 'claim', got {unknown}")
+        self.plan = plan
+        self.rule = (f"Play a fixed plan of {len(plan)} moves, conceding in "
+                     f"{sum(r == 'concede' for r in plan)} of them.")
+        self._actions: dict[str, int] = {}
+        self._t = 0
+
+    def on_match_start(self, game: Any) -> None:
+        self._actions = {"concede": game.action_for("concede"), "claim": game.action_for("claim")}
+        self._t = 0
+
+    def act(self, observation: int) -> int:
+        if not self._actions:
+            raise RuntimeError(self._unbound())
+        if self._t >= len(self.plan):
+            raise RuntimeError(f"{self.name}'s plan has {len(self.plan)} moves and round "
+                               f"{self._t + 1} was asked for")
+        role = self.plan[self._t]
+        self._t += 1
+        return self._actions[role]
+
+    def render_brain(self) -> dict:
+        d = super().render_brain()
+        d["plan"] = list(self.plan)
+        d["next_round"] = self._t + 1
         return d
 
 

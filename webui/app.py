@@ -21,6 +21,7 @@ import base64
 import contextlib
 import csv
 import io
+import json
 import os
 import sys
 import threading
@@ -50,6 +51,7 @@ from ..engine import procguard
 from ..engine.runner import run_match
 from ..games.congestion import from_preset as congestion_from_preset
 from ..games.public_goods import PublicGoodsGame
+from ..games import spec as game_spec
 from ..metrics import equilibrium, graph, information, social, social_alt
 from ..experiments import sweep
 from ..experiments.evolution_record import record_evolution
@@ -149,6 +151,7 @@ NAV = [
         ("sweep", "nav.sweep", "/sweep"),
         ("spacemap", "nav.spacemap", "/spacemap"),
         ("evolve", "nav.evolve", "/evolve"),
+        ("games", "nav.games", "/games"),
     ]),
     ("results", "nav.group.results", [
         ("analytics", "nav.analytics", "/analytics"),
@@ -164,7 +167,7 @@ _TAB_FOR_PATH = [
     ("/analytics", "analytics"), ("/compare", "analytics"), ("/run/", "analytics"),
     ("/spacemap", "spacemap"), ("/coverage", "coverage"),
     ("/meta", "meta"), ("/sources", "meta"),
-    ("/sweep", "sweep"), ("/evolve", "evolve"),
+    ("/sweep", "sweep"), ("/evolve", "evolve"), ("/games", "games"),
 ]
 
 
@@ -178,6 +181,8 @@ def _inject_active_tab():
 
 
 _GAMEBRAINS_ROOT = Path(__file__).resolve().parents[1]
+#: Games people made in the builder, one JSON file each. Local to this installation.
+_CUSTOM_GAMES_DIR = _GAMEBRAINS_ROOT / "custom_games"
 _RESULTS_DIR = _GAMEBRAINS_ROOT / "results"
 _REPO_ROOT = _GAMEBRAINS_ROOT / "repo_store"
 
@@ -1295,7 +1300,7 @@ def form():
         classic_strategies=_CLASSIC_STRATEGIES, metric_meta=_METRIC_META,
         metric_roadmap=_METRIC_ROADMAP, game_roadmap=_GAME_ROADMAP,
         game_choices=_GAME_CHOICES, reward_rules=_REWARD_RULE_CHOICES,
-        advanced_params=_ADVANCED_PARAMS,
+        advanced_params=_ADVANCED_PARAMS, custom_games=_custom_game_choices(),
     )
 
 
@@ -1448,7 +1453,7 @@ def _execute_single_run(f, roster_sink: Optional[list] = None) -> dict[str, Any]
     (`_run_batch`) can call it repeatedly with one form field swept, without duplicating the
     pipeline."""
     game_kind = f.get("game_kind", "public_goods")
-    if game_kind not in {key for key, _ in _GAME_CHOICES}:
+    if game_kind not in {key for key, _ in _GAME_CHOICES} and not game_kind.startswith("custom:"):
         return f"Unknown game {game_kind!r}.", 400
 
     rounds = int(f.get("rounds", 1500))
@@ -1499,6 +1504,10 @@ def _execute_single_run(f, roster_sink: Optional[list] = None) -> dict[str, Any]
     try:
         if game_kind == "public_goods":
             game = PublicGoodsGame(n_agents=n_agents, rounds=rounds, mpcr=mpcr)
+        elif game_kind.startswith("custom:"):
+            # A saved game is played as approved: its own parameters, this form's seats and length.
+            saved = _game_store().load(game_kind.split(":", 1)[1])
+            game = game_spec.build(saved, n_agents=n_agents, rounds=rounds)
         else:
             # Preset first, then any explicit override from the form, so the published
             # configurations stay one click away while every axis is still reachable.
@@ -2991,6 +3000,162 @@ def spacemap():
         n_cells=len(cells), n_valid=n_valid, n_covered=n_covered,
         n_missing=n_valid - n_covered, n_invalid=n_invalid, ran=ran,
     )
+
+
+# --- routes: the game builder -------------------------------------------------------------------
+#
+# A game made here is a JSON document over one of the built-in families (games/spec.py), so it
+# never runs code. The person adding it approves it, the same way for every game, and the approval
+# is a record of who, when and the hash of what was approved. Saved games appear in the Match tab.
+
+_BUILDER_STEPS = ("builder.step_family", "builder.step_actions", "builder.step_payoffs",
+                  "builder.step_horizon", "builder.step_check", "builder.step_approve")
+
+
+def _game_store() -> game_spec.GameStore:
+    return game_spec.GameStore(app.config.get("GAMEBRAINS_CUSTOM_GAMES", _CUSTOM_GAMES_DIR))
+
+
+def _custom_game_choices() -> list[tuple[str, str, str]]:
+    """(key, label, description) of every saved game that is approved for its definition."""
+    return [(f"custom:{g['slug']}", g["spec"]["name"], g["spec"].get("description", ""))
+            for g in _game_store().list() if not g["fault"]]
+
+
+def _num(f, name: str, cast=float):
+    raw = (f.get(name) or "").strip()
+    if not raw:
+        return None
+    try:
+        return cast(raw)
+    except ValueError:
+        raise game_spec.SpecError(name, f"must be a number, got {raw!r}") from None
+
+
+def _spec_from_form(f) -> dict[str, Any]:
+    """The builder's fields as a game document, before validation."""
+    family = f.get("game_family", "matrix_2x2")
+    params: dict[str, Any] = {}
+    if family == "matrix_2x2":
+        for k in ("T", "R", "P", "S"):
+            value = _num(f, f"payoff_{k}")
+            if value is not None:
+                params[k] = value
+        names = [(f.get("action_coop") or "").strip(), (f.get("action_defect") or "").strip()]
+        if any(names):
+            params["action_names"] = names
+    elif family == "public_goods":
+        for key, field in (("mpcr", "mpcr"), ("cost", "pg_cost")):
+            value = _num(f, field)
+            if value is not None:
+                params[key] = value
+        if f.get("pg_allow_non_dilemma") == "on":
+            params["allow_non_dilemma"] = True
+        at, value = _num(f, "schedule_round", int), _num(f, "schedule_mpcr")
+        if at is not None and value is not None:
+            params["mpcr_schedule"] = [[at, value]]
+    else:
+        params["preset"] = f.get("cong_preset") or "hjg"
+        for key, cast in (("num_positions", int), ("memory_episodes", int),
+                          ("episode_max_rounds", int), ("full_reward", float)):
+            value = _num(f, f"cong_{key}", cast)
+            if value is not None:
+                params[key] = value
+        rule = (f.get("cong_reward_rule") or "").strip()
+        if rule:
+            params["reward_rule"] = rule
+            params["collapse_at_full"] = f.get("cong_collapse_at_full") == "on"
+    return {"schema": game_spec.SCHEMA, "name": (f.get("game_name") or "").strip(),
+            "description": (f.get("game_description") or "").strip(), "family": family,
+            "rounds": _num(f, "rounds", int) or 100, "params": params}
+
+
+def _form_from_spec(spec: dict[str, Any]) -> dict[str, Any]:
+    """The builder's fields filled from a document, for an imported game."""
+    p = spec.get("params", {})
+    out = {"game_name": spec.get("name", ""), "game_description": spec.get("description", ""),
+           "game_family": spec.get("family", "matrix_2x2"), "rounds": spec.get("rounds", 100)}
+    if spec.get("family") == "matrix_2x2":
+        out.update({f"payoff_{k}": p.get(k) for k in ("T", "R", "P", "S")})
+        names = p.get("action_names") or ["", ""]
+        out.update({"action_coop": names[0], "action_defect": names[1]})
+    elif spec.get("family") == "public_goods":
+        out.update({"mpcr": p.get("mpcr"), "pg_cost": p.get("cost"),
+                    "pg_allow_non_dilemma": "on" if p.get("allow_non_dilemma") else ""})
+        if p.get("mpcr_schedule"):
+            out.update({"schedule_round": p["mpcr_schedule"][0][0],
+                        "schedule_mpcr": p["mpcr_schedule"][0][1]})
+    else:
+        out.update({"cong_preset": p.get("preset", "hjg")})
+        out.update({f"cong_{k}": p.get(k) for k in ("num_positions", "memory_episodes",
+                                                     "episode_max_rounds", "full_reward",
+                                                     "reward_rule")})
+        out["cong_collapse_at_full"] = "on" if p.get("collapse_at_full") else ""
+    return out
+
+
+_PD_START = {"game_family": "matrix_2x2", "payoff_T": 5, "payoff_R": 3, "payoff_P": 1,
+             "payoff_S": 0, "action_coop": "Cooperate", "action_defect": "Defect",
+             "rounds": 100}
+
+
+def _builder_page(values: dict[str, Any], step: int = 1, error: str = "",
+                  checks: Optional[list] = None, status: int = 200):
+    from ..games.congestion import PRESETS as CONGESTION_PRESETS
+    return render_template(
+        "game_builder.html", v=values, step=step, error=error, checks=checks,
+        steps=_BUILDER_STEPS, families=game_spec.FAMILIES,
+        congestion_presets=sorted(CONGESTION_PRESETS), reward_rules=_REWARD_RULE_CHOICES,
+    ), status
+
+
+@app.route("/games", methods=["GET"])
+def games_list():
+    return render_template("games.html", games=_game_store().list(),
+                           saved=request.args.get("saved", ""), spec_module=game_spec)
+
+
+@app.route("/games/new", methods=["GET", "POST"])
+def games_new():
+    if request.method == "GET":
+        return _builder_page(dict(_PD_START))
+    f = request.form
+    values = {k: f.get(k) for k in f.keys()}
+    try:
+        spec = game_spec.validate(_spec_from_form(f))
+    except game_spec.SpecError as exc:
+        return _builder_page(values, step=5, error=str(exc), status=400)
+    if f.get("action") == "save":
+        lang = i18n.normalise(request.args.get("lang") or request.cookies.get("lang"))
+        if f.get("approve_confirm") != "on" or not (f.get("approver") or "").strip():
+            return _builder_page(values, step=6, error=i18n.t("builder.need_approval", lang),
+                                 checks=game_spec.conformance(spec), status=400)
+        slug_ = _game_store().save(game_spec.approve(spec, f.get("approver")))
+        return redirect(url_for("games_list", saved=slug_))
+    return _builder_page(values, step=5, checks=game_spec.conformance(spec))
+
+
+@app.route("/games/import", methods=["POST"])
+def games_import():
+    upload = request.files.get("spec_file")
+    try:
+        raw = json.loads(upload.read().decode("utf-8")) if upload else None
+        spec = game_spec.validate(raw)
+    except (ValueError, UnicodeDecodeError) as exc:
+        return _builder_page(dict(_PD_START), step=1, error=str(exc), status=400)
+    # An approval that arrives in a file is somebody else's. Whoever adds the game here approves it.
+    return _builder_page(_form_from_spec(spec), step=5, checks=game_spec.conformance(spec))
+
+
+@app.route("/games/<slug_>.json", methods=["GET"])
+def games_download(slug_: str):
+    try:
+        spec = _game_store().load(slug_)
+    except game_spec.SpecError as exc:
+        return str(exc), 404
+    return app.response_class(json.dumps(spec, indent=2, ensure_ascii=False),
+                              mimetype="application/json",
+                              headers={"Content-Disposition": f"attachment; filename={slug_}.json"})
 
 
 if __name__ == "__main__":

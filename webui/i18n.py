@@ -313,6 +313,53 @@ T: dict[str, tuple[str, str]] = {
     "btn.import":     ("Εισαγωγή", "Import"),
     "btn.compare":    ("Σύγκρινε τα επιλεγμένα", "Compare selected"),
     "btn.run_missing": ("Τρέξε όσα λείπουν", "Run what is missing"),
+    # ---- game builder ----------------------------------------------------------------------
+    "nav.games":            ("Παιχνίδια", "Games"),
+    "h.games":              ("Τα παιχνίδια σου", "Your games"),
+    "h.game_builder":       ("Νέο παιχνίδι", "New game"),
+    "builder.step_family":  ("Οικογένεια", "Family"),
+    "builder.step_actions": ("Ενέργειες", "Actions"),
+    "builder.step_payoffs": ("Πληρωμές", "Payoffs"),
+    "builder.step_horizon": ("Γύροι", "Rounds"),
+    "builder.step_check":   ("Έλεγχος", "Check"),
+    "builder.step_approve": ("Έγκριση", "Approve"),
+    "builder.need_approval": ("Γράψε το όνομά σου και τσέκαρε την έγκριση για να αποθηκευτεί.",
+                              "Give your name and tick the approval to save the game."),
+    "builder.saved":        ("Αποθηκεύτηκε", "Saved"),
+    "builder.preview":      ("Ο πίνακας όπως θα παιχτεί", "The matrix as it will be played"),
+    "builder.col_name":     ("Όνομα", "Name"),
+    "builder.col_family":   ("Οικογένεια", "Family"),
+    "builder.col_players":  ("Παίκτες", "Players"),
+    "builder.col_approved": ("Εγκρίθηκε από", "Approved by"),
+    "builder.col_hash":     ("Αποτύπωμα", "Hash"),
+    "builder.status_plays":   ("παίζει", "plays"),
+    "builder.status_refuses": ("αρνείται", "refuses"),
+    "builder.status_not_run": ("δεν ελέγχθηκε εδώ", "not run here"),
+    "family.matrix_2x2":    ("Πίνακας 2x2, δύο παίκτες", "2x2 matrix, two players"),
+    "family.public_goods":  ("Δημόσιο αγαθό, n παίκτες", "Public goods, n players"),
+    "family.congestion":    ("Συμφόρηση, n παίκτες", "Congestion, n players"),
+    "field.game_name":      ("Όνομα παιχνιδιού", "Game name"),
+    "field.game_description": ("Περιγραφή", "Description"),
+    "field.game_family":    ("Οικογένεια παιχνιδιού", "Game family"),
+    "field.payoff_T":       ("T", "T"),
+    "field.payoff_R":       ("R", "R"),
+    "field.payoff_P":       ("P", "P"),
+    "field.payoff_S":       ("S", "S"),
+    "field.action_coop":    ("Όνομα της συνεργατικής ενέργειας", "Name of the cooperative action"),
+    "field.action_defect":  ("Όνομα της άλλης ενέργειας", "Name of the other action"),
+    "field.pg_cost":        ("Κόστος συνεισφοράς", "Cost of contributing"),
+    "field.pg_allow_non_dilemma": ("Επιτρέπεται απόδοση πάνω από 1", "Allow a return above 1"),
+    "field.schedule_round": ("Γύρος αλλαγής", "Round of the change"),
+    "field.schedule_mpcr":  ("Νέο MPCR", "New MPCR"),
+    "field.cong_preset":    ("Έτοιμη ρύθμιση", "Preset"),
+    "field.approver":       ("Το όνομά σου", "Your name"),
+    "field.approve_confirm": ("Εγκρίνω αυτό το παιχνίδι", "I approve this game"),
+    "field.spec_file":      ("Αρχείο JSON", "JSON file"),
+    "btn.new_game":         ("Νέο παιχνίδι", "New game"),
+    "btn.check_game":       ("Έλεγξε το παιχνίδι", "Check the game"),
+    "btn.save_game":        ("Έγκρινε και αποθήκευσε", "Approve and save"),
+    "btn.import_game":      ("Φόρτωσε παιχνίδι από αρχείο", "Load a game from a file"),
+    "btn.download":         ("Κατέβασε το JSON", "Download the JSON"),
 }
 
 #: Filled from `T` itself: a label whose two halves are identical is a name, not a translation.
@@ -1262,6 +1309,62 @@ H: dict[str, tuple[str, str]] = {
         "At the end of evolution it takes the best circuit and has it play one match against "
         "the other architectures, all frozen. That shows whether what evolved also holds up "
         "outside the world it evolved in, which is the real question."),
+    # ---- game builder ----------------------------------------------------------------------
+    "field.game_name": (
+        "Ένα όνομα που να λέει στον αναγνώστη τι παιχνίδι είναι, γιατί με αυτό θα εμφανίζεται στην "
+        "Παρτίδα.",
+        "A name that tells a reader what the game is, since this is how it appears in the Match "
+        "tab."),
+    "field.game_description": (
+        "Μία ή δύο προτάσεις για το τι ζητά το παιχνίδι από τους παίκτες του.",
+        "One or two sentences on what the game asks of its players."),
+    "field.game_family": (
+        "Η οικογένεια ορίζει τον μηχανισμό του παιχνιδιού, και οι επόμενες σελίδες ρωτούν μόνο "
+        "τις παραμέτρους της.",
+        "The family fixes how the game works, and the next pages ask only for its parameters."),
+    "field.payoff_T": (
+        "Τι παίρνεις όταν διαλέγεις την άλλη ενέργεια ενώ ο αντίπαλος συνεργάζεται.",
+        "What you get for the other action while your opponent cooperates."),
+    "field.payoff_R": (
+        "Τι παίρνει ο καθένας όταν συνεργάζονται και οι δύο.",
+        "What each player gets when both cooperate."),
+    "field.payoff_P": (
+        "Τι παίρνει ο καθένας όταν κανείς από τους δύο δεν συνεργάζεται.",
+        "What each player gets when neither cooperates."),
+    "field.payoff_S": (
+        "Τι παίρνεις όταν συνεργάζεσαι ενώ ο αντίπαλος δεν συνεργάζεται.",
+        "What you get for cooperating while your opponent does not."),
+    "field.action_coop": (
+        "Το όνομα της ενέργειας που συνεργάζεται, όπως θα το δουν οι παίκτες και το γλωσσικό "
+        "μοντέλο.",
+        "The cooperative action's name, as players and the language model will see it."),
+    "field.action_defect": (
+        "Το όνομα της άλλης ενέργειας, όπως θα το δουν οι παίκτες και το γλωσσικό μοντέλο.",
+        "The other action's name, as players and the language model will see it."),
+    "field.pg_cost": (
+        "Πόσο κοστίζει στον παίκτη μία συνεισφορά στο κοινό ταμείο.",
+        "How much one contribution to the common pool costs the player."),
+    "field.pg_allow_non_dilemma": (
+        "Επιτρέπει απόδοση στο κοινό ταμείο τόσο μεγάλη που η συνεισφορά παύει να είναι δίλημμα.",
+        "Allows a return on the pool high enough that contributing stops being a dilemma."),
+    "field.schedule_round": (
+        "Από ποιον γύρο ισχύει το νέο MPCR. Άσε το κενό αν η απόδοση δεν αλλάζει.",
+        "The round from which the new MPCR applies. Leave it empty if the return never changes."),
+    "field.schedule_mpcr": (
+        "Η απόδοση του κοινού ταμείου από τον γύρο αλλαγής και μετά.",
+        "The pool's return from the round of the change onwards."),
+    "field.cong_preset": (
+        "Η δημοσιευμένη ρύθμιση από την οποία ξεκινά το παιχνίδι, πριν από τις αλλαγές σου.",
+        "The published configuration the game starts from, before your changes."),
+    "field.approver": (
+        "Το όνομα που καταγράφεται ως εγκρίνων, μαζί με την ώρα και το αποτύπωμα του παιχνιδιού.",
+        "The name recorded as approving, together with the time and the game's hash."),
+    "field.approve_confirm": (
+        "Εγκρίνεις τον ορισμό όπως φαίνεται εδώ. Αν αλλάξει αργότερα, θέλει νέα έγκριση.",
+        "You approve the definition as shown here. If it changes later, it needs approving again."),
+    "field.spec_file": (
+        "Ένα αρχείο JSON παιχνιδιού, που ελέγχεται πριν εμφανιστεί και δεν εκτελεί ποτέ κώδικα.",
+        "A game's JSON file, which is checked before it is shown and never runs code."),
 }
 
 
@@ -1715,6 +1818,41 @@ N: dict[str, tuple[str, str]] = {
         "λεπτομέρειές του.",
         "Each row is a separate, fully recorded run: the same base configuration with a single "
         "field changed. Open any of them from the Analytics page to see its detail."),
+    # ---- game builder ----------------------------------------------------------------------
+    "note.games_intro": (
+        "Παιχνίδια που φτιάχτηκαν εδώ. Το καθένα είναι ένα αρχείο JSON πάνω σε μία από τις "
+        "οικογένειες της πλατφόρμας, οπότε δεν εκτελεί κώδικα και μοιράζεται όπως είναι.",
+        "Games made here. Each is a JSON file over one of the platform's families, so it runs no "
+        "code and can be shared as it is."),
+    "note.games_empty": (
+        "Δεν υπάρχει ακόμα αποθηκευμένο παιχνίδι.",
+        "No game has been saved yet."),
+    "note.games_in_match": (
+        "Κάθε εγκεκριμένο παιχνίδι εμφανίζεται στην επιλογή παιχνιδιού της Παρτίδας.",
+        "Every approved game appears in the game selector of the Match tab."),
+    "note.builder_intro": (
+        "Έξι βήματα: οικογένεια, ενέργειες, πληρωμές, γύροι, έλεγχος με κάθε είδος πράκτορα, και "
+        "η έγκρισή σου.",
+        "Six steps: family, actions, payoffs, rounds, a check with every kind of agent, and your "
+        "approval."),
+    "note.builder_actions_fixed": (
+        "Σε αυτή την οικογένεια οι δύο ενέργειες είναι ορισμένες: συνεισφέρεις ή όχι στο δημόσιο "
+        "αγαθό, μένεις ή προχωράς στη συμφόρηση.",
+        "In this family the two actions are fixed: contribute or not in the public good, stay or "
+        "move in congestion."),
+    "note.builder_observation": (
+        "Ο κάθε παίκτης βλέπει ό,τι δημοσιεύει η οικογένεια: πόσοι συνεργάστηκαν στον "
+        "προηγούμενο γύρο, ή στη συμφόρηση τη θέση όλων.",
+        "Each player sees what the family publishes: how many cooperated in the previous round, "
+        "or in congestion where everyone stands."),
+    "note.builder_check": (
+        "Κάθε είδος πράκτορα παίζει ένα σύντομο παιχνίδι. Όσα δεν μπορούν, γράφουν τον λόγο.",
+        "Each kind of agent plays a short match. Those that cannot say why."),
+    "note.builder_approve": (
+        "Η έγκριση καταγράφει το όνομά σου, την ώρα και το αποτύπωμα του ορισμού, και τίποτα "
+        "άλλο.",
+        "The approval records your name, the time and the hash of the definition, and nothing "
+        "else."),
 }
 
 

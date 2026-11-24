@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-game"/></svg>{{ t('h.games') }}</h2>
+  <p class="meta">{{ n('note.games_intro') }}</p>
+  {% if saved %}<p class="badge ok">{{ t('builder.saved') }}: {{ saved }}</p>{% endif %}
+  <p><a class="btn" href="/games/new">{{ t('btn.new_game') }}</a></p>
+
+  {% if games %}
+  <table>
+    <tr><th>{{ t('builder.col_name') }}</th><th>{{ t('builder.col_family') }}</th>
+        <th>{{ t('builder.col_players') }}</th><th>{{ t('builder.col_approved') }}</th>
+        <th>{{ t('builder.col_hash') }}</th><th></th></tr>
+    {% for g in games %}
+    <tr>
+      <td><strong>{{ g.spec.name or g.slug }}</strong>
+        {% if g.spec.description %}<br><span class="meta">{{ g.spec.description }}</span>{% endif %}</td>
+      <td>{{ t('family.' ~ g.spec.family) if g.spec.family else '' }}</td>
+      <td>{{ spec_module.players(g.spec) if not g.fault else '' }}</td>
+      <td>{% if g.spec.approval %}{{ g.spec.approval.by }}<br><span class="meta">{{ g.spec.approval.at }}</span>{% endif %}</td>
+      <td><code>{{ (g.spec.approval.hash if g.spec.approval else '')[7:19] }}</code></td>
+      <td>
+        {% if g.fault %}<span class="badge todo">{{ g.fault }}</span>
+        {% else %}<a href="/games/{{ g.slug }}.json">{{ t('btn.download') }}</a>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="meta">{{ n('note.games_in_match') }}</p>
+  {% else %}
+  <p class="meta">{{ n('note.games_empty') }}</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>{{ t('btn.import_game') }}</h2>
+  <form action="/games/import" method="post" enctype="multipart/form-data">
+    <label>{{ t('field.spec_file') }}{{ info('field.spec_file') }}</label>
+    <input type="file" name="spec_file" accept=".json,application/json">
+    <button type="submit" class="secondary">{{ t('btn.import_game') }}</button>
+  </form>
+</div>
+
+{% endblock %}

@@ -11,6 +11,34 @@ misinterpretation that quietly corrupts a whole experiment.
 
 Writing an agent instead? See `adding-an-agent.md`, which is the counterpart to this one.
 
+## 0. A game without code
+
+If your game is a member of a family the platform already has, you do not need this guide at all.
+Open **Games → New game** in the web interface, or write a JSON document like
+`docs/examples/pd.game.json` and load it there:
+
+```json
+{
+  "schema": "gamebrains.game/1",
+  "name": "Prisoner's Dilemma 5/3/1/0",
+  "description": "The textbook payoffs.",
+  "family": "matrix_2x2",
+  "rounds": 100,
+  "params": {"T": 5, "R": 3, "P": 1, "S": 0, "action_names": ["Cooperate", "Defect"]}
+}
+```
+
+The families are `matrix_2x2` (T, R, P, S and the two action names; two players), `public_goods`
+(mpcr, cost, allow_non_dilemma, mpcr_schedule) and `congestion` (a preset and any of its axes).
+`games/spec.py` holds the rules. A document only picks a family and sets parameters, so it never
+runs code. An unknown key is refused, and the family's own constructor checks every value.
+
+The builder takes six steps: family, actions, payoffs, rounds, a check, and your approval. The
+check plays a short match with every agent kind and lists the ones that play your game and, for
+the others, the reason each gives. Your approval records your name, the time and the hash of the
+definition. A saved game appears in the Match tab, and one whose definition changes afterwards
+needs approving again before it can be played.
+
 ## 1. The interface
 
 ```python

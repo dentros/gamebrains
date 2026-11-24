@@ -1,0 +1,8 @@
+{
+  "schema": "gamebrains.game/1",
+  "name": "Prisoner's Dilemma 5/3/1/0",
+  "description": "The textbook payoffs: defecting against a cooperator pays 5, mutual cooperation 3, mutual defection 1, cooperating against a defector 0.",
+  "family": "matrix_2x2",
+  "rounds": 100,
+  "params": {"T": 5, "R": 3, "P": 1, "S": 0, "action_names": ["Cooperate", "Defect"]}
+}

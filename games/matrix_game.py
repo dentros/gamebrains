@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import math
 import numbers
-from typing import Any
+from typing import Any, Optional, Sequence
 
 from ..engine.game import Game, StepResult
 
@@ -42,9 +42,17 @@ class MatrixGame(Game):
                     "cooperate": COOPERATE, "defect": DEFECT}
 
     def __init__(self, T: float, R: float, P: float, S: float, rounds: int = 100,
-                 n_agents: int = 2) -> None:
+                 n_agents: int = 2, action_names: Optional[Sequence[str]] = None) -> None:
         if n_agents != 2:
             raise ValueError(f"MatrixGame is a two-player game, got n_agents={n_agents}")
+        if action_names is not None:
+            names = [str(a).strip() for a in action_names]
+            if len(names) != 2 or not all(names) or names[0] == names[1] \
+                    or any(len(a) > 40 for a in names):
+                raise ValueError(f"action_names must be two different non-empty names of at most "
+                                 f"40 characters, the cooperative one first, got {action_names!r}")
+            # An instance attribute, so describe() and the language-model prompts use these.
+            self.action_names = names
         for label, value in (("T", T), ("R", R), ("P", P), ("S", S)):
             if isinstance(value, bool) or not isinstance(value, numbers.Real) \
                     or not math.isfinite(float(value)):

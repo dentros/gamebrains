@@ -64,6 +64,9 @@
           <option value="{{ key }}" data-help="{{ game_help(key) }}"
                   {% if loop.first %} selected{% endif %}>{{ label }}</option>
           {% endfor %}
+          {% for key, label, desc in custom_games %}
+          <option value="{{ key }}" data-help="{{ desc }}">{{ label }}</option>
+          {% endfor %}
           {% for g in game_roadmap %}<option disabled>{{ g }}</option>{% endfor %}
         </select>
         {# Each option carries its own explanation, so adding a game adds its description with
@@ -439,9 +442,10 @@ function addRow(prefillKind) {
 function toggleCongestionFields() {
   var kind = document.querySelector('select[name=game_kind]').value;
   var isCongestion = kind.indexOf('congestion:') === 0;
+  var isSaved = kind.indexOf('custom:') === 0;   // a saved game carries its own parameters
   document.getElementById('congestion-fields').style.display = isCongestion ? '' : 'none';
   var mpcr = document.querySelector('input[name=mpcr]');
-  if (mpcr) mpcr.closest('div').style.display = isCongestion ? 'none' : '';
+  if (mpcr) mpcr.closest('div').style.display = (isCongestion || isSaved) ? 'none' : '';
 }
 document.addEventListener('DOMContentLoaded', () => {
   toggleCongestionFields();

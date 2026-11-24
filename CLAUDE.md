@@ -1469,6 +1469,30 @@ the two. `run_with_repair` takes `parse` and `repair` for this; their defaults a
 so every existing call is unchanged. A pd profile in a game that is not a two-player matrix game is
 refused. `tests/test_matrix_game.py` (9 cases).
 
+## 9t. Games as data, and a builder that makes them (2026-11-23)
+
+**`games/spec.py`.** A game can be a JSON document (`schema: gamebrains.game/1`) that picks one of
+three families, `matrix_2x2`, `public_goods` or `congestion`, and sets the parameters that family
+declares. Nothing in a document is executed. `validate` checks the shape, refuses any unknown key
+(the factory's reason: a setting accepted and dropped is recorded as used), and then builds the
+game once so the family's constructor has the last word on values. `spec_hash` is a sha256 of the
+canonical definition. `approve(spec, by)` adds `approval: {by, at, hash}`; `is_approved` holds only
+while the hash matches the definition, so an edited document must be approved again. That is the
+platform's one way of accepting a game, it is a record only, and nothing is derived from it.
+`GameStore` keeps one file per game (`custom_games/`, git-ignored) and lists a faulty file with its
+fault instead of offering it. `conformance` plays a short match with every kind beside AllC
+partners, plus one mixed roster where the family takes more than two, and returns which kinds play
+and the reason each of the others gives. `MatrixGame` took optional `action_names` for this.
+
+**Webui.** A Games tab under Run (`/games`, `/games/new`, `/games/import`, `/games/<slug>.json`).
+The wizard has six steps on the Match tab's `fw-step` pattern: family and name, actions, payoffs
+(with the 2x2 matrix drawn live), rounds, the check, and the approval (a name and a tick). An
+imported file is validated and opened at the check, and its approval is dropped. Approved games
+appear in the Match tab's selector as `custom:<slug>` and play with that form's seats and length.
+Every new field has help in both languages, so `test_i18n` covers them.
+`tests/test_game_spec.py` (7 cases), which makes the Prisoner's Dilemma in the wizard, saves it and
+plays it in a match. `docs/adding-a-game.md` §0 and `docs/examples/pd.game.json`.
+
 ## 10. References
 
 - Albantakis et al. — Integrated Information Theory, Φ, autonomy in animats; `PyPhi` (see

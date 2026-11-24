@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="panel">
+  <h2><svg class="glyph"><use href="#glyph-game"/></svg>{{ t('h.game_builder') }}</h2>
+  <p class="meta">{{ n('note.builder_intro') }}</p>
+  {% if error %}<p class="badge todo" id="builder-error">{{ error }}</p>{% endif %}
+</div>
+
+<nav class="fw-tabs">
+  {% for key in steps %}{% set k = loop.index %}
+  <button type="button" class="fw-tab{% if k == step %} active{% elif k < step %} done{% endif %}"
+          data-step="{{ k }}" onclick="builderGoto({{ k }})">
+    <span class="fw-num">{{ k }}</span>{{ t(key) }}
+  </button>
+  {% endfor %}
+</nav>
+
+<form action="/games/new" method="post" id="builderform">
+
+  <div class="panel fw-step" data-fwstep="1">
+    <h2>{{ t('builder.step_family') }}</h2>
+    <div class="grid">
+      <div>
+        <label>{{ t('field.game_name') }}{{ info('field.game_name') }}</label>
+        <input type="text" name="game_name" maxlength="80" value="{{ v.game_name or '' }}">
+      </div>
+      <div>
+        <label>{{ t('field.game_family') }}{{ info('field.game_family') }}</label>
+        <select name="game_family" onchange="builderFamily()">
+          {% for fam in families %}
+          <option value="{{ fam }}"{% if (v.game_family or 'matrix_2x2') == fam %} selected{% endif %}>{{ t('family.' ~ fam) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <label>{{ t('field.game_description') }}{{ info('field.game_description') }}</label>
+    <textarea name="game_description" rows="2" maxlength="600">{{ v.game_description or '' }}</textarea>
+    <div class="fw-nav"><span></span>
+      <button type="button" class="btn" onclick="builderGoto(2)">{{ t('btn.next') }} &rarr;</button></div>
+  </div>
+
+  <div class="panel fw-step" data-fwstep="2">
+    <h2>{{ t('builder.step_actions') }}</h2>
+    <div class="fam fam-matrix_2x2 grid">
+      <div>
+        <label>{{ t('field.action_coop') }}{{ info('field.action_coop') }}</label>
+        <input type="text" name="action_coop" maxlength="40" value="{{ v.action_coop or '' }}" oninput="builderMatrix()">
+      </div>
+      <div>
+        <label>{{ t('field.action_defect') }}{{ info('field.action_defect') }}</label>
+        <input type="text" name="action_defect" maxlength="40" value="{{ v.action_defect or '' }}" oninput="builderMatrix()">
+      </div>
+    </div>
+    <p class="meta fam fam-public_goods fam-congestion">{{ n('note.builder_actions_fixed') }}</p>
+    <div class="fw-nav">
+      <button type="button" class="secondary" onclick="builderGoto(1)">&larr; {{ t('btn.back') }}</button>
+      <button type="button" class="btn" onclick="builderGoto(3)">{{ t('btn.next') }} &rarr;</button></div>
+  </div>
+
+  <div class="panel fw-step" data-fwstep="3">
+    <h2>{{ t('builder.step_payoffs') }}</h2>
+    <div class="fam fam-matrix_2x2">
+      <div class="grid">
+        {% for k in ('T', 'R', 'P', 'S') %}
+        <div>
+          <label>{{ t('field.payoff_' ~ k) }}{{ info('field.payoff_' ~ k) }}</label>
+          <input type="number" step="any" name="payoff_{{ k }}" value="{{ v['payoff_' ~ k] if v['payoff_' ~ k] is not none else '' }}" oninput="builderMatrix()">
+        </div>
+        {% endfor %}
+      </div>
+      <p class="meta">{{ t('builder.preview') }}</p>
+      <table id="matrix-preview"></table>
+    </div>
+    <div class="fam fam-public_goods grid">
+      <div><label>{{ t('field.mpcr') }}{{ info('field.mpcr') }}</label>
+        <input type="number" step="any" name="mpcr" value="{{ v.mpcr or '' }}" placeholder="0.5"></div>
+      <div><label>{{ t('field.pg_cost') }}{{ info('field.pg_cost') }}</label>
+        <input type="number" step="any" name="pg_cost" value="{{ v.pg_cost or '' }}" placeholder="1"></div>
+      <div><label>{{ t('field.schedule_round') }}{{ info('field.schedule_round') }}</label>
+        <input type="number" name="schedule_round" min="2" value="{{ v.schedule_round or '' }}"></div>
+      <div><label>{{ t('field.schedule_mpcr') }}{{ info('field.schedule_mpcr') }}</label>
+        <input type="number" step="any" name="schedule_mpcr" value="{{ v.schedule_mpcr or '' }}"></div>
+      <div><label><input type="checkbox" name="pg_allow_non_dilemma"{% if v.pg_allow_non_dilemma == 'on' %} checked{% endif %}>
+        {{ t('field.pg_allow_non_dilemma') }}{{ info('field.pg_allow_non_dilemma') }}</label></div>
+    </div>
+    <div class="fam fam-congestion grid">
+      <div><label>{{ t('field.cong_preset') }}{{ info('field.cong_preset') }}</label>
+        <select name="cong_preset">{% for p in congestion_presets %}
+          <option value="{{ p }}"{% if v.cong_preset == p %} selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+      {% for key in ('num_positions', 'memory_episodes', 'episode_max_rounds', 'full_reward') %}
+      <div><label>{{ t('field.cong_' ~ key) }}{{ info('field.cong_' ~ key) }}</label>
+        <input type="number" step="any" name="cong_{{ key }}" value="{{ v['cong_' ~ key] if v['cong_' ~ key] is not none else '' }}" placeholder="preset"></div>
+      {% endfor %}
+      <div><label>{{ t('field.cong_reward_rule') }}{{ info('field.cong_reward_rule') }}</label>
+        <select name="cong_reward_rule">{% for key, label in reward_rules %}
+          <option value="{{ key }}"{% if v.cong_reward_rule == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div><label><input type="checkbox" name="cong_collapse_at_full"{% if v.cong_collapse_at_full == 'on' %} checked{% endif %}>
+        {{ t('field.cong_collapse_at_full') }}{{ info('field.cong_collapse_at_full') }}</label></div>
+    </div>
+    <div class="fw-nav">
+      <button type="button" class="secondary" onclick="builderGoto(2)">&larr; {{ t('btn.back') }}</button>
+      <button type="button" class="btn" onclick="builderGoto(4)">{{ t('btn.next') }} &rarr;</button></div>
+  </div>
+
+  <div class="panel fw-step" data-fwstep="4">
+    <h2>{{ t('builder.step_horizon') }}</h2>
+    <label>{{ t('field.rounds') }}{{ info('field.rounds') }}</label>
+    <input type="number" name="rounds" min="1" value="{{ v.rounds or 100 }}">
+    <p class="meta">{{ n('note.builder_observation') }}</p>
+    <div class="fw-nav">
+      <button type="button" class="secondary" onclick="builderGoto(3)">&larr; {{ t('btn.back') }}</button>
+      <button type="submit" class="btn" name="action" value="check">{{ t('btn.check_game') }} &rarr;</button></div>
+  </div>
+
+  <div class="panel fw-step" data-fwstep="5">
+    <h2>{{ t('builder.step_check') }}</h2>
+    <p class="meta">{{ n('note.builder_check') }}</p>
+    {% if checks %}
+    <table>
+      {% for c in checks %}
+      <tr><td>{{ c.kind }}</td>
+          <td><span class="badge {{ 'ok' if c.status == 'plays' else 'todo' }}">{{ t('builder.status_' ~ c.status.replace(' ', '_')) }}</span></td>
+          <td class="meta">{{ c.detail }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    <div class="fw-nav">
+      <button type="submit" class="secondary" name="action" value="check">{{ t('btn.check_game') }}</button>
+      <button type="button" class="btn" onclick="builderGoto(6)">{{ t('btn.next') }} &rarr;</button></div>
+  </div>
+
+  <div class="panel fw-step" data-fwstep="6">
+    <h2>{{ t('builder.step_approve') }}</h2>
+    <p class="meta">{{ n('note.builder_approve') }}</p>
+    <label>{{ t('field.approver') }}{{ info('field.approver') }}</label>
+    <input type="text" name="approver" maxlength="80" value="{{ v.approver or '' }}">
+    <label><input type="checkbox" name="approve_confirm"> {{ t('field.approve_confirm') }}{{ info('field.approve_confirm') }}</label>
+    <div class="fw-nav">
+      <button type="button" class="secondary" onclick="builderGoto(5)">&larr; {{ t('btn.back') }}</button>
+      <button type="submit" class="btn" name="action" value="save">{{ t('btn.save_game') }}</button></div>
+  </div>
+</form>
+
+<script>
+function builderGoto(n) {
+  document.querySelectorAll('.panel.fw-step').forEach(el => {
+    el.style.display = (parseInt(el.dataset.fwstep, 10) === n) ? '' : 'none';
+  });
+  document.querySelectorAll('.fw-tab').forEach(el => {
+    const step = parseInt(el.dataset.step, 10);
+    el.classList.toggle('active', step === n);
+    el.classList.toggle('done', step < n);
+  });
+}
+function builderFamily() {
+  const fam = document.querySelector('select[name=game_family]').value;
+  document.querySelectorAll('.fam').forEach(el => {
+    el.style.display = el.classList.contains('fam-' + fam) ? '' : 'none';
+  });
+  builderMatrix();
+}
+function builderMatrix() {
+  const table = document.getElementById('matrix-preview');
+  if (!table) return;
+  const val = k => document.querySelector('input[name=payoff_' + k + ']').value || '?';
+  const c = document.querySelector('input[name=action_coop]').value || 'C';
+  const d = document.querySelector('input[name=action_defect]').value || 'D';
+  const T = val('T'), R = val('R'), P = val('P'), S = val('S');
+  const esc = s => String(s).replace(/[&<>"]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[ch]));
+  table.innerHTML =
+    '<tr><th></th><th>' + esc(c) + '</th><th>' + esc(d) + '</th></tr>' +
+    '<tr><th>' + esc(c) + '</th><td>' + esc(R) + ', ' + esc(R) + '</td><td>' + esc(S) + ', ' + esc(T) + '</td></tr>' +
+    '<tr><th>' + esc(d) + '</th><td>' + esc(T) + ', ' + esc(S) + '</td><td>' + esc(P) + ', ' + esc(P) + '</td></tr>';
+}
+document.addEventListener('DOMContentLoaded', () => { builderFamily(); builderGoto({{ step }}); });
+</script>
+
+{% endblock %}

@@ -22,3 +22,6 @@ repo_store/
 # OS cruft
 .DS_Store
 Thumbs.db
+
+# Games made in the builder: local to each installation, shared as their JSON files.
+custom_games/

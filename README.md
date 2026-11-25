@@ -10,8 +10,8 @@ common interface.
 Matches run either **across different architectures**, which is what the platform is for, or
 **across identical ones**, when a single architecture is being studied on its own.
 
-See `CLAUDE.md` for the full internal design brief (architecture rationale, reuse map from the
-author's prior alternation-metrics project, per-phase build notes).
+Design notes for contributors are in `docs/`: adding a game, adding an agent, and the repository
+schema.
 
 ## Author
 

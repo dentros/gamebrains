@@ -25,3 +25,6 @@ Thumbs.db
 
 # Games made in the builder: local to each installation, shared as their JSON files.
 custom_games/
+
+# Local working notes, not part of the source
+CLAUDE.md

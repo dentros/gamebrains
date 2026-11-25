@@ -22,3 +22,6 @@ repo_store/
 # OS cruft
 .DS_Store
 Thumbs.db
+
+# Local working notes, not part of the source
+CLAUDE.md
